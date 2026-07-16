@@ -1,0 +1,523 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use App\Models\UserProfile;
+use App\Models\Trainer;
+use App\Models\WorkoutRoutine;
+use App\Models\MealPlan;
+use App\Models\WorkoutSession;
+use App\Models\BodyMeasurement;
+use App\Models\UserMealPlan;
+use App\Models\UserAssignedRoutine;
+use App\Models\Exercise;
+use App\Models\RoutineDay;
+use App\Models\RoutineExercise;
+
+class AdminController extends Controller
+{
+    /**
+     * Dashboard view.
+     */
+    public function dashboard()
+    {
+        $totalClients = User::where('role', 'member')->count();
+        $activeClientsToday = WorkoutSession::whereDate('session_date', Carbon::today())->count();
+        $totalRoutines = WorkoutRoutine::where('is_active', 1)->count();
+        $totalMealPlans = MealPlan::where('is_active', 1)->count();
+
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $endOfWeek = Carbon::now()->endOfWeek();
+
+        $sessionsByDay = WorkoutSession::whereBetween('session_date', [$startOfWeek, $endOfWeek])
+            ->selectRaw('DAYOFWEEK(session_date) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->toArray();
+
+        $daysMap = [2, 3, 4, 5, 6, 7, 1]; 
+        $attendanceData = [];
+        foreach ($daysMap as $dayNum) {
+            $attendanceData[] = $sessionsByDay[$dayNum] ?? 0;
+        }
+
+        $maxVal = max($attendanceData) ?: 1;
+        $xCoords = [30, 120, 210, 300, 390, 480, 570];
+        $linePoints = [];
+        $polygonPoints = ["30,200"];
+
+        foreach ($attendanceData as $index => $count) {
+            $x = $xCoords[$index];
+            $y = 180 - (($count / $maxVal) * 145);
+            $linePoints[] = "$x,$y";
+            $polygonPoints[] = "$x,$y";
+        }
+        $polygonPoints[] = "570,200";
+
+        $chartLinePoints = implode(' ', $linePoints);
+        $chartPolygonPoints = implode(' ', $polygonPoints);
+
+        $recentClients = User::where('role', 'member')
+            ->with(['profile', 'latestMeasurement', 'activeRoutine.routine'])
+            ->orderBy('id', 'desc')
+            ->take(3)
+            ->get();
+
+        return view('dashboard', compact(
+            'totalClients',
+            'activeClientsToday',
+            'totalRoutines',
+            'totalMealPlans',
+            'attendanceData',
+            'chartLinePoints',
+            'chartPolygonPoints',
+            'recentClients'
+        ));
+    }
+
+    /**
+     * Mis Clientes directory.
+     */
+    public function clientes()
+    {
+        $clientes = User::where('role', 'member')
+            ->with(['profile', 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan'])
+            ->get();
+
+        return view('clientes', compact('clientes'));
+    }
+
+    /**
+     * View specific client profile.
+     */
+    public function showCliente($id)
+    {
+        $cliente = User::where('role', 'member')
+            ->with(['profile', 'bodyMeasurements' => function($q) {
+                $q->orderBy('measured_at', 'asc');
+            }, 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan'])
+            ->findOrFail($id);
+
+        // Format weight history chart
+        $measurements = $cliente->bodyMeasurements;
+        $weightPoints = "";
+        $weightPolygonPoints = "";
+        $weightDates = [];
+        $weightValues = [];
+
+        if ($measurements->count() > 0) {
+            $minWeight = $measurements->min('weight_kg') - 2;
+            $maxWeight = $measurements->max('weight_kg') + 2;
+            $weightRange = $maxWeight - $minWeight ?: 1;
+            
+            $xStep = $measurements->count() > 1 ? (540 / ($measurements->count() - 1)) : 540;
+            $pts = [];
+            $polyPts = ["30,200"];
+            
+            foreach ($measurements as $index => $m) {
+                $x = 30 + ($index * $xStep);
+                $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
+                $pts[] = "$x,$y";
+                $polyPts[] = "$x,$y";
+                $weightDates[] = Carbon::parse($m->measured_at)->format('d/m');
+                $weightValues[] = $m->weight_kg;
+            }
+            $polyPts[] = "570,200";
+            
+            $weightPoints = implode(' ', $pts);
+            $weightPolygonPoints = implode(' ', $polyPts);
+        }
+
+        // Fetch routines & meal plans for assignment modals
+        $routines = WorkoutRoutine::where('is_active', 1)->get();
+        $mealPlans = MealPlan::where('is_active', 1)->get();
+
+        return view('clientes.show', compact(
+            'cliente',
+            'weightPoints',
+            'weightPolygonPoints',
+            'weightDates',
+            'weightValues',
+            'routines',
+            'mealPlans'
+        ));
+    }
+
+    /**
+     * Create client form.
+     */
+    public function crearCliente()
+    {
+        return view('clientes.crear');
+    }
+
+    /**
+     * Store new client.
+     */
+    public function storeCliente(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6',
+            'first_name' => 'required|string|max:80',
+            'last_name' => 'required|string|max:80',
+            'phone' => 'nullable|string|max:20',
+            'birth_date' => 'nullable|date',
+            'gender' => 'required|in:male,female,other',
+            'weight_kg' => 'required|numeric|min:30|max:300',
+            'height_cm' => 'required|numeric|min:100|max:250',
+            'profile_photo' => 'nullable|url',
+        ]);
+
+        // Create User
+        $user = User::create([
+            'email' => $request->email,
+            'password_hash' => Hash::make($request->password),
+            'role' => 'member',
+            'is_active' => 1,
+            'email_verified' => 0,
+        ]);
+
+        // Create UserProfile
+        UserProfile::create([
+            'user_id' => $user->id,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'phone' => $request->phone,
+            'birth_date' => $request->birth_date,
+            'gender' => $request->gender,
+            'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
+            'gym_id' => 1,
+        ]);
+
+        // Calculate BMI
+        $heightM = $request->height_cm / 100;
+        $bmi = round($request->weight_kg / ($heightM * $heightM), 2);
+        
+        $bmiCategory = 'normal';
+        if ($bmi < 18.5) $bmiCategory = 'underweight';
+        elseif ($bmi >= 25 && $bmi < 30) $bmiCategory = 'overweight';
+        elseif ($bmi >= 30) $bmiCategory = 'obese';
+
+        // Create initial measurement
+        BodyMeasurement::create([
+            'user_id' => $user->id,
+            'weight_kg' => $request->weight_kg,
+            'height_cm' => $request->height_cm,
+            'bmi' => $bmi,
+            'bmi_category' => $bmiCategory,
+            'measured_at' => Carbon::now(),
+        ]);
+
+        return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+    }
+
+    /**
+     * Assign Workout Routine to client.
+     */
+    public function assignRoutine(Request $request, $id)
+    {
+        $request->validate([
+            'routine_id' => 'required|exists:workout_routines,id',
+            'start_date' => 'required|date',
+        ]);
+
+        // Deactivate existing assignments
+        UserAssignedRoutine::where('user_id', $id)->update(['is_active' => 0]);
+
+        // Create assignment
+        UserAssignedRoutine::create([
+            'user_id' => $id,
+            'routine_id' => $request->routine_id,
+            'assigned_by' => 1, // Assume trainer id = 1
+            'start_date' => $request->start_date,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->back()->with('success', 'Rutina asignada exitosamente.');
+    }
+
+    /**
+     * Assign Meal Plan to client.
+     */
+    public function assignMealPlan(Request $request, $id)
+    {
+        $request->validate([
+            'meal_plan_id' => 'required|exists:meal_plans,id',
+            'start_date' => 'required|date',
+        ]);
+
+        // Deactivate existing assignments
+        UserMealPlan::where('user_id', $id)->update(['is_active' => 0]);
+
+        // Create assignment
+        UserMealPlan::create([
+            'user_id' => $id,
+            'meal_plan_id' => $request->meal_plan_id,
+            'assigned_by' => 1,
+            'start_date' => $request->start_date,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->back()->with('success', 'Plan de nutrición asignado exitosamente.');
+    }
+
+    /**
+     * Planes de Rutinas.
+     */
+    public function rutinas()
+    {
+        $rutinas = WorkoutRoutine::withCount(['assignments as active_assignments_count' => function($q) {
+            $q->where('is_active', 1);
+        }])->get();
+
+        $totalClients = User::where('role', 'member')->count();
+        $activeAssignmentsCount = WorkoutRoutine::join('user_assigned_routines', 'workout_routines.id', '=', 'user_assigned_routines.routine_id')
+            ->where('user_assigned_routines.is_active', 1)
+            ->count();
+
+        $popularRoutine = WorkoutRoutine::withCount(['assignments' => function($q) {
+                $q->where('is_active', 1);
+            }])
+            ->orderBy('assignments_count', 'desc')
+            ->first();
+        $popularRoutineName = $popularRoutine ? $popularRoutine->name : 'N/A';
+
+        $clientes = User::where('role', 'member')->with('profile')->get();
+
+        return view('rutinas', compact('rutinas', 'totalClients', 'activeAssignmentsCount', 'popularRoutineName', 'clientes'));
+    }
+
+    /**
+     * Create routine form.
+     */
+    public function crearRutina()
+    {
+        return view('rutinas.crear');
+    }
+
+    /**
+     * Store new routine template.
+     */
+    public function storeRutina(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'goal_type' => 'required|in:lose_weight,gain_muscle,gain_weight,maintain,improve_endurance,improve_flexibility',
+            'difficulty' => 'required|in:beginner,intermediate,advanced',
+            'duration_weeks' => 'required|integer|min:1',
+            'days_per_week' => 'required|integer|min:1|max:7',
+        ]);
+
+        WorkoutRoutine::create([
+            'name' => $request->name,
+            'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'difficulty' => $request->difficulty,
+            'duration_weeks' => $request->duration_weeks,
+            'days_per_week' => $request->days_per_week,
+            'requires_gym' => $request->has('requires_gym') ? 1 : 0,
+            'is_active' => 1,
+            'created_by' => 1, // Assume trainer id = 1
+        ]);
+
+        return redirect()->route('rutinas.index')->with('success', 'Plan de rutina creado con éxito.');
+    }
+
+    /**
+     * Planes de Nutrición.
+     */
+    public function nutricion()
+    {
+        $dietas = MealPlan::withCount(['assignments as active_assignments_count' => function($q) {
+            $q->where('is_active', 1);
+        }])->get();
+
+        $clientes = User::where('role', 'member')->with('profile')->get();
+
+        return view('nutricion', compact('dietas', 'clientes'));
+    }
+
+    /**
+     * Create nutrition plan form.
+     */
+    public function crearNutricion()
+    {
+        return view('nutricion.crear');
+    }
+
+    /**
+     * Store new nutrition plan template.
+     */
+    public function storeNutricion(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'goal_type' => 'required|in:lose_weight,gain_muscle,gain_weight,maintain,improve_endurance,general',
+            'duration_weeks' => 'required|integer|min:1',
+            'daily_calories' => 'required|numeric|min:500|max:10000',
+        ]);
+
+        MealPlan::create([
+            'name' => $request->name,
+            'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'duration_weeks' => $request->duration_weeks,
+            'daily_calories' => $request->daily_calories,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->route('nutricion.index')->with('success', 'Plan de nutrición creado con éxito.');
+    }
+
+    /**
+     * Show meals schedule for a plan.
+     */
+    public function showComidas($id)
+    {
+        $plan = MealPlan::with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
+            ->findOrFail($id);
+
+        return view('nutricion.comidas', compact('plan'));
+    }
+
+    /**
+     * Edit exercises inside a workout routine template.
+     */
+    public function editEjercicios($id)
+    {
+        $routine = WorkoutRoutine::with('days.exercises.exercise')->findOrFail($id);
+
+        // Auto-initialize days if not created yet
+        if ($routine->days->count() === 0) {
+            for ($i = 1; $i <= $routine->days_per_week; $i++) {
+                RoutineDay::create([
+                    'routine_id' => $routine->id,
+                    'day_number' => $i,
+                    'day_name' => "Día $i: Entrenamiento",
+                    'focus_area' => 'Fuerza General'
+                ]);
+            }
+            $routine = WorkoutRoutine::with('days.exercises.exercise')->findOrFail($id);
+        }
+
+        $exercises = Exercise::orderBy('name')->get();
+
+        return view('rutinas.ejercicios', compact('routine', 'exercises'));
+    }
+
+    /**
+     * Add an exercise to a routine day.
+     */
+    public function addEjercicio(Request $request, $id)
+    {
+        $request->validate([
+            'routine_day_id' => 'required|exists:routine_days,id',
+            'exercise_id' => 'required|exists:exercises,id',
+            'sets' => 'required|integer|min:1',
+            'reps' => 'required|string|max:50',
+            'rest_seconds' => 'nullable|integer|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $maxOrder = RoutineExercise::where('routine_day_id', $request->routine_day_id)->max('order_index') ?? 0;
+
+        RoutineExercise::create([
+            'routine_day_id' => $request->routine_day_id,
+            'exercise_id' => $request->exercise_id,
+            'sets' => $request->sets,
+            'reps' => $request->reps,
+            'rest_seconds' => $request->rest_seconds ?? 60,
+            'order_index' => $maxOrder + 1,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->back()->with('success', 'Ejercicio añadido exitosamente.');
+    }
+
+    /**
+     * Update an assigned exercise.
+     */
+    public function updateEjercicio(Request $request, $id, $routine_exercise_id)
+    {
+        $request->validate([
+            'sets' => 'required|integer|min:1',
+            'reps' => 'required|string|max:50',
+            'rest_seconds' => 'nullable|integer|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $ex = RoutineExercise::findOrFail($routine_exercise_id);
+        $ex->update([
+            'sets' => $request->sets,
+            'reps' => $request->reps,
+            'rest_seconds' => $request->rest_seconds ?? 60,
+            'notes' => $request->notes,
+        ]);
+
+        return redirect()->back()->with('success', 'Ejercicio actualizado exitosamente.');
+    }
+
+    /**
+     * Remove an exercise from a day.
+     */
+    public function removeEjercicio($id, $routine_exercise_id)
+    {
+        $ex = RoutineExercise::findOrFail($routine_exercise_id);
+        $ex->delete();
+
+        return redirect()->back()->with('success', 'Ejercicio removido del día.');
+    }
+
+    /**
+     * Assign routine from routines list to a user.
+     */
+    public function assignRoutineToUser(Request $request, $routine_id)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'start_date' => 'required|date',
+        ]);
+
+        UserAssignedRoutine::where('user_id', $request->user_id)->update(['is_active' => 0]);
+
+        UserAssignedRoutine::create([
+            'user_id' => $request->user_id,
+            'routine_id' => $routine_id,
+            'assigned_by' => 1,
+            'start_date' => $request->start_date,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->back()->with('success', 'Rutina asignada exitosamente.');
+    }
+
+    /**
+     * Assign meal plan from nutrition list to a user.
+     */
+    public function assignMealPlanToUser(Request $request, $meal_plan_id)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'start_date' => 'required|date',
+        ]);
+
+        UserMealPlan::where('user_id', $request->user_id)->update(['is_active' => 0]);
+
+        UserMealPlan::create([
+            'user_id' => $request->user_id,
+            'meal_plan_id' => $meal_plan_id,
+            'assigned_by' => 1,
+            'start_date' => $request->start_date,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->back()->with('success', 'Plan de nutrición asignado exitosamente.');
+    }
+}

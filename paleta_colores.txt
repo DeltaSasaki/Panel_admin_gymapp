@@ -1,0 +1,59 @@
+PALETA DE COLORES - SISTEMA DE DISEÑO PREMIUM (GymFlow OS)
+
+===================================================================
+1. COLORES DE FONDO Y ESTRUCTURA (Fondo Oscuro Premium)
+===================================================================
+* Fondo General de la App:
+  - Clase Tailwind: bg-slate-950
+  - Código HEX: #020617
+
+* Tarjetas, Paneles y Contenedores (Glassmorphism):
+  - Clase Tailwind: bg-slate-900 / bg-slate-900/40
+  - Código HEX: #0f172a / rgba(15, 23, 42, 0.4)
+
+* Bordes Finos y Líneas Divisorias:
+  - Clase Tailwind: border-slate-800 / border-slate-850
+  - Código HEX: #1e293b / #1c2536
+
+
+===================================================================
+2. ACCENTOS PRINCIPALES (Acciones, Éxito y Progreso)
+===================================================================
+* Verde Eléctrico (Botones, Títulos Activos y Enlaces):
+  - Clase Tailwind: lime-500 / lime-400
+  - Código HEX: #84cc16 / #a3e635
+
+* Esmeralda (Éxito y Gradientes):
+  - Clase Tailwind: emerald-500 / emerald-400
+  - Código HEX: #10b981 / #34d399
+
+* Degradado Premium de los Botones:
+  - Clase Tailwind: bg-gradient-to-r from-lime-500 to-emerald-500
+  - Hover recomendado: from-lime-400 to-emerald-400
+
+
+===================================================================
+3. ACCENTOS COMPLEMENTARIOS (Datos, Métricas y Estados)
+===================================================================
+* Ámbar/Naranja (Calorías, Nutrición y Progreso de Grasa):
+  - Clase Tailwind: amber-500 / amber-400
+  - Código HEX: #f59e0b / #fbbf24
+
+* Púrpura (Ejercicios, Pesos y Categorías):
+  - Clase Tailwind: purple-500 / purple-400
+  - Código HEX: #a855f7 / #c084fc
+
+* Azul (Medidas Corporales, Hidratación, Distancias):
+  - Clase Tailwind: blue-500 / blue-400
+  - Código HEX: #3b82f6 / #60a5fa
+
+* Rosa/Rojo (Alertas, Errores y Acciones Destructivas):
+  - Clase Tailwind: rose-500 / rose-400
+  - Código HEX: #f43f5e / #fb7185
+
+
+===================================================================
+4. TIPOGRAFÍA RECOMENDADA
+===================================================================
+* Sans-Serif Geométrica: 'Instrument Sans' o 'Inter'
+* Efecto suave de interactividad: transition-all duration-300 active:scale-95
