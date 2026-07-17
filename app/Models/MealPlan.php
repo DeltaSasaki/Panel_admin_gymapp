@@ -36,4 +36,9 @@ class MealPlan extends Model
     {
         return $this->assignments()->where('is_active', 1)->count();
     }
+
+    public function gym()
+    {
+        return $this->belongsTo(Gym::class, 'gym_id');
+    }
 }

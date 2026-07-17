@@ -19,7 +19,12 @@ class StaffController extends Controller
     {
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
-        $trainers = Trainer::where('gym_id', $gymId)->with('user.profile')->get();
+        
+        $query = Trainer::with('user.profile');
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+        $trainers = $query->get();
 
         return view('staff.index', compact('trainers'));
     }
@@ -43,6 +48,9 @@ class StaffController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder registrar un entrenador.']);
+        }
 
         try {
             DB::beginTransaction();
@@ -87,7 +95,14 @@ class StaffController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['email' => 'Error al registrar entrenador: ' . $e->getMessage()]);
+            $errorMessage = $e->getMessage();
+            
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error al registrar entrenador: ' . $errorMessage;
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         }
     }
 
@@ -97,7 +112,12 @@ class StaffController extends Controller
     public function toggleStatus($id)
     {
         $this->checkAdmin();
-        $trainer = Trainer::where('gym_id', $this->getActiveGymId())->findOrFail($id);
+        $gymId = $this->getActiveGymId();
+        $query = Trainer::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+        $trainer = $query->findOrFail($id);
         $user = User::findOrFail($trainer->user_id);
 
         $newStatus = $trainer->is_active ? 0 : 1;

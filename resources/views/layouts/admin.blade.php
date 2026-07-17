@@ -324,12 +324,21 @@
                 
                 <!-- Quick Search & Gym Switcher for Superadmin -->
                 <div class="hidden sm:flex items-center gap-4">
-                    <div class="relative w-80">
+                    <form action="{{ route('global.search') }}" method="GET" class="relative w-80 m-0" id="global-search-form">
                         <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
                         <input type="text" 
+                               name="q" 
+                               id="global-search-input"
+                               autocomplete="off"
+                               value="{{ request('q') }}"
                                placeholder="Buscar cliente, rutina, dieta..." 
                                class="w-full pl-10 pr-4 py-2 text-sm bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50 transition-all">
-                    </div>
+                        
+                        <!-- Live Autocomplete Dropdown -->
+                        <div id="live-search-results" class="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden hidden max-h-80 overflow-y-auto">
+                            <!-- JS will inject results here -->
+                        </div>
+                    </form>
 
                     @if(auth()->user()->role === 'superadmin')
                         @php
@@ -454,6 +463,84 @@
 
             if (overlay) {
                 overlay.addEventListener('click', toggleMenu);
+            }
+
+            // Live Autocomplete Search Logic
+            const searchInput = document.getElementById('global-search-input');
+            const resultsDropdown = document.getElementById('live-search-results');
+            let debounceTimer;
+
+            if (searchInput && resultsDropdown) {
+                searchInput.addEventListener('input', () => {
+                    clearTimeout(debounceTimer);
+                    const query = searchInput.value.trim();
+
+                    if (query.length < 2) {
+                        resultsDropdown.classList.add('hidden');
+                        resultsDropdown.innerHTML = '';
+                        return;
+                    }
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`/api/search/live?q=${encodeURIComponent(query)}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.length === 0) {
+                                    resultsDropdown.innerHTML = `
+                                        <div class="px-4 py-3 text-slate-500 text-xs italic text-center">
+                                            No se encontraron coincidencias
+                                        </div>
+                                    `;
+                                    resultsDropdown.classList.remove('hidden');
+                                    return;
+                                }
+
+                                let html = '<div class="py-1.5 divide-y divide-slate-800/40">';
+                                data.forEach(user => {
+                                    const roleBadge = user.role === 'trainer' 
+                                        ? '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded uppercase tracking-wider">Entrenador</span>' 
+                                        : '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded uppercase tracking-wider">Atleta</span>';
+                                    
+                                    html += `
+                                        <a href="${user.url}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/60 transition-colors group">
+                                            <img src="${user.photo}" class="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-800">
+                                            <div class="overflow-hidden flex-1">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="font-bold text-xs text-slate-200 group-hover:text-lime-400 transition-colors truncate">${user.name}</span>
+                                                    ${roleBadge}
+                                                </div>
+                                                <div class="flex items-center justify-between text-[9px] text-slate-500 mt-0.5">
+                                                    <span class="truncate max-w-[120px]">${user.email}</span>
+                                                    <span class="font-semibold uppercase tracking-wider text-slate-600">${user.gym_name}</span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    `;
+                                });
+                                html += '</div>';
+
+                                resultsDropdown.innerHTML = html;
+                                resultsDropdown.classList.remove('hidden');
+                            })
+                            .catch(err => {
+                                console.error('Error fetching live search:', err);
+                            });
+                    }, 200);
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!searchInput.contains(e.target) && !resultsDropdown.contains(e.target)) {
+                        resultsDropdown.classList.add('hidden');
+                    }
+                });
+
+                // Re-open on focus if query length is valid
+                searchInput.addEventListener('focus', () => {
+                    if (searchInput.value.trim().length >= 2) {
+                        resultsDropdown.classList.remove('hidden');
+                    }
+                });
             }
         });
     </script>

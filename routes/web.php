@@ -81,4 +81,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/superadmin/gyms/{id}', [\App\Http\Controllers\GymController::class, 'update'])->name('superadmin.gyms.update');
     Route::post('/superadmin/gyms/{id}/toggle', [\App\Http\Controllers\GymController::class, 'toggleStatus'])->name('superadmin.gyms.toggle');
     Route::delete('/superadmin/gyms/{id}', [\App\Http\Controllers\GymController::class, 'destroy'])->name('superadmin.gyms.destroy');
+
+    // Global search route
+    Route::get('/search', [AdminController::class, 'globalSearch'])->name('global.search');
+    Route::get('/api/search/live', [AdminController::class, 'liveSearch'])->name('api.search.live');
 });

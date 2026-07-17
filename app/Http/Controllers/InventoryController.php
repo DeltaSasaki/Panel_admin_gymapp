@@ -20,6 +20,9 @@ class InventoryController extends Controller
     public function pos()
     {
         $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->route('dashboard')->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder abrir la terminal de ventas (POS).']);
+        }
 
         // Fetch active products with stock > 0
         $products = InventoryProduct::where('gym_id', $gymId)
@@ -47,6 +50,10 @@ class InventoryController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder realizar una venta.']);
+        }
+
         $cart = json_decode($request->cart, true);
 
         if (empty($cart)) {
@@ -76,16 +83,10 @@ class InventoryController extends Controller
                     'subtotal' => $subtotal,
                 ];
 
-                // Deduct stock and register inventory movement
-                $product->decrement('stock_quantity', $item['quantity']);
-
-                InventoryMovement::create([
-                    'product_id' => $product->id,
-                    'movement_type' => 'out',
-                    'quantity' => $item['quantity'],
-                    'reason' => 'Venta POS #' . ($request->user_id ? 'Socio ID ' . $request->user_id : 'Cliente General'),
-                    'performed_by' => auth()->user()->id,
-                ]);
+                // Note: We DO NOT manually decrement stock_quantity or create InventoryMovement here in PHP.
+                // The database triggers `trg_prevent_negative_stock`, `trg_sale_creates_movement`,
+                // and `trg_update_stock_after_movement` automatically handle movement logging,
+                // stock checks, and deduct the stock on SaleItem insertion.
             }
 
             // Create product sale record
@@ -98,7 +99,7 @@ class InventoryController extends Controller
                 'notes' => $request->notes,
             ]);
 
-            // Save individual items
+            // Save individual items (Fires the database triggers)
             foreach ($itemsToCreate as $item) {
                 $item['sale_id'] = $sale->id;
                 SaleItem::create($item);
@@ -107,9 +108,18 @@ class InventoryController extends Controller
             DB::commit();
             return redirect()->route('tienda.pos')->with('success', 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2));
 
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            $errorMessage = $e->getMessage();
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error al registrar venta: ' . $errorMessage;
+            }
+            return redirect()->back()->withInput()->withErrors(['cart' => $errorText]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['cart' => $e->getMessage()]);
+            return redirect()->back()->withInput()->withErrors(['cart' => $e->getMessage()]);
         }
     }
 
@@ -121,8 +131,16 @@ class InventoryController extends Controller
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
 
-        $products = InventoryProduct::where('gym_id', $gymId)->with('category')->get();
-        $categories = ProductCategory::where('gym_id', $gymId)->get();
+        $productsQuery = InventoryProduct::with('category');
+        $categoriesQuery = ProductCategory::query();
+        
+        if ($gymId !== 'all') {
+            $productsQuery->where('gym_id', $gymId);
+            $categoriesQuery->where('gym_id', $gymId);
+        }
+
+        $products = $productsQuery->get();
+        $categories = $categoriesQuery->get();
 
         return view('tienda.productos', compact('products', 'categories'));
     }
@@ -138,8 +156,13 @@ class InventoryController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder crear una categoría.']);
+        }
+
         ProductCategory::create([
-            'gym_id' => $this->getActiveGymId(),
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
         ]);
@@ -164,31 +187,46 @@ class InventoryController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-
-        $product = InventoryProduct::create([
-            'gym_id' => $gymId,
-            'category_id' => $request->category_id,
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $request->price,
-            'cost_price' => $request->cost_price,
-            'stock_quantity' => $request->stock_quantity,
-            'min_stock' => $request->min_stock,
-            'is_available' => 1,
-        ]);
-
-        // Register initial stock movement
-        if ($request->stock_quantity > 0) {
-            InventoryMovement::create([
-                'product_id' => $product->id,
-                'movement_type' => 'in',
-                'quantity' => $request->stock_quantity,
-                'reason' => 'Carga de stock inicial',
-                'performed_by' => auth()->user()->id,
-            ]);
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder registrar un producto.']);
         }
 
-        return redirect()->back()->with('success', 'Producto creado y agregado al inventario.');
+        try {
+            DB::beginTransaction();
+
+            // Note: We create the product with 0 stock_quantity first, because
+            // the initial stock movement insert will automatically increment it to
+            // the correct value via the DB trigger `trg_update_stock_after_movement`.
+            $product = InventoryProduct::create([
+                'gym_id' => $gymId,
+                'category_id' => $request->category_id,
+                'name' => $request->name,
+                'description' => $request->description,
+                'price' => $request->price,
+                'cost_price' => $request->cost_price,
+                'stock_quantity' => 0,
+                'min_stock' => $request->min_stock,
+                'is_available' => 1,
+            ]);
+
+            // Register initial stock movement (This triggers automatic stock increment in DB)
+            if ($request->stock_quantity > 0) {
+                InventoryMovement::create([
+                    'product_id' => $product->id,
+                    'movement_type' => 'in',
+                    'quantity' => $request->stock_quantity,
+                    'reason' => 'Carga de stock inicial',
+                    'performed_by' => auth()->user()->id,
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Producto creado y agregado al inventario.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->withErrors(['error' => 'Error al crear producto: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -202,9 +240,16 @@ class InventoryController extends Controller
             'reason' => 'nullable|string|max:200',
         ]);
 
-        $product = InventoryProduct::where('gym_id', $this->getActiveGymId())->findOrFail($id);
-        $product->increment('stock_quantity', $request->quantity);
+        $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder reabastecer stock.']);
+        }
 
+        $product = InventoryProduct::where('gym_id', $gymId)->findOrFail($id);
+
+        // Note: We DO NOT manually increment stock_quantity here in PHP.
+        // Creating the InventoryMovement of type 'in' will automatically increment the stock
+        // of the product in the database via the trigger `trg_update_stock_after_movement`.
         InventoryMovement::create([
             'product_id' => $product->id,
             'movement_type' => 'in',
@@ -224,10 +269,11 @@ class InventoryController extends Controller
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
 
-        $sales = ProductSale::where('gym_id', $gymId)
-            ->with(['client.profile', 'seller.profile', 'items.product'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $salesQuery = ProductSale::with(['client.profile', 'seller.profile', 'items.product']);
+        if ($gymId !== 'all') {
+            $salesQuery->where('gym_id', $gymId);
+        }
+        $sales = $salesQuery->orderBy('id', 'desc')->get();
 
         return view('tienda.ventas', compact('sales'));
     }

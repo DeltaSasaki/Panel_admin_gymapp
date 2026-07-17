@@ -158,7 +158,9 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $cliente = User::where('role', 'member')
-            ->where('gym_id', $gymId)
+            ->when($gymId !== 'all', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
             ->with([
                 'profile', 
                 'bodyMeasurements' => function($q) {
@@ -204,8 +206,8 @@ class AdminController extends Controller
         }
 
         // Fetch routines & meal plans for assignment modals scoped to this gym
-        $routines = WorkoutRoutine::where('gym_id', $gymId)->where('is_active', 1)->get();
-        $mealPlans = MealPlan::where('gym_id', $gymId)->where('is_active', 1)->get();
+        $routines = WorkoutRoutine::where('gym_id', $cliente->gym_id)->where('is_active', 1)->get();
+        $mealPlans = MealPlan::where('gym_id', $cliente->gym_id)->where('is_active', 1)->get();
 
         return view('clientes.show', compact(
             'cliente',
@@ -244,47 +246,72 @@ class AdminController extends Controller
             'profile_photo' => 'nullable|url',
         ]);
 
-        // Create User
-        $user = User::create([
-            'email' => $request->email,
-            'password_hash' => Hash::make($request->password),
-            'role' => 'member',
-            'is_active' => 1,
-            'email_verified' => 0,
-            'gym_id' => 1,
-        ]);
+        $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['gym' => 'Debes seleccionar una sucursal específica para poder registrar un cliente.']);
+        }
 
-        // Create UserProfile
-        UserProfile::create([
-            'user_id' => $user->id,
-            'first_name' => $request->first_name,
-            'last_name' => $request->last_name,
-            'phone' => $request->phone,
-            'birth_date' => $request->birth_date,
-            'gender' => $request->gender,
-            'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
-        ]);
+        try {
+            \Illuminate\Support\Facades\DB::beginTransaction();
 
-        // Calculate BMI
-        $heightM = $request->height_cm / 100;
-        $bmi = round($request->weight_kg / ($heightM * $heightM), 2);
-        
-        $bmiCategory = 'normal';
-        if ($bmi < 18.5) $bmiCategory = 'underweight';
-        elseif ($bmi >= 25 && $bmi < 30) $bmiCategory = 'overweight';
-        elseif ($bmi >= 30) $bmiCategory = 'obese';
+            // Create User
+            $user = User::create([
+                'email' => $request->email,
+                'password_hash' => Hash::make($request->password),
+                'role' => 'member',
+                'is_active' => 1,
+                'email_verified' => 0,
+                'gym_id' => $gymId,
+            ]);
 
-        // Create initial measurement
-        BodyMeasurement::create([
-            'user_id' => $user->id,
-            'weight_kg' => $request->weight_kg,
-            'height_cm' => $request->height_cm,
-            'bmi' => $bmi,
-            'bmi_category' => $bmiCategory,
-            'measured_at' => Carbon::now(),
-        ]);
+            // Create UserProfile
+            UserProfile::create([
+                'user_id' => $user->id,
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'phone' => $request->phone,
+                'birth_date' => $request->birth_date,
+                'gender' => $request->gender,
+                'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
+            ]);
 
-        return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+            // Calculate BMI
+            $heightM = $request->height_cm / 100;
+            $bmi = round($request->weight_kg / ($heightM * $heightM), 2);
+            
+            $bmiCategory = 'normal';
+            if ($bmi < 18.5) $bmiCategory = 'underweight';
+            elseif ($bmi >= 25 && $bmi < 30) $bmiCategory = 'overweight';
+            elseif ($bmi >= 30) $bmiCategory = 'obese';
+
+            // Create initial measurement
+            BodyMeasurement::create([
+                'user_id' => $user->id,
+                'weight_kg' => $request->weight_kg,
+                'height_cm' => $request->height_cm,
+                'bmi' => $bmi,
+                'bmi_category' => $bmiCategory,
+                'measured_at' => Carbon::now(),
+            ]);
+
+            \Illuminate\Support\Facades\DB::commit();
+            return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $errorMessage = $e->getMessage();
+            
+            // Check if it's a trigger exception (SQLSTATE 45000)
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error de base de datos al registrar el cliente. Verifique los límites de su plan.';
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -632,5 +659,115 @@ class AdminController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Plan de nutrición asignado exitosamente.');
+    }
+
+    /**
+     * Search clients, routines, and meal plans scoped by the current gym context.
+     */
+    public function globalSearch(Request $request)
+    {
+        $queryStr = $request->input('q');
+        $gymId = $this->getActiveGymId();
+
+        if ($gymId === 'all') {
+            $activeGymName = 'Todas las Sucursales';
+        } else {
+            if ($gymId == auth()->user()->gym_id) {
+                $activeGymName = auth()->user()->gym->name;
+            } else {
+                $activeGymName = \App\Models\Gym::where('id', $gymId)->value('name') ?? 'Vista General';
+            }
+        }
+
+        if (empty($queryStr)) {
+            return redirect()->route('dashboard');
+        }
+
+        // Search Clients
+        $clientes = User::where('role', 'member')
+            ->when($gymId !== 'all', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function($q) use ($queryStr) {
+                $q->where('email', 'like', "%{$queryStr}%")
+                  ->orWhereHas('profile', function($pq) use ($queryStr) {
+                      $pq->where('first_name', 'like', "%{$queryStr}%")
+                        ->orWhere('last_name', 'like', "%{$queryStr}%")
+                        ->orWhere('phone', 'like', "%{$queryStr}%");
+                  });
+            })
+            ->with(['profile', 'gym'])
+            ->take(20)
+            ->get();
+
+        // Search Workout Routines
+        $rutinas = WorkoutRoutine::when($gymId !== 'all', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                  ->orWhere('description', 'like', "%{$queryStr}%")
+                  ->orWhere('goal_type', 'like', "%{$queryStr}%");
+            })
+            ->with('gym')
+            ->take(20)
+            ->get();
+
+        // Search Meal Plans (Dietas)
+        $dietas = MealPlan::when($gymId !== 'all', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                  ->orWhere('description', 'like', "%{$queryStr}%")
+                  ->orWhere('goal_type', 'like', "%{$queryStr}%");
+            })
+            ->with('gym')
+            ->take(20)
+            ->get();
+
+        return view('search_results', compact('clientes', 'rutinas', 'dietas', 'queryStr', 'activeGymName'));
+    }
+
+    /**
+     * Live search for autocompletion (members and trainers).
+     */
+    public function liveSearch(Request $request)
+    {
+        $queryStr = $request->input('q');
+        $gymId = $this->getActiveGymId();
+
+        if (empty($queryStr) || strlen($queryStr) < 2) {
+            return response()->json([]);
+        }
+
+        $users = User::whereIn('role', ['member', 'trainer'])
+            ->when($gymId !== 'all', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function($q) use ($queryStr) {
+                $q->where('email', 'like', "%{$queryStr}%")
+                  ->orWhereHas('profile', function($pq) use ($queryStr) {
+                      $pq->where('first_name', 'like', "%{$queryStr}%")
+                        ->orWhere('last_name', 'like', "%{$queryStr}%");
+                  });
+            })
+            ->with(['profile', 'gym'])
+            ->take(5)
+            ->get();
+
+        $results = $users->map(function($user) {
+            return [
+                'id' => $user->id,
+                'name' => ($user->profile->first_name ?? 'Usuario') . ' ' . ($user->profile->last_name ?? ''),
+                'email' => $user->email,
+                'role' => $user->role,
+                'photo' => $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                'gym_name' => $user->gym->name ?? 'N/A',
+                'url' => $user->role === 'member' ? route('clientes.show', $user->id) : route('staff.index'),
+            ];
+        });
+
+        return response()->json($results);
     }
 }

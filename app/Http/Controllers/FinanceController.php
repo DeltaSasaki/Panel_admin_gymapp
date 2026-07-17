@@ -20,26 +20,40 @@ class FinanceController extends Controller
         $gymId = $this->getActiveGymId();
 
         // Get membership plans
-        $plans = MembershipPlan::where('gym_id', $gymId)->get();
+        $plansQuery = MembershipPlan::query();
+        if ($gymId !== 'all') {
+            $plansQuery->where('gym_id', $gymId);
+        }
+        $plans = $plansQuery->get();
 
         // Get active & pending memberships
-        $memberships = UserMembership::where('gym_id', $gymId)
-            ->with(['user.profile', 'plan'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $membershipsQuery = UserMembership::with(['user.profile', 'plan'])->orderBy('id', 'desc');
+        if ($gymId !== 'all') {
+            $membershipsQuery->where('gym_id', $gymId);
+        }
+        $memberships = $membershipsQuery->get();
 
         // Get clients to register new memberships
-        $clients = User::where('role', 'member')->where('gym_id', $gymId)->with('profile')->get();
+        $clientsQuery = User::where('role', 'member')->with('profile');
+        if ($gymId !== 'all') {
+            $clientsQuery->where('gym_id', $gymId);
+        }
+        $clients = $clientsQuery->get();
 
         // Financial stats
-        $totalCollected = MembershipPayment::whereHas('membership', function ($q) use ($gymId) {
+        $totalCollectedQuery = MembershipPayment::whereHas('membership', function ($q) use ($gymId) {
+            if ($gymId !== 'all') {
                 $q->where('gym_id', $gymId);
-            })->sum('amount');
+            }
+        });
+        $totalCollected = $totalCollectedQuery->sum('amount');
 
-        $pendingAmount = UserMembership::where('user_memberships.gym_id', $gymId)
-            ->where('payment_status', 'pending')
-            ->join('membership_plans', 'user_memberships.plan_id', '=', 'membership_plans.id')
-            ->sum('membership_plans.price');
+        $pendingAmountQuery = UserMembership::where('user_memberships.payment_status', 'pending')
+            ->join('membership_plans', 'user_memberships.plan_id', '=', 'membership_plans.id');
+        if ($gymId !== 'all') {
+            $pendingAmountQuery->where('user_memberships.gym_id', $gymId);
+        }
+        $pendingAmount = $pendingAmountQuery->sum('membership_plans.price');
 
         return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount'));
     }
@@ -59,6 +73,9 @@ class FinanceController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder crear un plan de membresía.']);
+        }
 
         MembershipPlan::create([
             'gym_id' => $gymId,
@@ -87,27 +104,40 @@ class FinanceController extends Controller
             'reference_number' => 'nullable|string|max:100',
         ]);
 
-        $membership = UserMembership::findOrFail($request->user_membership_id);
+        try {
+            $membership = UserMembership::findOrFail($request->user_membership_id);
 
-        // Record payment
-        MembershipPayment::create([
-            'membership_id' => $membership->id,
-            'user_id' => $membership->user_id,
-            'amount' => $request->amount,
-            'payment_date' => Carbon::now(),
-            'payment_method' => $request->payment_method,
-            'reference_code' => $request->reference_number,
-            'received_by' => auth()->user()->id,
-            'currency' => $membership->plan->currency ?? 'USD',
-        ]);
+            // Record payment
+            MembershipPayment::create([
+                'membership_id' => $membership->id,
+                'user_id' => $membership->user_id,
+                'amount' => $request->amount,
+                'payment_date' => Carbon::now(),
+                'payment_method' => $request->payment_method,
+                'reference_code' => $request->reference_number,
+                'received_by' => auth()->user()->id,
+                'currency' => $membership->plan->currency ?? 'USD',
+            ]);
 
-        // Update membership status
-        $membership->update([
-            'payment_status' => 'paid',
-            'status' => 'active',
-        ]);
+            // Update membership status
+            $membership->update([
+                'payment_status' => 'paid',
+                'status' => 'active',
+            ]);
 
-        return redirect()->back()->with('success', 'Pago registrado y membresía activada con éxito.');
+            return redirect()->back()->with('success', 'Pago registrado y membresía activada con éxito.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorMessage = $e->getMessage();
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error de base de datos al registrar el pago: ' . $errorMessage;
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
+        } catch (\Exception $e) {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+        }
     }
 
     /**
@@ -123,6 +153,9 @@ class FinanceController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
+        $user = User::findOrFail($request->user_id);
+        $targetGymId = ($gymId === 'all') ? $user->gym_id : $gymId;
+
         $plan = MembershipPlan::findOrFail($request->plan_id);
 
         // Deactivate previous active memberships
@@ -131,17 +164,30 @@ class FinanceController extends Controller
         $startDate = Carbon::parse($request->start_date);
         $endDate = $startDate->copy()->addDays($plan->duration_days);
 
-        UserMembership::create([
-            'user_id' => $request->user_id,
-            'gym_id' => $gymId,
-            'plan_id' => $plan->id,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'status' => 'active',
-            'payment_status' => 'pending', // Pending payment registration
-        ]);
+        try {
+            UserMembership::create([
+                'user_id' => $request->user_id,
+                'gym_id' => $targetGymId,
+                'plan_id' => $plan->id,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'status' => 'active',
+                'payment_status' => 'pending', // Pending payment registration
+            ]);
 
-        return redirect()->back()->with('success', 'Nueva membresía asignada. Registra el pago para activarla.');
+            return redirect()->back()->with('success', 'Nueva membresía asignada. Registra el pago para activarla.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorMessage = $e->getMessage();
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error de base de datos al asignar membresía: ' . $errorMessage;
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
+        } catch (\Exception $e) {
+            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+        }
     }
 
     /**
