@@ -12,6 +12,7 @@ class Exercise extends Model
     protected $table = 'exercises';
 
     protected $fillable = [
+        'gym_id',
         'category_id',
         'name',
         'description',
@@ -33,5 +34,5 @@ class ExerciseCategory extends Model
 {
     public $timestamps = false;
     protected $table = 'exercise_categories';
-    protected $fillable = ['name', 'description', 'icon_url'];
+    protected $fillable = ['gym_id', 'name', 'description', 'icon_url'];
 }

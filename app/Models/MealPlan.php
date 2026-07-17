@@ -12,6 +12,7 @@ class MealPlan extends Model
     protected $table = 'meal_plans';
 
     protected $fillable = [
+        'gym_id',
         'name',
         'description',
         'goal_type',

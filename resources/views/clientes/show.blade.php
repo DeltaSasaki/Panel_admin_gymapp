@@ -44,7 +44,13 @@
                     </div>
                     <div>
                         <span class="block text-[10px] text-slate-500">Correo Electrónico</span>
-                        <span class="text-slate-200 font-medium">{{ $cliente->email }}</span>
+                        <span class="text-slate-200 font-medium">
+                            @if(auth()->user()->role === 'trainer')
+                                {{ preg_replace('/(?<=..).(?=[^@]*?@)/', '*', $cliente->email) }}
+                            @else
+                                {{ $cliente->email }}
+                            @endif
+                        </span>
                     </div>
                 </div>
 
@@ -54,7 +60,13 @@
                     </div>
                     <div>
                         <span class="block text-[10px] text-slate-500">Teléfono</span>
-                        <span class="text-slate-200 font-medium">{{ $cliente->profile->phone ?? 'Sin teléfono' }}</span>
+                        <span class="text-slate-200 font-medium">
+                            @if(auth()->user()->role === 'trainer' && $cliente->profile->phone)
+                                {{ substr($cliente->profile->phone, 0, 4) . ' •••• ' . substr($cliente->profile->phone, -3) }}
+                            @else
+                                {{ $cliente->profile->phone ?? 'Sin teléfono' }}
+                            @endif
+                        </span>
                     </div>
                 </div>
 
@@ -63,10 +75,17 @@
                         <i data-lucide="calendar" class="w-4 h-4"></i>
                     </div>
                     <div>
-                        <span class="block text-[10px] text-slate-500">Fecha de Nacimiento</span>
-                        <span class="text-slate-200 font-medium">
-                            {{ $cliente->profile->birth_date ? \Carbon\Carbon::parse($cliente->profile->birth_date)->format('d M, Y') : 'No registrada' }}
-                        </span>
+                        @if(auth()->user()->role === 'trainer')
+                            <span class="block text-[10px] text-slate-500">Edad Estimada</span>
+                            <span class="text-slate-200 font-medium">
+                                {{ $cliente->profile->birth_date ? \Carbon\Carbon::parse($cliente->profile->birth_date)->age . ' años' : 'No registrada' }}
+                            </span>
+                        @else
+                            <span class="block text-[10px] text-slate-500">Fecha de Nacimiento</span>
+                            <span class="text-slate-200 font-medium">
+                                {{ $cliente->profile->birth_date ? \Carbon\Carbon::parse($cliente->profile->birth_date)->format('d M, Y') : 'No registrada' }}
+                            </span>
+                        @endif
                     </div>
                 </div>
 
@@ -193,6 +212,77 @@
                 </div>
             </div>
 
+            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+            <!-- Membership & Payments Section (Visible to Admins/Superadmins only) -->
+            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
+                <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="credit-card" class="w-5 h-5 text-lime-400"></i> Membresía y Estado de Pagos
+                </h3>
+                @if($cliente->activeMembership)
+                    @php
+                        $paymentStatus = $cliente->activeMembership->payment_status;
+                        $statusBadge = '';
+                        $paymentBadge = '';
+
+                        if ($cliente->activeMembership->status === 'active') {
+                            $statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                        } elseif ($cliente->activeMembership->status === 'expired') {
+                            $statusBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        } else {
+                            $statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                        }
+
+                        if ($paymentStatus === 'paid') {
+                            $paymentBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                            $statusText = 'Pagado';
+                        } elseif ($paymentStatus === 'pending') {
+                            $paymentBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                            $statusText = 'Pendiente';
+                        } else {
+                            $paymentBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                            $statusText = 'Vencido / Deuda';
+                        }
+                    @endphp
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 bg-slate-950/40 p-5 rounded-2xl border border-slate-850">
+                        <div>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Plan Contratado</span>
+                            <span class="font-extrabold text-sm text-slate-100">{{ $cliente->activeMembership->plan->name }}</span>
+                            <span class="block text-xs text-slate-400 mt-0.5">{{ number_format($cliente->activeMembership->plan->price, 2) }} {{ $cliente->activeMembership->plan->currency }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Vigencia</span>
+                            <span class="font-bold text-xs text-slate-300">
+                                {{ \Carbon\Carbon::parse($cliente->activeMembership->start_date)->format('d/m/Y') }} al 
+                                {{ \Carbon\Carbon::parse($cliente->activeMembership->end_date)->format('d/m/Y') }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado de Membresía</span>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $statusBadge }}">
+                                {{ __($cliente->activeMembership->status) }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado del Pago</span>
+                            <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $paymentBadge }}">
+                                {{ $statusText }}
+                            </span>
+                        </div>
+                    </div>
+                    @if($cliente->activeMembership->notes)
+                        <p class="text-xs text-slate-400 bg-slate-950/20 border border-slate-850/40 rounded-xl p-3 mt-4">
+                            <strong>Notas administrativas:</strong> {{ $cliente->activeMembership->notes }}
+                        </p>
+                    @endif
+                @else
+                    <div class="py-6 text-center text-slate-500 text-sm">
+                        <i data-lucide="alert-circle" class="w-8 h-8 text-slate-700 mb-2 mx-auto"></i>
+                        No tiene ninguna membresía activa registrada en este gimnasio.
+                    </div>
+                @endif
+            </div>
+            @endif
+
             <!-- Active Plans Status (Routines & Diets) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Training Plan Card -->
@@ -208,13 +298,15 @@
                             <div class="mt-4 grid grid-cols-2 gap-2 text-xs bg-slate-950/40 p-3 rounded-xl border border-slate-850">
                                 <div>
                                     <span class="block text-slate-500 font-medium">Asignado por</span>
-                                    <span class="font-bold text-slate-300">Coach Carlos R.</span>
+                                    <span class="font-bold text-slate-300">
+                                        {{ $cliente->activeRoutine->assigner ? 'Coach ' . $cliente->activeRoutine->assigner->first_name . ' ' . substr($cliente->activeRoutine->assigner->last_name, 0, 1) . '.' : 'Administrador' }}
+                                    </span>
                                 </div>
                                 <div>
                                     <span class="block text-slate-500 font-medium">Inicio</span>
                                     <span class="font-bold text-slate-300">{{ \Carbon\Carbon::parse($cliente->activeRoutine->start_date)->format('d/m/Y') }}</span>
                                 </div>
-                            </div>
+                             </div>
                         @else
                             <div class="py-8 text-center text-slate-500 text-sm">
                                 <p class="mb-3">Sin rutina de entrenamiento activa.</p>

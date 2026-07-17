@@ -12,6 +12,7 @@ class Recipe extends Model
     protected $table = 'recipes';
 
     protected $fillable = [
+        'gym_id',
         'category_id',
         'name',
         'description',

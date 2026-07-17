@@ -12,6 +12,7 @@ class WorkoutRoutine extends Model
     protected $table = 'workout_routines';
 
     protected $fillable = [
+        'gym_id',
         'name',
         'description',
         'goal_type',

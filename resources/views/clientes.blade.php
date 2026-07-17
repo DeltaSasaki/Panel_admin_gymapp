@@ -64,10 +64,25 @@
                         <div class="flex items-center gap-3">
                             <img src="{{ $cliente->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800">
                             <div>
-                                <h3 class="font-bold text-slate-100">
+                                <h3 class="font-bold text-slate-100 flex flex-wrap items-center gap-1.5">
                                     {{ $cliente->profile->first_name ?? 'Atleta' }} {{ $cliente->profile->last_name ?? '' }}
+                                    @if($cliente->role === 'superadmin')
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-md uppercase tracking-wider">SuperAdmin</span>
+                                    @elseif($cliente->role === 'admin')
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md uppercase tracking-wider">Admin</span>
+                                    @elseif($cliente->role === 'trainer')
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-lime-500/20 text-lime-400 border border-lime-500/30 rounded-md uppercase tracking-wider">Trainer</span>
+                                    @else
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-slate-500/10 text-slate-400 border border-slate-500/20 rounded-md uppercase tracking-wider">Socio</span>
+                                    @endif
+
+                                    @if($cliente->is_active)
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md uppercase tracking-wider">Activo</span>
+                                    @else
+                                        <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-md uppercase tracking-wider">Inactivo</span>
+                                    @endif
                                 </h3>
-                                <span class="text-[10px] text-slate-500">Miembro desde {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
+                                <span class="text-[10px] text-slate-500">Registro: {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
                             </div>
                         </div>
                         <span class="w-2.5 h-2.5 rounded-full {{ $cliente->is_active ? 'bg-emerald-500 ring-4 ring-emerald-500/10' : 'bg-slate-500' }}"></span>

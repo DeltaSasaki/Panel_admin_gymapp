@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class AuthController extends Controller
+{
+    /**
+     * Show the login form.
+     */
+    public function showLogin()
+    {
+        if (Auth::check()) {
+            return redirect()->route('dashboard');
+        }
+        return view('auth.login');
+    }
+
+    /**
+     * Handle the authentication attempt.
+     */
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+
+        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']])) {
+            $user = Auth::user();
+            
+            // Check if the user is a trainer, admin, or superadmin
+            if (in_array($user->role, ['trainer', 'admin', 'superadmin'])) {
+                if (!$user->is_active) {
+                    Auth::logout();
+                    return back()->withErrors([
+                        'email' => 'Tu cuenta ha sido desactivada. Comunícate con soporte.',
+                    ]);
+                }
+                
+                $request->session()->regenerate();
+                return redirect()->intended('dashboard');
+            }
+
+            // Reject members/clients from accessing the trainer admin panel
+            Auth::logout();
+            return back()->withErrors([
+                'email' => 'Acceso restringido. Este panel es exclusivo para entrenadores y administradores.',
+            ]);
+        }
+
+        return back()->withErrors([
+            'email' => 'Las credenciales no coinciden con nuestros registros.',
+        ]);
+    }
+
+    /**
+     * Log the user out of the application.
+     */
+    public function logout(Request $request)
+    {
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login');
+    }
+
+    /**
+     * Switch active gym context for superadmins.
+     */
+    public function switchGym(Request $request)
+    {
+        if (!Auth::check() || Auth::user()->role !== 'superadmin') {
+            abort(403, 'Acceso Denegado.');
+        }
+
+        $request->validate([
+            'gym_id' => 'required|string',
+        ]);
+
+        if ($request->gym_id !== 'all') {
+            $exists = \App\Models\Gym::where('id', $request->gym_id)->exists();
+            if (!$exists) {
+                return redirect()->back()->withErrors(['gym_id' => 'Gimnasio inválido.']);
+            }
+        }
+
+        session(['superadmin_gym_id' => $request->gym_id]);
+
+        return redirect()->back()->with('success', 'Contexto de gimnasio cambiado con éxito.');
+    }
+}

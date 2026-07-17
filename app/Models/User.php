@@ -23,6 +23,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'gym_id',
         'email',
         'password_hash',
         'role',
@@ -50,6 +51,11 @@ class User extends Authenticatable
     /**
      * Relations
      */
+    public function gym()
+    {
+        return $this->belongsTo(Gym::class, 'gym_id');
+    }
+
     public function profile()
     {
         return $this->hasOne(UserProfile::class, 'user_id');
@@ -93,5 +99,15 @@ class User extends Authenticatable
     public function workoutSessions()
     {
         return $this->hasMany(WorkoutSession::class, 'user_id');
+    }
+
+    public function memberships()
+    {
+        return $this->hasMany(UserMembership::class, 'user_id');
+    }
+
+    public function activeMembership()
+    {
+        return $this->hasOne(UserMembership::class, 'user_id')->where('status', 'active');
     }
 }

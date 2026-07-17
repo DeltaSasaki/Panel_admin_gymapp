@@ -20,4 +20,9 @@ class Gym extends Model
         'timezone',
         'is_active',
     ];
+
+    public function users()
+    {
+        return $this->hasMany(User::class, 'gym_id');
+    }
 }

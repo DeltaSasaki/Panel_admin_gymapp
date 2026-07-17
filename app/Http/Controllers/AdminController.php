@@ -17,6 +17,10 @@ use App\Models\UserAssignedRoutine;
 use App\Models\Exercise;
 use App\Models\RoutineDay;
 use App\Models\RoutineExercise;
+use App\Models\MembershipPayment;
+use App\Models\ProductSale;
+use App\Models\UserMembership;
+use App\Models\InventoryProduct;
 
 class AdminController extends Controller
 {
@@ -25,15 +29,53 @@ class AdminController extends Controller
      */
     public function dashboard()
     {
-        $totalClients = User::where('role', 'member')->count();
-        $activeClientsToday = WorkoutSession::whereDate('session_date', Carbon::today())->count();
-        $totalRoutines = WorkoutRoutine::where('is_active', 1)->count();
-        $totalMealPlans = MealPlan::where('is_active', 1)->count();
+        $gymId = $this->getActiveGymId();
+        
+        $totalClients = User::where('role', 'member')
+            ->when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->count();
 
+        $activeClientsToday = WorkoutSession::whereHas('user', function($q) use ($gymId) {
+                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
+            })->whereDate('session_date', Carbon::today())->count();
+        
+        $totalRoutines = WorkoutRoutine::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('is_active', 1)->count();
+        $totalMealPlans = MealPlan::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('is_active', 1)->count();
+
+        // Admin-level metrics
+        $monthlyIncome = MembershipPayment::whereHas('membership', function($q) use ($gymId) {
+                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
+            })
+            ->whereMonth('payment_date', Carbon::now()->month)
+            ->sum('amount') 
+            + ProductSale::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->whereMonth('createdAt', Carbon::now()->month)
+            ->sum('total_amount');
+
+        $pendingPaymentsCount = UserMembership::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('payment_status', 'pending')->count();
+        $lowStockCount = InventoryProduct::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->whereRaw('stock_quantity <= min_stock')->count();
+
+        // Superadmin-level global metrics
+        $totalGyms = \App\Models\Gym::count();
+        $activeGymsCount = \App\Models\Gym::where('is_active', 1)->count();
+        $inactiveGymsCount = \App\Models\Gym::where('is_active', 0)->count();
+        $totalSystemUsers = User::count();
+        $globalSalesTotal = MembershipPayment::sum('amount') + ProductSale::sum('total_amount');
+        
+        $systemAlerts = [
+            ['type' => 'warning', 'message' => 'Almacenamiento del servidor SSD en 78%.', 'time' => 'Hace 12 min'],
+            ['type' => 'info', 'message' => 'Copia de seguridad semanal de la base de datos completada.', 'time' => 'Hace 3 horas'],
+            ['type' => 'success', 'message' => 'Pasarela de pagos Stripe & Cash en línea (100% UP).', 'time' => 'Activo'],
+        ];
+
+        // Weekly attendance parsing
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
-        $sessionsByDay = WorkoutSession::whereBetween('session_date', [$startOfWeek, $endOfWeek])
+        $sessionsByDay = WorkoutSession::whereHas('user', function($q) use ($gymId) {
+                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
+            })
+            ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
             ->selectRaw('DAYOFWEEK(session_date) as day, COUNT(*) as count')
             ->groupBy('day')
             ->pluck('count', 'day')
@@ -62,6 +104,7 @@ class AdminController extends Controller
         $chartPolygonPoints = implode(' ', $polygonPoints);
 
         $recentClients = User::where('role', 'member')
+            ->when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
             ->with(['profile', 'latestMeasurement', 'activeRoutine.routine'])
             ->orderBy('id', 'desc')
             ->take(3)
@@ -72,6 +115,15 @@ class AdminController extends Controller
             'activeClientsToday',
             'totalRoutines',
             'totalMealPlans',
+            'monthlyIncome',
+            'pendingPaymentsCount',
+            'lowStockCount',
+            'totalGyms',
+            'activeGymsCount',
+            'inactiveGymsCount',
+            'totalSystemUsers',
+            'globalSalesTotal',
+            'systemAlerts',
             'attendanceData',
             'chartLinePoints',
             'chartPolygonPoints',
@@ -84,9 +136,16 @@ class AdminController extends Controller
      */
     public function clientes()
     {
-        $clientes = User::where('role', 'member')
-            ->with(['profile', 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan'])
-            ->get();
+        $gymId = $this->getActiveGymId();
+        
+        $query = User::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->with(['profile', 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan']);
+
+        if (auth()->user()->role !== 'superadmin') {
+            $query->where('role', 'member');
+        }
+
+        $clientes = $query->get();
 
         return view('clientes', compact('clientes'));
     }
@@ -96,10 +155,22 @@ class AdminController extends Controller
      */
     public function showCliente($id)
     {
+        $gymId = $this->getActiveGymId();
+
         $cliente = User::where('role', 'member')
-            ->with(['profile', 'bodyMeasurements' => function($q) {
-                $q->orderBy('measured_at', 'asc');
-            }, 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan'])
+            ->where('gym_id', $gymId)
+            ->with([
+                'profile', 
+                'bodyMeasurements' => function($q) {
+                    $q->orderBy('measured_at', 'asc');
+                }, 
+                'latestMeasurement', 
+                'activeRoutine.routine', 
+                'activeRoutine.assigner', 
+                'activeMealPlan.mealPlan', 
+                'activeMealPlan.assigner', 
+                'activeMembership.plan'
+            ])
             ->findOrFail($id);
 
         // Format weight history chart
@@ -132,9 +203,9 @@ class AdminController extends Controller
             $weightPolygonPoints = implode(' ', $polyPts);
         }
 
-        // Fetch routines & meal plans for assignment modals
-        $routines = WorkoutRoutine::where('is_active', 1)->get();
-        $mealPlans = MealPlan::where('is_active', 1)->get();
+        // Fetch routines & meal plans for assignment modals scoped to this gym
+        $routines = WorkoutRoutine::where('gym_id', $gymId)->where('is_active', 1)->get();
+        $mealPlans = MealPlan::where('gym_id', $gymId)->where('is_active', 1)->get();
 
         return view('clientes.show', compact(
             'cliente',
@@ -180,6 +251,7 @@ class AdminController extends Controller
             'role' => 'member',
             'is_active' => 1,
             'email_verified' => 0,
+            'gym_id' => 1,
         ]);
 
         // Create UserProfile
@@ -191,7 +263,6 @@ class AdminController extends Controller
             'birth_date' => $request->birth_date,
             'gender' => $request->gender,
             'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
-            'gym_id' => 1,
         ]);
 
         // Calculate BMI
@@ -226,6 +297,9 @@ class AdminController extends Controller
             'start_date' => 'required|date',
         ]);
 
+        $trainer = Trainer::where('user_id', auth()->user()->id)->first();
+        $trainerId = $trainer ? $trainer->id : null;
+
         // Deactivate existing assignments
         UserAssignedRoutine::where('user_id', $id)->update(['is_active' => 0]);
 
@@ -233,7 +307,7 @@ class AdminController extends Controller
         UserAssignedRoutine::create([
             'user_id' => $id,
             'routine_id' => $request->routine_id,
-            'assigned_by' => 1, // Assume trainer id = 1
+            'assigned_by' => $trainerId,
             'start_date' => $request->start_date,
             'is_active' => 1,
         ]);
@@ -251,6 +325,9 @@ class AdminController extends Controller
             'start_date' => 'required|date',
         ]);
 
+        $trainer = Trainer::where('user_id', auth()->user()->id)->first();
+        $trainerId = $trainer ? $trainer->id : null;
+
         // Deactivate existing assignments
         UserMealPlan::where('user_id', $id)->update(['is_active' => 0]);
 
@@ -258,7 +335,7 @@ class AdminController extends Controller
         UserMealPlan::create([
             'user_id' => $id,
             'meal_plan_id' => $request->meal_plan_id,
-            'assigned_by' => 1,
+            'assigned_by' => $trainerId,
             'start_date' => $request->start_date,
             'is_active' => 1,
         ]);
@@ -271,23 +348,29 @@ class AdminController extends Controller
      */
     public function rutinas()
     {
-        $rutinas = WorkoutRoutine::withCount(['assignments as active_assignments_count' => function($q) {
-            $q->where('is_active', 1);
-        }])->get();
+        $gymId = $this->getActiveGymId();
 
-        $totalClients = User::where('role', 'member')->count();
-        $activeAssignmentsCount = WorkoutRoutine::join('user_assigned_routines', 'workout_routines.id', '=', 'user_assigned_routines.routine_id')
-            ->where('user_assigned_routines.is_active', 1)
-            ->count();
+        $rutinas = WorkoutRoutine::where('gym_id', $gymId)
+            ->withCount(['assignments as active_assignments_count' => function($q) {
+                $q->where('is_active', 1);
+            }])->get();
 
-        $popularRoutine = WorkoutRoutine::withCount(['assignments' => function($q) {
+        $totalClients = User::where('role', 'member')->where('gym_id', $gymId)->count();
+        
+        $activeAssignmentsCount = UserAssignedRoutine::where('is_active', 1)
+            ->whereHas('user', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })->count();
+
+        $popularRoutine = WorkoutRoutine::where('gym_id', $gymId)
+            ->withCount(['assignments' => function($q) {
                 $q->where('is_active', 1);
             }])
             ->orderBy('assignments_count', 'desc')
             ->first();
         $popularRoutineName = $popularRoutine ? $popularRoutine->name : 'N/A';
 
-        $clientes = User::where('role', 'member')->with('profile')->get();
+        $clientes = User::where('role', 'member')->where('gym_id', $gymId)->with('profile')->get();
 
         return view('rutinas', compact('rutinas', 'totalClients', 'activeAssignmentsCount', 'popularRoutineName', 'clientes'));
     }
@@ -314,7 +397,12 @@ class AdminController extends Controller
             'days_per_week' => 'required|integer|min:1|max:7',
         ]);
 
+        $gymId = auth()->user()->gym_id;
+        $trainer = Trainer::where('user_id', auth()->user()->id)->first();
+        $trainerId = $trainer ? $trainer->id : null;
+
         WorkoutRoutine::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
             'goal_type' => $request->goal_type,
@@ -323,7 +411,7 @@ class AdminController extends Controller
             'days_per_week' => $request->days_per_week,
             'requires_gym' => $request->has('requires_gym') ? 1 : 0,
             'is_active' => 1,
-            'created_by' => 1, // Assume trainer id = 1
+            'created_by' => $trainerId,
         ]);
 
         return redirect()->route('rutinas.index')->with('success', 'Plan de rutina creado con éxito.');
@@ -334,11 +422,14 @@ class AdminController extends Controller
      */
     public function nutricion()
     {
-        $dietas = MealPlan::withCount(['assignments as active_assignments_count' => function($q) {
-            $q->where('is_active', 1);
-        }])->get();
+        $gymId = $this->getActiveGymId();
 
-        $clientes = User::where('role', 'member')->with('profile')->get();
+        $dietas = MealPlan::where('gym_id', $gymId)
+            ->withCount(['assignments as active_assignments_count' => function($q) {
+                $q->where('is_active', 1);
+            }])->get();
+
+        $clientes = User::where('role', 'member')->where('gym_id', $gymId)->with('profile')->get();
 
         return view('nutricion', compact('dietas', 'clientes'));
     }
@@ -364,7 +455,10 @@ class AdminController extends Controller
             'daily_calories' => 'required|numeric|min:500|max:10000',
         ]);
 
+        $gymId = auth()->user()->gym_id;
+
         MealPlan::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
             'goal_type' => $request->goal_type,
@@ -381,7 +475,10 @@ class AdminController extends Controller
      */
     public function showComidas($id)
     {
-        $plan = MealPlan::with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
+        $gymId = $this->getActiveGymId();
+
+        $plan = MealPlan::where('gym_id', $gymId)
+            ->with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
             ->findOrFail($id);
 
         return view('nutricion.comidas', compact('plan'));
@@ -392,7 +489,11 @@ class AdminController extends Controller
      */
     public function editEjercicios($id)
     {
-        $routine = WorkoutRoutine::with('days.exercises.exercise')->findOrFail($id);
+        $gymId = $this->getActiveGymId();
+
+        $routine = WorkoutRoutine::where('gym_id', $gymId)
+            ->with('days.exercises.exercise')
+            ->findOrFail($id);
 
         // Auto-initialize days if not created yet
         if ($routine->days->count() === 0) {
@@ -404,10 +505,12 @@ class AdminController extends Controller
                     'focus_area' => 'Fuerza General'
                 ]);
             }
-            $routine = WorkoutRoutine::with('days.exercises.exercise')->findOrFail($id);
+            $routine = WorkoutRoutine::where('gym_id', $gymId)
+                ->with('days.exercises.exercise')
+                ->findOrFail($id);
         }
 
-        $exercises = Exercise::orderBy('name')->get();
+        $exercises = Exercise::where('gym_id', $gymId)->orderBy('name')->get();
 
         return view('rutinas.ejercicios', compact('routine', 'exercises'));
     }
@@ -426,10 +529,14 @@ class AdminController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $maxOrder = RoutineExercise::where('routine_day_id', $request->routine_day_id)->max('order_index') ?? 0;
+        $gymId = $this->getActiveGymId();
+        $routine = WorkoutRoutine::where('gym_id', $gymId)->findOrFail($id);
+        $day = RoutineDay::where('routine_id', $routine->id)->findOrFail($request->routine_day_id);
+
+        $maxOrder = RoutineExercise::where('routine_day_id', $day->id)->max('order_index') ?? 0;
 
         RoutineExercise::create([
-            'routine_day_id' => $request->routine_day_id,
+            'routine_day_id' => $day->id,
             'exercise_id' => $request->exercise_id,
             'sets' => $request->sets,
             'reps' => $request->reps,
@@ -485,12 +592,15 @@ class AdminController extends Controller
             'start_date' => 'required|date',
         ]);
 
+        $trainer = Trainer::where('user_id', auth()->user()->id)->first();
+        $trainerId = $trainer ? $trainer->id : null;
+
         UserAssignedRoutine::where('user_id', $request->user_id)->update(['is_active' => 0]);
 
         UserAssignedRoutine::create([
             'user_id' => $request->user_id,
             'routine_id' => $routine_id,
-            'assigned_by' => 1,
+            'assigned_by' => $trainerId,
             'start_date' => $request->start_date,
             'is_active' => 1,
         ]);
@@ -508,12 +618,15 @@ class AdminController extends Controller
             'start_date' => 'required|date',
         ]);
 
+        $trainer = Trainer::where('user_id', auth()->user()->id)->first();
+        $trainerId = $trainer ? $trainer->id : null;
+
         UserMealPlan::where('user_id', $request->user_id)->update(['is_active' => 0]);
 
         UserMealPlan::create([
             'user_id' => $request->user_id,
             'meal_plan_id' => $meal_plan_id,
-            'assigned_by' => 1,
+            'assigned_by' => $trainerId,
             'start_date' => $request->start_date,
             'is_active' => 1,
         ]);

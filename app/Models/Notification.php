@@ -4,21 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class UserProfile extends Model
+class Notification extends Model
 {
     const CREATED_AT = 'createdAt';
-    const UPDATED_AT = 'updatedAt';
+    const UPDATED_AT = null;
 
-    protected $table = 'user_profiles';
+    protected $table = 'notifications';
 
     protected $fillable = [
         'user_id',
-        'first_name',
-        'last_name',
-        'phone',
-        'birth_date',
-        'gender',
-        'profile_photo',
+        'title',
+        'body',
+        'type', // 'membership_expiry','payment_reminder','new_routine','achievement','general'
+        'is_read',
     ];
 
     public function user()

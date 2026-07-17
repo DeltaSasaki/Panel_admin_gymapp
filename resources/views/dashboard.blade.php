@@ -8,7 +8,16 @@
     <!-- Welcome Header Section -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-slate-900 via-slate-900/60 to-transparent p-6 rounded-3xl border border-slate-800/40">
         <div>
-            <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">¡Hola, Coach Carlos!</h1>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2.5">
+                ¡Hola, {{ auth()->user()->profile->first_name ?? 'Coach' }}!
+                @if(auth()->user()->role === 'superadmin')
+                    <span class="px-2 py-0.5 text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg uppercase tracking-wider">SuperAdmin</span>
+                @elseif(auth()->user()->role === 'admin')
+                    <span class="px-2 py-0.5 text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg uppercase tracking-wider">Administrador</span>
+                @else
+                    <span class="px-2 py-0.5 text-xs font-bold bg-lime-500/20 text-lime-400 border border-lime-500/30 rounded-lg uppercase tracking-wider">Entrenador</span>
+                @endif
+            </h1>
             <p class="text-slate-400 text-sm mt-1">Aquí tienes el resumen del rendimiento de tus atletas y tus tareas de hoy.</p>
         </div>
         <div class="flex items-center gap-3">
@@ -20,71 +29,174 @@
         </div>
     </div>
 
-    <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        <!-- Total Clients Card -->
-        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Clientes</span>
-                <div class="p-2 bg-lime-500/10 text-lime-400 rounded-xl">
-                    <i data-lucide="users" class="w-5 h-5"></i>
+    <!-- SaaS Global Metrics (Only visible to Superadmins) -->
+    @if(auth()->user()->role === 'superadmin')
+        <div class="space-y-4">
+            <h2 class="text-xs uppercase font-extrabold tracking-widest text-purple-400">Consola Global SaaS (Soporte Técnico)</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Total Gyms -->
+                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Gimnasios Clientes</span>
+                        <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
+                            <i data-lucide="dumbbell" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <span class="text-2xl font-black text-white relative z-10">{{ $totalGyms }} Sucursales</span>
+                    <p class="text-[10px] text-purple-300/80 mt-1.5 relative z-10 font-bold uppercase tracking-wider">{{ $activeGymsCount }} Habilitadas &bull; {{ $inactiveGymsCount }} Suspendidas</p>
+                    <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
+                        <i data-lucide="dumbbell" class="w-16 h-16"></i>
+                    </div>
+                </div>
+                
+                <!-- Total System Users -->
+                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Usuarios Globales</span>
+                        <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
+                            <i data-lucide="users-2" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <span class="text-2xl font-black text-white relative z-10">{{ $totalSystemUsers }} Cuentas</span>
+                    <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
+                        <i data-lucide="users-2" class="w-16 h-16"></i>
+                    </div>
+                </div>
+
+                <!-- Global Sales -->
+                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Recaudación Total</span>
+                        <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
+                            <i data-lucide="banknote" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <span class="text-2xl font-black text-white relative z-10">${{ number_format($globalSalesTotal, 2) }}</span>
+                    <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
+                        <i data-lucide="banknote" class="w-16 h-16"></i>
+                    </div>
+                </div>
+
+                <!-- Database Health -->
+                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                    <div class="flex items-center justify-between mb-3 relative z-10">
+                        <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Estado Servidor</span>
+                        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl animate-pulse">
+                            <i data-lucide="server" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <span class="text-2xl font-black text-emerald-400 relative z-10">100% ONLINE</span>
+                    <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
+                        <i data-lucide="server" class="w-16 h-16"></i>
+                    </div>
                 </div>
             </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-extrabold text-white">{{ $totalClients }}</span>
-                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-0.5">
-                    <i data-lucide="trending-up" class="w-3 h-3"></i> +12%
-                </span>
-            </div>
-            <p class="text-xs text-slate-500 mt-2">Registrados en la plataforma</p>
         </div>
+    @endif
 
-        <!-- Active Clients Today Card -->
-        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Entrenando Hoy</span>
-                <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
-                    <i data-lucide="flame" class="w-5 h-5"></i>
+    <!-- Quick Stats Grid (Active Gym Context) -->
+    <div>
+        <h2 class="text-xs uppercase font-extrabold tracking-widest text-slate-500 mb-4">Métricas del Gimnasio Activo</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            <!-- Total Clients Card -->
+            <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Clientes</span>
+                    <div class="p-2 bg-lime-500/10 text-lime-400 rounded-xl">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                    </div>
                 </div>
-            </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-extrabold text-white">{{ $activeClientsToday }}</span>
-                <span class="text-xs text-slate-400">activos hoy</span>
-            </div>
-            <p class="text-xs text-slate-500 mt-2">Sesiones completadas/en progreso</p>
-        </div>
-
-        <!-- Routine Plans Card -->
-        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Rutina</span>
-                <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
-                    <i data-lucide="activity" class="w-5 h-5"></i>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-white">{{ $totalClients }}</span>
                 </div>
+                <p class="text-xs text-slate-500 mt-2">Atletas registrados en este gimnasio</p>
             </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-extrabold text-white">{{ $totalRoutines }}</span>
-                <span class="text-xs text-purple-400 font-medium">Plantillas</span>
-            </div>
-            <p class="text-xs text-slate-500 mt-2">Modelos cargados en el sistema</p>
-        </div>
 
-        <!-- Nutrition Plans Card -->
-        <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Nutrición</span>
-                <div class="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
-                    <i data-lucide="apple" class="w-5 h-5"></i>
+            <!-- Active Clients Today Card -->
+            <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Entrenando Hoy</span>
+                    <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                        <i data-lucide="flame" class="w-5 h-5"></i>
+                    </div>
                 </div>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-3xl font-extrabold text-white">{{ $activeClientsToday }}</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Sesiones iniciadas hoy</p>
             </div>
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-extrabold text-white">{{ $totalMealPlans }}</span>
-                <span class="text-xs text-slate-400">cargados</span>
-            </div>
-            <p class="text-xs text-slate-500 mt-2">Dietas y macros activos</p>
-        </div>
 
+            <!-- Card 3: Dynamic based on role -->
+            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                <!-- Monthly Cashflow (Admin / Superadmin only) -->
+                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Caja Mensual</span>
+                        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                            <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-3xl font-extrabold text-white">${{ number_format($monthlyIncome, 2) }}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Pagos de Membresías + POS (mes actual)</p>
+                </div>
+            @else
+                <!-- Total Routines (Trainers only) -->
+                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Rutina</span>
+                        <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
+                            <i data-lucide="activity" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-3xl font-extrabold text-white">{{ $totalRoutines }}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Plantillas cargadas en el sistema</p>
+                </div>
+            @endif
+
+            <!-- Card 4: Dynamic based on role -->
+            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                <!-- Administrative Alerts (Admin / Superadmin only) -->
+                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Alertas Administrativas</span>
+                        <div class="p-2 bg-rose-500/10 text-rose-400 rounded-xl">
+                            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-xs text-slate-300">
+                            <span>Bajo Stock:</span>
+                            <span class="font-bold text-rose-400">{{ $lowStockCount }} productos</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-300">
+                            <span>Pagos Pendientes:</span>
+                            <span class="font-bold text-amber-400">{{ $pendingPaymentsCount }} socios</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Atención administrativa requerida</p>
+                </div>
+            @else
+                <!-- Total Meal Plans (Trainers only) -->
+                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Dieta</span>
+                        <div class="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
+                            <i data-lucide="apple" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-3xl font-extrabold text-white">{{ $totalMealPlans }}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Modelos alimentarios guardados</p>
+                </div>
+            @endif
+
+        </div>
     </div>
 
     <!-- Graphic and Activity Rows -->
@@ -151,58 +263,93 @@
             </div>
         </div>
 
-        <!-- Target / Progress Goals Card -->
-        <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
-            <div>
-                <h3 class="font-bold text-lg text-white mb-1">Tareas del Coach</h3>
-                <p class="text-xs text-slate-400">Objetivos y chequeos pendientes para hoy</p>
+        <!-- Right Hand Column: System Diagnostics for Superadmin OR Coach Tasks for others -->
+        @if(auth()->user()->role === 'superadmin')
+            <!-- System Diagnostics & Uptime Logs (Superadmin Only) -->
+            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-lg text-white mb-1">Alertas de Soporte Técnico</h3>
+                    <p class="text-xs text-slate-400">Diagnóstico del servidor y telemetría SaaS</p>
+                </div>
+
+                <div class="space-y-4 my-6">
+                    @foreach($systemAlerts as $alert)
+                        <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
+                            <div class="mt-0.5">
+                                @if($alert['type'] === 'warning')
+                                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+                                @elseif($alert['type'] === 'success')
+                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+                                @else
+                                    <i data-lucide="info" class="w-4 h-4 text-blue-400"></i>
+                                @endif
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="block text-xs font-bold text-slate-200">{{ $alert['message'] }}</span>
+                                <p class="text-[10px] text-slate-500">{{ $alert['time'] }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                <button class="w-full py-2.5 bg-purple-950/30 hover:bg-purple-900/20 text-purple-300 text-xs font-bold rounded-xl border border-purple-500/20 transition-colors">
+                    Consola de Base de Datos
+                </button>
             </div>
+        @else
+            <!-- Standard Coach Tasks (Admins and Trainers) -->
+            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-lg text-white mb-1">Tareas del Coach</h3>
+                    <p class="text-xs text-slate-400">Objetivos y chequeos pendientes para hoy</p>
+                </div>
 
-            <div class="space-y-4 my-6">
-                <!-- Task 1 -->
-                <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
-                    <div class="mt-0.5">
-                        <input type="checkbox" checked class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
+                <div class="space-y-4 my-6">
+                    <!-- Task 1 -->
+                    <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
+                        <div class="mt-0.5">
+                            <input type="checkbox" checked class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-slate-400 line-through">Revisar macros de Sofía</span>
+                            <p class="text-[10px] text-slate-500">Completado por la mañana</p>
+                        </div>
                     </div>
-                    <div>
-                        <span class="block text-xs font-bold text-slate-400 line-through">Revisar macros de Sofía</span>
-                        <p class="text-[10px] text-slate-500">Completado por la mañana</p>
+
+                    <!-- Task 2 -->
+                    <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
+                        <div class="mt-0.5">
+                            <input type="checkbox" class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-slate-200">Ajustar rutina de fuerza de Javier</span>
+                            <p class="text-[10px] text-purple-400 font-semibold flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                Rutinas
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Task 3 -->
+                    <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
+                        <div class="mt-0.5">
+                            <input type="checkbox" class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-slate-200">Llamada de seguimiento - Mateo M.</span>
+                            <p class="text-[10px] text-amber-400 font-semibold flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                Clientes
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Task 2 -->
-                <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
-                    <div class="mt-0.5">
-                        <input type="checkbox" class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
-                    </div>
-                    <div>
-                        <span class="block text-xs font-bold text-slate-200">Ajustar rutina de fuerza de Javier</span>
-                        <p class="text-[10px] text-purple-400 font-semibold flex items-center gap-1 mt-0.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                            Rutinas
-                        </p>
-                    </div>
-                </div>
-
-                <!-- Task 3 -->
-                <div class="flex items-start gap-3 p-3 bg-slate-950/40 rounded-xl border border-slate-850/60">
-                    <div class="mt-0.5">
-                        <input type="checkbox" class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-0 focus:ring-offset-0">
-                    </div>
-                    <div>
-                        <span class="block text-xs font-bold text-slate-200">Llamada de seguimiento - Mateo M.</span>
-                        <p class="text-[10px] text-amber-400 font-semibold flex items-center gap-1 mt-0.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                            Clientes
-                        </p>
-                    </div>
-                </div>
+                <button class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors">
+                    Ver todas las tareas (5)
+                </button>
             </div>
-
-            <button class="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors">
-                Ver todas las tareas (5)
-            </button>
-        </div>
+        @endif
 
     </div>
 
@@ -277,14 +424,14 @@
                                 @endif
                             </td>
                             <td class="py-4 px-4 text-right">
-                                <button class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors">
-                                    <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-                                </button>
+                                <a href="{{ route('clientes.show', $client->id) }}" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors inline-block">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-6 text-center text-slate-500">No hay clientes registrados en la base de datos.</td>
+                            <td colspan="5" class="py-6 text-center text-slate-500">No hay clientes recientemente registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>

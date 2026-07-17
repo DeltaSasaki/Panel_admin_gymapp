@@ -1,3 +1,19 @@
+@php
+    $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+    $activeGymLogo = null;
+    if ($activeGymId === 'all') {
+        $activeGymName = 'Todas las Sucursales';
+    } else {
+        if ($activeGymId == auth()->user()->gym_id) {
+            $activeGymName = auth()->user()->gym->name;
+            $activeGymLogo = auth()->user()->gym->logo_url;
+        } else {
+            $gymRecord = \App\Models\Gym::where('id', $activeGymId)->first(['name', 'logo_url']);
+            $activeGymName = $gymRecord->name ?? 'Vista General';
+            $activeGymLogo = $gymRecord->logo_url ?? null;
+        }
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-950 text-slate-100">
 <head>
@@ -21,20 +37,33 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        /* Custom scrollbar for premium feel */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        /* Custom scrollbars for a premium dark layout */
+        .scrollbar-thin::-webkit-scrollbar,
+        *::-webkit-scrollbar {
+            width: 4px !important;
+            height: 4px !important;
         }
-        ::-webkit-scrollbar-track {
-            background: #090d16;
+        .scrollbar-thin::-webkit-scrollbar-track,
+        *::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.15) !important;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #1e293b;
-            border-radius: 4px;
+        .scrollbar-thin::-webkit-scrollbar-thumb,
+        *::-webkit-scrollbar-thumb {
+            background: rgba(163, 230, 53, 0.25) !important;
+            border-radius: 10px !important;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #334155;
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+        *::-webkit-scrollbar-thumb:hover {
+            background: rgba(163, 230, 53, 0.5) !important;
+        }
+
+        /* Smooth page transition animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(3px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.22s ease-out forwards;
         }
     </style>
     @stack('styles')
@@ -47,91 +76,215 @@
         <!-- Mobile Header Bar (Visible on mobile only) -->
         <header class="md:hidden flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
             <div class="flex items-center gap-3">
-                <div class="p-2 bg-lime-500/10 rounded-xl border border-lime-500/30 text-lime-400">
-                    <i data-lucide="dumbbell" class="w-6 h-6"></i>
-                </div>
+                @if($activeGymLogo && file_exists(public_path($activeGymLogo)))
+                    <div class="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-800 shadow-md">
+                        <img src="{{ asset($activeGymLogo) }}" alt="Logo" class="w-full h-full object-cover">
+                    </div>
+                @else
+                    <div class="p-2 bg-lime-500/10 rounded-xl border border-lime-500/30 text-lime-400">
+                        <i data-lucide="dumbbell" class="w-6 h-6"></i>
+                    </div>
+                @endif
                 <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
             </div>
             <button id="mobile-menu-btn" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-lime-500">
                 <i data-lucide="menu" class="w-6 h-6"></i>
             </button>
         </header>
-
         <!-- Sidebar (Fixed on Desktop, Off-canvas Drawer on Mobile) -->
-        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-slate-900/90 backdrop-blur-md border-r border-slate-800/80 p-6 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out md:h-screen">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-slate-900/90 backdrop-blur-md border-r border-slate-800/80 p-6 flex flex-col justify-between transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out h-screen overflow-hidden">
             
-            <div>
-                <!-- Brand Logo & Header -->
-                <div class="flex items-center justify-between mb-8 pb-6 border-b border-slate-800/60">
-                    <div class="flex items-center gap-3">
-                        <div class="p-2.5 bg-lime-500/10 rounded-xl border border-lime-500/20 text-lime-400 shadow-lg shadow-lime-500/5">
+            <!-- Brand Logo & Header (Pinned at Top) -->
+            <div class="flex items-center justify-between pb-5 border-b border-slate-800/50 shrink-0">
+                <div class="flex items-center gap-3">
+                    @if($activeGymLogo && file_exists(public_path($activeGymLogo)))
+                        <div class="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-slate-800 shadow-md">
+                            <img src="{{ asset($activeGymLogo) }}" alt="Logo" class="w-full h-full object-cover">
+                        </div>
+                    @else
+                        <div class="p-2 bg-gradient-to-br from-lime-500/20 to-emerald-500/10 rounded-xl border border-lime-500/30 text-lime-400 shadow-lg shadow-lime-500/10">
                             <i data-lucide="dumbbell" class="w-6 h-6 animate-pulse"></i>
                         </div>
-                        <div>
-                            <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
-                            <span class="block text-[10px] uppercase font-bold text-slate-500 tracking-wider">Centro de Control</span>
-                        </div>
+                    @endif
+                    <div>
+                        <span class="font-black text-xl tracking-tight bg-gradient-to-r from-lime-400 via-lime-500 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
+                        <span class="block text-[9px] uppercase font-bold text-slate-400 tracking-wider truncate max-w-[170px] mt-0.5" title="{{ $activeGymName }}">
+                            {{ $activeGymName }}
+                        </span>
                     </div>
-                    <!-- Close button for Mobile Menu -->
-                    <button id="close-menu-btn" class="md:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
                 </div>
+                <!-- Close button for Mobile Menu -->
+                <button id="close-menu-btn" class="md:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
 
+            <!-- Scrollable Content Area (Flex-1 scroll) -->
+            <div class="flex-1 overflow-y-auto my-6 pr-1 space-y-5 scrollbar-thin">
                 <!-- Coach Badge / Quick Info -->
-                <div class="bg-gradient-to-br from-slate-950 to-slate-900/50 border border-slate-800/50 rounded-2xl p-4 mb-8">
-                    <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop" 
+                <div class="bg-slate-900/30 border border-slate-800/70 rounded-2xl p-3.5 relative overflow-hidden group/coach">
+                    <div class="absolute inset-0 bg-gradient-to-r from-lime-500/[0.02] to-emerald-500/[0.02] opacity-0 group-hover/coach:opacity-100 transition-opacity duration-300"></div>
+                    <div class="flex items-center gap-3 relative z-10">
+                        <div class="relative shrink-0">
+                            <img src="{{ auth()->user()->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" 
                                  alt="Avatar de Coach" 
-                                 class="w-11 h-11 rounded-full object-cover border-2 border-lime-500/30">
-                            <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full"></span>
+                                 class="w-10 h-10 rounded-full object-cover border-2 border-lime-500/35 shadow-md shadow-lime-500/10">
+                            <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full animate-pulse"></span>
                         </div>
                         <div class="overflow-hidden">
-                            <h4 class="font-semibold text-sm text-slate-100 truncate">Coach Carlos Ruiz</h4>
-                            <p class="text-xs text-lime-400 font-medium">Head Trainer / Dueño</p>
+                            <h4 class="font-bold text-xs text-slate-100 truncate tracking-wide">Coach {{ auth()->user()->profile->first_name }}</h4>
+                            <p class="text-[10px] text-lime-400 font-semibold truncate uppercase tracking-widest mt-0.5">{{ auth()->user()->gym->name }}</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Navigation Options -->
-                <nav class="space-y-1.5">
-                    <p class="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-3 mb-2">Principal</p>
-                    
-                    <!-- Dashboard Link -->
-                    <a href="{{ url('/dashboard') }}" 
-                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all group {{ Request::is('dashboard') || Request::is('/') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 border-l-4 border-lime-500 shadow-sm' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-100' }}">
-                        <i data-lucide="layout-dashboard" class="w-5 h-5 transition-transform group-hover:scale-110"></i>
-                        <span>Dashboard</span>
-                    </a>
+                <nav class="space-y-4">
+                    @php
+                        $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*');
+                        $isCajaActive = Request::is('tienda*') || Request::is('finanzas*');
+                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('equipamiento*');
+                        $isSaaSActive = Request::is('staff*') || Request::is('superadmin*');
+                    @endphp
 
-                    <!-- Mis Clientes Link -->
-                    <a href="{{ url('/clientes') }}" 
-                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all group {{ Request::is('clientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 border-l-4 border-lime-500 shadow-sm' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-100' }}">
-                        <i data-lucide="users" class="w-5 h-5 transition-transform group-hover:scale-110"></i>
-                        <span>Mis Clientes</span>
-                    </a>
+                    <!-- Group 1: Resumen General (Recuadro Box) -->
+                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isPrincipalActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
+                        <button onclick="toggleSidebarGroup('group-principal')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                            <span class="flex items-center gap-2.5">
+                                <div class="p-1.5 {{ $isPrincipalActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                    <i data-lucide="layout" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="tracking-wider">General</span>
+                            </span>
+                            <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                <i data-lucide="chevron-down" id="chevron-group-principal" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isPrincipalActive ? '' : '-rotate-90' }}"></i>
+                            </div>
+                        </button>
+                        <div id="group-principal" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isPrincipalActive ? '' : 'hidden' }}">
+                            <a href="{{ url('/dashboard') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('dashboard') || Request::is('/') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="{{ url('/clientes') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('clientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="users" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Mis Clientes</span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <p class="text-[10px] uppercase font-bold text-slate-500 tracking-widest px-3 mt-6 mb-2">Entrenamiento</p>
+                    <!-- Group 2: Ventas y Finanzas (Recuadro Box) -->
+                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isCajaActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
+                        <button onclick="toggleSidebarGroup('group-caja')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                            <span class="flex items-center gap-2.5">
+                                <div class="p-1.5 {{ $isCajaActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                    <i data-lucide="banknote" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="tracking-wider">Ventas & Caja</span>
+                            </span>
+                            <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                <i data-lucide="chevron-down" id="chevron-group-caja" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isCajaActive ? '' : '-rotate-90' }}"></i>
+                            </div>
+                        </button>
+                        <div id="group-caja" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isCajaActive ? '' : 'hidden' }}">
+                            <a href="{{ url('/tienda/pos') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/pos') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="shopping-cart" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Venta Nueva (POS)</span>
+                            </a>
+                            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                                <a href="{{ url('/tienda/productos') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/productos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="package" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Inventario Tienda</span>
+                                </a>
+                                <a href="{{ url('/tienda/ventas') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/ventas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="receipt" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Historial Ventas</span>
+                                </a>
+                                <a href="{{ url('/finanzas') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('finanzas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Finanzas & Pagos</span>
+                                </a>
+                            @endif
+                        </div>
+                    </div>
 
-                    <!-- Planes de Rutinas Link -->
-                    <a href="{{ url('/rutinas') }}" 
-                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all group {{ Request::is('rutinas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 border-l-4 border-lime-500 shadow-sm' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-100' }}">
-                        <i data-lucide="dumbbell" class="w-5 h-5 transition-transform group-hover:scale-110"></i>
-                        <span>Planes de Rutinas</span>
-                    </a>
+                    <!-- Group 3: Entrenamiento & Nutrición (Recuadro Box) -->
+                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
+                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                            <span class="flex items-center gap-2.5">
+                                <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                    <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <span class="tracking-wider">Programas & Catálogos</span>
+                            </span>
+                            <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                <i data-lucide="chevron-down" id="chevron-group-entrenamiento" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isEntrenamientoActive ? '' : '-rotate-90' }}"></i>
+                            </div>
+                        </button>
+                        <div id="group-entrenamiento" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isEntrenamientoActive ? '' : 'hidden' }}">
+                            <a href="{{ url('/rutinas') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('rutinas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="dumbbell" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Planes de Rutinas</span>
+                            </a>
+                            <a href="{{ url('/nutricion') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('nutricion*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="apple" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Planes de Nutrición</span>
+                            </a>
+                            <a href="{{ url('/ingredientes') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('ingredientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Ingredientes & Macros</span>
+                            </a>
+                            <a href="{{ url('/equipamiento') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('equipamiento*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Equipamiento Gym</span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <!-- Planes de Nutrición Link -->
-                    <a href="{{ url('/nutricion') }}" 
-                       class="flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all group {{ Request::is('nutricion*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 border-l-4 border-lime-500 shadow-sm' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-100' }}">
-                        <i data-lucide="apple" class="w-5 h-5 transition-transform group-hover:scale-110"></i>
-                        <span>Planes de Nutrición</span>
-                    </a>
+                    <!-- Group 4: Configuración & SaaS (Recuadro Box) -->
+                    @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                        <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSaaSActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
+                            <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                                <span class="flex items-center gap-2.5">
+                                    <div class="p-1.5 {{ $isSaaSActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                        <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="tracking-wider">Administración</span>
+                                </span>
+                                <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                    <i data-lucide="chevron-down" id="chevron-group-saas" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isSaaSActive ? '' : '-rotate-90' }}"></i>
+                                </div>
+                            </button>
+                            <div id="group-saas" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isSaaSActive ? '' : 'hidden' }}">
+                                <a href="{{ url('/staff') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('staff*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Entrenadores (Staff)</span>
+                                </a>
+                                @if(auth()->user()->role === 'superadmin')
+                                    <a href="{{ url('/superadmin/gyms') }}" 
+                                       class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('superadmin/gyms*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                        <i data-lucide="shield-check" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                        <span>Gestionar Sucursales</span>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                 </nav>
             </div>
 
-            <!-- Sidebar Footer -->
-            <div class="pt-6 border-t border-slate-800/60 space-y-4">
+            <!-- Sidebar Footer (Pinned at Bottom) -->
+            <div class="pt-6 border-t border-slate-800/60 space-y-4 shrink-0">
                 <!-- Gym Status Summary -->
                 <div class="bg-slate-950/40 rounded-xl p-3 text-xs border border-slate-800/50">
                     <div class="flex items-center justify-between mb-1.5">
@@ -147,11 +300,14 @@
                 <div class="flex flex-col gap-1">
                     <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 transition-colors">
                         <i data-lucide="settings" class="w-4 h-4"></i>
-                        Configuración
+                        <span>Configuración</span>
                     </a>
-                    <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors">
+                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
+                        @csrf
+                    </form>
+                    <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/5 transition-colors">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
-                        Cerrar Sesión
+                        <span>Cerrar Sesión</span>
                     </a>
                 </div>
             </div>
@@ -166,15 +322,54 @@
             <!-- Top Navbar / Header -->
             <header class="sticky top-0 z-20 bg-[#070a13]/80 backdrop-blur-md border-b border-slate-800/40 px-6 py-4 flex items-center justify-between">
                 
-                <!-- Quick Search (Desktop) -->
-                <div class="hidden sm:block relative w-80">
-                    <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
-                    <input type="text" 
-                           placeholder="Buscar cliente, rutina, dieta..." 
-                           class="w-full pl-10 pr-4 py-2 text-sm bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50 transition-all">
+                <!-- Quick Search & Gym Switcher for Superadmin -->
+                <div class="hidden sm:flex items-center gap-4">
+                    <div class="relative w-80">
+                        <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                        <input type="text" 
+                               placeholder="Buscar cliente, rutina, dieta..." 
+                               class="w-full pl-10 pr-4 py-2 text-sm bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50 transition-all">
+                    </div>
+
+                    @if(auth()->user()->role === 'superadmin')
+                        @php
+                            $allGyms = \App\Models\Gym::orderBy('name')->get();
+                            $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+                        @endphp
+                        <form action="{{ route('superadmin.switch_gym') }}" method="POST" id="switch-gym-form" class="flex items-center gap-2">
+                            @csrf
+                            <label for="gym_id" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sucursal:</label>
+                            <select name="gym_id" id="gym_id" onchange="document.getElementById('switch-gym-form').submit();" class="text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer">
+                                <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas las Sucursales</option>
+                                @foreach($allGyms as $g)
+                                    <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
+                                        {{ $g->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
                 </div>
-                <div class="sm:hidden text-sm font-semibold text-slate-400">
-                    Panel Entrenador
+                <div class="sm:hidden text-sm font-semibold text-slate-400 flex items-center gap-2">
+                    @if(auth()->user()->role === 'superadmin')
+                        @php
+                            $allGyms = \App\Models\Gym::orderBy('name')->get();
+                            $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+                        @endphp
+                        <form action="{{ route('superadmin.switch_gym') }}" method="POST" id="switch-gym-form-mobile" class="flex items-center gap-1.5">
+                            @csrf
+                            <select name="gym_id" id="gym_id_mobile" onchange="document.getElementById('switch-gym-form-mobile').submit();" class="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-lime-400 font-bold focus:outline-none cursor-pointer">
+                                <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas</option>
+                                @foreach($allGyms as $g)
+                                    <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
+                                        {{ $g->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @else
+                        Panel Entrenador
+                    @endif
                 </div>
 
                 <!-- Right items: Actions, Notifications, Profile -->
@@ -194,10 +389,10 @@
                     <!-- Profile quick dropdown (Desktop) -->
                     <div class="flex items-center gap-3 pl-3 border-l border-slate-850">
                         <div class="text-right hidden xl:block">
-                            <span class="block text-xs font-semibold text-slate-200">Coach Carlos R.</span>
+                            <span class="block text-xs font-semibold text-slate-200">Coach {{ auth()->user()->profile->first_name }}</span>
                             <span class="block text-[10px] text-lime-400">Online</span>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop" 
+                        <img src="{{ auth()->user()->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" 
                              alt="Avatar" 
                              class="w-9 h-9 rounded-xl object-cover ring-2 ring-lime-500/20">
                     </div>
@@ -205,7 +400,7 @@
             </header>
 
             <!-- Main Dynamic Content -->
-            <main class="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
+            <main class="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto animate-fade-in">
                 <!-- Dynamically injected screen content -->
                 @yield('content')
             </main>
@@ -220,6 +415,20 @@
 
     <!-- Toggle Sidebar Script -->
     <script>
+        function toggleSidebarGroup(groupId) {
+            const content = document.getElementById(groupId);
+            const chevron = document.getElementById('chevron-' + groupId);
+            if (content && chevron) {
+                if (content.classList.contains('hidden')) {
+                    content.classList.remove('hidden');
+                    chevron.classList.remove('-rotate-90');
+                } else {
+                    content.classList.add('hidden');
+                    chevron.classList.add('-rotate-90');
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Initializing Lucide icons
             lucide.createIcons();

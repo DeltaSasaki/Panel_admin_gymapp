@@ -4,21 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class UserProfile extends Model
+class UserGoal extends Model
 {
     const CREATED_AT = 'createdAt';
     const UPDATED_AT = 'updatedAt';
 
-    protected $table = 'user_profiles';
+    protected $table = 'user_goals';
 
     protected $fillable = [
         'user_id',
-        'first_name',
-        'last_name',
-        'phone',
-        'birth_date',
-        'gender',
-        'profile_photo',
+        'goal_type',
+        'target_weight',
+        'target_date',
+        'is_active',
     ];
 
     public function user()
