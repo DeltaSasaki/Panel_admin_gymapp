@@ -22,6 +22,15 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'GymOS') - Panel de Administración</title>
 
+    <!-- Theme initialization to prevent flash -->
+    <script>
+        if (localStorage.getItem('theme') === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.add('light');
+        } else {
+            document.documentElement.classList.remove('light');
+        }
+    </script>
+
     <!-- Google Fonts: Plus Jakarta Sans for a premium, clean look -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,8 +43,52 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
+        /* Theme overrides for light mode */
+        :root {
+            --bg-body: #070a13;
+        }
+        
+        html.light {
+            --bg-body: #f8fafc;
+            
+            /* Override Tailwind CSS v4 variables */
+            --color-slate-950: #f1f5f9;
+            --color-slate-900: #ffffff;
+            --color-slate-850: #e2e8f0;
+            --color-slate-800: #cbd5e1;
+            --color-slate-700: #94a3b8;
+            --color-slate-600: #94a3b8;
+            --color-slate-500: #64748b;
+            
+            --color-slate-400: #475569;
+            --color-slate-300: #334155;
+            --color-slate-200: #1e293b;
+            --color-slate-100: #0f172a;
+
+            /* Accent overrides for contrast in light mode */
+            --color-lime-400: #4d7c0f; /* lime-700 */
+            --color-lime-500: #3f6212; /* lime-800 */
+            --color-emerald-400: #047857; /* emerald-700 */
+            --color-emerald-500: #065f46; /* emerald-800 */
+            --color-amber-400: #b45309; /* amber-700 */
+            --color-amber-500: #78350f; /* amber-800 */
+            --color-purple-400: #6d28d9; /* purple-700 */
+            --color-purple-500: #5b21b6; /* purple-800 */
+            --color-blue-400: #1d4ed8; /* blue-700 */
+            --color-blue-500: #1e40af; /* blue-800 */
+            --color-rose-400: #be123c; /* rose-700 */
+            --color-rose-500: #9f1239; /* rose-800 */
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-body) !important;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        /* Smooth transitions for light mode toggle */
+        *, *::before, *::after {
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
         /* Custom scrollbars for a premium dark layout */
         .scrollbar-thin::-webkit-scrollbar,
@@ -68,7 +121,7 @@
     </style>
     @stack('styles')
 </head>
-<body class="h-full bg-[#070a13] text-slate-200 overflow-x-hidden antialiased">
+<body class="h-full bg-slate-950 text-slate-200 overflow-x-hidden antialiased">
 
     <!-- Wrapper -->
     <div class="min-h-screen flex flex-col md:flex-row">
@@ -360,7 +413,7 @@
         <div class="flex-1 flex flex-col md:pl-72 min-h-screen">
             
             <!-- Top Navbar / Header -->
-            <header class="sticky top-0 z-20 bg-[#070a13]/80 backdrop-blur-md border-b border-slate-800/40 px-6 py-4 flex items-center justify-between">
+            <header class="sticky top-0 z-20 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/40 px-6 py-4 flex items-center justify-between">
                 
                 <!-- Quick Search & Gym Switcher for Superadmin -->
                 <div class="hidden sm:flex items-center gap-4">
@@ -423,11 +476,17 @@
 
                 <!-- Right items: Actions, Notifications, Profile -->
                 <div class="flex items-center gap-4">
-                    <!-- Quick action button -->
+                    <!-- Quick action button 
                     <a href="{{ route('clientes.crear') }}" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">
                         <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i>
                         Registrar Cliente
-                    </a>
+                    </a> -->
+
+                    <!-- Theme Toggle Button -->
+                    <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
+                        <i data-lucide="moon" class="w-4 h-4 dark-icon block"></i>
+                        <i data-lucide="sun" class="w-4 h-4 light-icon hidden"></i>
+                    </button>
 
                     <!-- Notifications Dropdown Trigger -->
                     <button class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none">
@@ -584,6 +643,41 @@
             }
         });
     </script>
+    
+    <!-- Dark/Light Mode Switcher -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            if (themeToggleBtn) {
+                const darkIcon = themeToggleBtn.querySelector('.dark-icon');
+                const lightIcon = themeToggleBtn.querySelector('.light-icon');
+                
+                const updateToggleIcons = (isLight) => {
+                    if (isLight) {
+                        darkIcon.classList.add('hidden');
+                        darkIcon.classList.remove('block');
+                        lightIcon.classList.add('block');
+                        lightIcon.classList.remove('hidden');
+                    } else {
+                        darkIcon.classList.add('block');
+                        darkIcon.classList.remove('hidden');
+                        lightIcon.classList.add('hidden');
+                        lightIcon.classList.remove('block');
+                    }
+                };
+                
+                // Set initial icons state
+                updateToggleIcons(document.documentElement.classList.contains('light'));
+                
+                themeToggleBtn.addEventListener('click', () => {
+                    const isLight = document.documentElement.classList.toggle('light');
+                    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+                    updateToggleIcons(isLight);
+                });
+            }
+        });
+    </script>
+
     @stack('modals')
     @stack('scripts')
 </body>

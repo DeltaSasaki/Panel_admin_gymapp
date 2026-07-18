@@ -246,7 +246,7 @@
                             $maxVal = max($attendanceData) ?: 1;
                             $y = 180 - (($count / $maxVal) * 145);
                         @endphp
-                        <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#a3e635" stroke="#070a13" stroke-width="2" />
+                        <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#a3e635" class="stroke-slate-950" stroke-width="2" />
                     @endforeach
                 </svg>
             </div>
