@@ -8,17 +8,17 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Retos, Incentivos & Gamificación</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Retos, Incentivos & Gamificación</h1>
             <p class="text-slate-400 text-xs mt-1">Crea retos temporales, asigna insignias coleccionables y administra la tabla de clasificación de XP.</p>
         </div>
         
         <!-- Action Buttons -->
         <div class="flex items-center gap-3">
-            <button onclick="openModal('modal-create-challenge')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+            <button onclick="openModal('modal-create-challenge')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
                 <i data-lucide="plus" class="w-4 h-4 text-lime-400"></i>
                 Nuevo Reto
             </button>
-            <button onclick="openModal('modal-create-achievement')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+            <button onclick="openModal('modal-create-achievement')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
                 <i data-lucide="award" class="w-4 h-4 text-purple-400"></i>
                 Nueva Medalla
             </button>
@@ -98,7 +98,7 @@
                     <div class="flex justify-between items-center text-[10px] text-slate-500 font-semibold">
                         <span>Vigencia: {{ \Carbon\Carbon::parse($challenge->start_date)->format('d/m') }} al {{ \Carbon\Carbon::parse($challenge->end_date)->format('d/m/Y') }}</span>
                     </div>
-                    <a href="{{ route('retos.participants', $challenge->id) }}" class="w-full py-2 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-800 text-slate-200 hover:text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5">
+                    <a href="{{ route('retos.participants', $challenge->id) }}" class="w-full py-2 bg-slate-950 hover:bg-slate-900 border border-slate-850 hover:border-slate-800 text-slate-200 hover:text-slate-100 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5">
                         <i data-lucide="users" class="w-3.5 h-3.5"></i>
                         Ver Participantes & Progreso
                     </a>
@@ -116,7 +116,7 @@
     <!-- Tab 2: Leaderboard (Tabla de Clasificación) -->
     <div x-show="activeTab === 'leaderboard'" class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-lg">
         <div class="p-6 border-b border-slate-850 flex justify-between items-center">
-            <h3 class="font-bold text-lg text-white">Tabla de Clasificación de XP (Top Atletas)</h3>
+            <h3 class="font-bold text-lg text-slate-100">Tabla de Clasificación de XP (Top Atletas)</h3>
             <span class="text-xs text-slate-400 font-semibold">Ranking basado en experiencia acumulada</span>
         </div>
         <div class="overflow-x-auto">
@@ -229,7 +229,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden animate-scale-up">
         <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <h3 class="font-black text-sm text-slate-100 uppercase tracking-widest">Crear Nuevo Reto</h3>
-            <button onclick="closeModal('modal-create-challenge')" class="text-slate-400 hover:text-white transition-colors">
+            <button onclick="closeModal('modal-create-challenge')" class="text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -265,7 +265,7 @@
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal('modal-create-challenge')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-white rounded-xl transition-all">Cancelar</button>
+                <button type="button" onclick="closeModal('modal-create-challenge')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-slate-100 rounded-xl transition-all">Cancelar</button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">Crear Reto</button>
             </div>
         </form>
@@ -277,7 +277,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden animate-scale-up">
         <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <h3 class="font-black text-sm text-slate-100 uppercase tracking-widest">Crear Nueva Medalla</h3>
-            <button onclick="closeModal('modal-create-achievement')" class="text-slate-400 hover:text-white transition-colors">
+            <button onclick="closeModal('modal-create-achievement')" class="text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -313,7 +313,7 @@
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal('modal-create-achievement')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-white rounded-xl transition-all">Cancelar</button>
+                <button type="button" onclick="closeModal('modal-create-achievement')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-slate-100 rounded-xl transition-all">Cancelar</button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">Crear Medalla</button>
             </div>
         </form>
@@ -325,7 +325,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden animate-scale-up">
         <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <h3 class="font-black text-sm text-slate-100 uppercase tracking-widest">Otorgar Medalla a Socio</h3>
-            <button onclick="closeModal('modal-award-badge')" class="text-slate-400 hover:text-white transition-colors">
+            <button onclick="closeModal('modal-award-badge')" class="text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -351,7 +351,7 @@
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal('modal-award-badge')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-white rounded-xl transition-all">Cancelar</button>
+                <button type="button" onclick="closeModal('modal-award-badge')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-slate-100 rounded-xl transition-all">Cancelar</button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">Acreditar Recompensa</button>
             </div>
         </form>

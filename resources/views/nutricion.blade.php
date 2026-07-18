@@ -8,7 +8,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Planes de Nutrición</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Planes de Nutrición</h1>
             <p class="text-slate-400 text-xs mt-1">Crea plantillas de macronutrientes, planes de comidas y guías de suplementación.</p>
         </div>
         <a href="{{ route('nutricion.crear') }}" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
@@ -23,7 +23,7 @@
         <div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
             <div>
                 <span class="block text-slate-500 text-xs font-semibold uppercase tracking-wider">Promedio de Calorías</span>
-                <span class="block text-xl font-bold text-white mt-1">
+                <span class="block text-xl font-bold text-slate-100 mt-1">
                     {{ number_format($dietas->avg('daily_calories'), 0) }} kcal
                 </span>
             </div>
@@ -36,7 +36,7 @@
         <div class="bg-slate-900/40 p-5 rounded-2xl border border-slate-800 flex items-center justify-between">
             <div>
                 <span class="block text-slate-500 text-xs font-semibold uppercase tracking-wider">Plantillas Activas</span>
-                <span class="block text-xl font-bold text-white mt-1">{{ $dietas->count() }} Dietas</span>
+                <span class="block text-xl font-bold text-slate-100 mt-1">{{ $dietas->count() }} Dietas</span>
             </div>
             <div class="p-2.5 bg-lime-500/10 text-lime-400 rounded-xl">
                 <i data-lucide="folder-git2" class="w-5 h-5"></i>
@@ -105,7 +105,7 @@
                         </span>
                         <span class="text-xs text-slate-500 font-semibold">{{ $dieta->active_assignments_count }} atletas</span>
                     </div>
-                    <h3 class="font-bold text-lg text-white">{{ $dieta->name }}</h3>
+                    <h3 class="font-bold text-lg text-slate-100">{{ $dieta->name }}</h3>
                     <p class="text-xs text-slate-400 mt-1 line-clamp-2">{{ $dieta->description ?? 'Sin descripción disponible.' }}</p>
 
                     <!-- Macro Distribution Visual -->
@@ -156,10 +156,10 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
-                <h3 class="font-bold text-lg text-white">Asignar Dieta</h3>
+                <h3 class="font-bold text-lg text-slate-100">Asignar Dieta</h3>
                 <span id="modal-meal-name" class="text-xs text-lime-400 font-semibold"></span>
             </div>
-            <button onclick="toggleModal('assign-meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <button onclick="toggleModal('assign-meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

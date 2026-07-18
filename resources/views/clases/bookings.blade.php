@@ -12,7 +12,7 @@
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                 Volver a Clases & Sesiones
             </a>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">{{ $schedule->gymClass->name }}</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">{{ $schedule->gymClass->name }}</h1>
             <p class="text-slate-400 text-xs mt-1">
                 Instructor: {{ $schedule->trainer->user->profile->first_name ?? 'Coach' }} {{ $schedule->trainer->user->profile->last_name ?? '' }} | 
                 Fecha: {{ \Carbon\Carbon::parse($schedule->scheduled_date)->format('d/m/Y') }} |

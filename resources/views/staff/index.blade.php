@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Staff de Entrenadores</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Staff de Entrenadores</h1>
             <p class="text-xs text-slate-400 mt-1">Registra personal de entrenamientos, salarios de nómina y credenciales de acceso.</p>
         </div>
         <div>
@@ -97,8 +97,8 @@
 <div id="trainer-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Reclutar Nuevo Entrenador</h3>
-            <button onclick="toggleModal('trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Reclutar Nuevo Entrenador</h3>
+            <button onclick="toggleModal('trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

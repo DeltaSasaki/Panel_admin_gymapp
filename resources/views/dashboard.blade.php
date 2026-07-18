@@ -8,7 +8,7 @@
     <!-- Welcome Header Section -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-slate-900 via-slate-900/60 to-transparent p-6 rounded-3xl border border-slate-800/40">
         <div>
-            <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex flex-wrap items-center gap-2.5">
+            <h1 class="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight flex flex-wrap items-center gap-2.5">
                 ¡Hola, {{ auth()->user()->profile->first_name ?? 'Coach' }}!
                 @if(auth()->user()->role === 'superadmin')
                     <span class="px-2 py-0.5 text-xs font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg uppercase tracking-wider">SuperAdmin</span>
@@ -35,14 +35,14 @@
             <h2 class="text-xs uppercase font-extrabold tracking-widest text-purple-400">Consola Global SaaS (Soporte Técnico)</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Total Gyms -->
-                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                <div class="bg-slate-900/40 border border-purple-500/20 p-5 rounded-2xl relative overflow-hidden group">
                     <div class="flex items-center justify-between mb-3 relative z-10">
                         <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Gimnasios Clientes</span>
                         <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
                             <i data-lucide="dumbbell" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <span class="text-2xl font-black text-white relative z-10">{{ $totalGyms }} Sucursales</span>
+                    <span class="text-2xl font-black text-slate-100 relative z-10">{{ $totalGyms }} Sucursales</span>
                     <p class="text-[10px] text-purple-300/80 mt-1.5 relative z-10 font-bold uppercase tracking-wider">{{ $activeGymsCount }} Habilitadas &bull; {{ $inactiveGymsCount }} Suspendidas</p>
                     <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
                         <i data-lucide="dumbbell" class="w-16 h-16"></i>
@@ -50,35 +50,35 @@
                 </div>
                 
                 <!-- Total System Users -->
-                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                <div class="bg-slate-900/40 border border-purple-500/20 p-5 rounded-2xl relative overflow-hidden group">
                     <div class="flex items-center justify-between mb-3 relative z-10">
                         <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Usuarios Globales</span>
                         <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
                             <i data-lucide="users-2" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <span class="text-2xl font-black text-white relative z-10">{{ $totalSystemUsers }} Cuentas</span>
+                    <span class="text-2xl font-black text-slate-100 relative z-10">{{ $totalSystemUsers }} Cuentas</span>
                     <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
                         <i data-lucide="users-2" class="w-16 h-16"></i>
                     </div>
                 </div>
 
                 <!-- Global Sales -->
-                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                <div class="bg-slate-900/40 border border-purple-500/20 p-5 rounded-2xl relative overflow-hidden group">
                     <div class="flex items-center justify-between mb-3 relative z-10">
                         <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Recaudación Total</span>
                         <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
                             <i data-lucide="banknote" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <span class="text-2xl font-black text-white relative z-10">${{ number_format($globalSalesTotal, 2) }}</span>
+                    <span class="text-2xl font-black text-slate-100 relative z-10">${{ number_format($globalSalesTotal, 2) }}</span>
                     <div class="absolute -right-3 -bottom-3 text-purple-500/5 transition-transform group-hover:scale-110">
                         <i data-lucide="banknote" class="w-16 h-16"></i>
                     </div>
                 </div>
 
                 <!-- Database Health -->
-                <div class="bg-purple-950/20 border border-purple-500/25 p-5 rounded-2xl relative overflow-hidden group">
+                <div class="bg-slate-900/40 border border-purple-500/20 p-5 rounded-2xl relative overflow-hidden group">
                     <div class="flex items-center justify-between mb-3 relative z-10">
                         <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Estado Servidor</span>
                         <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl animate-pulse">
@@ -108,7 +108,7 @@
                     </div>
                 </div>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-extrabold text-white">{{ $totalClients }}</span>
+                    <span class="text-3xl font-extrabold text-slate-100">{{ $totalClients }}</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-2">Atletas registrados en este gimnasio</p>
             </div>
@@ -122,7 +122,7 @@
                     </div>
                 </div>
                 <div class="flex items-baseline gap-2">
-                    <span class="text-3xl font-extrabold text-white">{{ $activeClientsToday }}</span>
+                    <span class="text-3xl font-extrabold text-slate-100">{{ $activeClientsToday }}</span>
                 </div>
                 <p class="text-xs text-slate-500 mt-2">Sesiones iniciadas hoy</p>
             </div>
@@ -138,7 +138,7 @@
                         </div>
                     </div>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-3xl font-extrabold text-white">${{ number_format($monthlyIncome, 2) }}</span>
+                        <span class="text-3xl font-extrabold text-slate-100">${{ number_format($monthlyIncome, 2) }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Pagos de Membresías + POS (mes actual)</p>
                 </div>
@@ -152,7 +152,7 @@
                         </div>
                     </div>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-3xl font-extrabold text-white">{{ $totalRoutines }}</span>
+                        <span class="text-3xl font-extrabold text-slate-100">{{ $totalRoutines }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Plantillas cargadas en el sistema</p>
                 </div>
@@ -190,7 +190,7 @@
                         </div>
                     </div>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-3xl font-extrabold text-white">{{ $totalMealPlans }}</span>
+                        <span class="text-3xl font-extrabold text-slate-100">{{ $totalMealPlans }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Modelos alimentarios guardados</p>
                 </div>
@@ -206,7 +206,7 @@
         <div class="lg:col-span-2 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
             <div class="flex items-center justify-between mb-6">
                 <div>
-                    <h3 class="font-bold text-lg text-white">Asistencia Semanal</h3>
+                    <h3 class="font-bold text-lg text-slate-100">Asistencia Semanal</h3>
                     <p class="text-xs text-slate-400">Entrenamientos registrados por día (esta semana)</p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -268,7 +268,7 @@
             <!-- System Diagnostics & Uptime Logs (Superadmin Only) -->
             <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
                 <div>
-                    <h3 class="font-bold text-lg text-white mb-1">Alertas de Soporte Técnico</h3>
+                    <h3 class="font-bold text-lg text-slate-100 mb-1">Alertas de Soporte Técnico</h3>
                     <p class="text-xs text-slate-400">Diagnóstico del servidor y telemetría SaaS</p>
                 </div>
 
@@ -300,7 +300,7 @@
             <!-- Standard Coach Tasks (Admins and Trainers) -->
             <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
                 <div>
-                    <h3 class="font-bold text-lg text-white mb-1">Tareas del Coach</h3>
+                    <h3 class="font-bold text-lg text-slate-100 mb-1">Tareas del Coach</h3>
                     <p class="text-xs text-slate-400">Objetivos y chequeos pendientes para hoy</p>
                 </div>
 
@@ -357,7 +357,7 @@
     <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
-                <h3 class="font-bold text-lg text-white">Clientes Recientemente Registrados</h3>
+                <h3 class="font-bold text-lg text-slate-100">Clientes Recientemente Registrados</h3>
                 <p class="text-xs text-slate-400">Últimos ingresos del sistema</p>
             </div>
             <a href="{{ url('/clientes') }}" class="text-xs font-semibold text-lime-400 hover:text-lime-300 flex items-center gap-1 transition-colors">
@@ -424,7 +424,7 @@
                                 @endif
                             </td>
                             <td class="py-4 px-4 text-right">
-                                <a href="{{ route('clientes.show', $client->id) }}" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors inline-block">
+                                <a href="{{ route('clientes.show', $client->id) }}" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-slate-100 rounded-lg transition-colors inline-block">
                                     <i data-lucide="eye" class="w-4 h-4"></i>
                                 </a>
                             </td>

@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Catálogo de Ingredientes</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Catálogo de Ingredientes</h1>
             <p class="text-xs text-slate-400 mt-1">Base de datos de alimentos, macros y densidad calórica para el armado de dietas.</p>
         </div>
         <div>
@@ -28,7 +28,7 @@
     <!-- Ingredients Table -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Alimentos Registrados</h3>
+            <h3 class="font-bold text-lg text-slate-100">Alimentos Registrados</h3>
         </div>
         
         <div class="overflow-x-auto">
@@ -56,7 +56,7 @@
                             <td class="p-4 text-right font-mono text-lime-400 font-semibold">{{ number_format($i->protein_g, 1) }}g</td>
                             <td class="p-4 text-right font-mono text-amber-400 font-semibold">{{ number_format($i->carbs_g, 1) }}g</td>
                             <td class="p-4 text-right font-mono text-pink-400 font-semibold">{{ number_format($i->fat_g, 1) }}g</td>
-                            <td class="p-4 text-right pr-6 font-mono font-black text-white">{{ number_format($i->calories_per_100g, 0) }} kcal</td>
+                            <td class="p-4 text-right pr-6 font-mono font-black text-slate-100">{{ number_format($i->calories_per_100g, 0) }} kcal</td>
                         </tr>
                     @empty
                         <tr>
@@ -75,8 +75,8 @@
 <div id="ingredient-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Añadir Alimento al Catálogo</h3>
-            <button onclick="toggleModal('ingredient-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Añadir Alimento al Catálogo</h3>
+            <button onclick="toggleModal('ingredient-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

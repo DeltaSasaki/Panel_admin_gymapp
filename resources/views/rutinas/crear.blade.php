@@ -14,7 +14,7 @@
     <!-- Main Card -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 md:p-8">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Crear Nueva Plantilla de Rutina</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Crear Nueva Plantilla de Rutina</h1>
             <p class="text-slate-400 text-xs mt-1">Define los parámetros generales del programa de entrenamiento.</p>
         </div>
 

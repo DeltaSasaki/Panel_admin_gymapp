@@ -8,7 +8,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Planes de Rutinas</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Planes de Rutinas</h1>
             <p class="text-slate-400 text-xs mt-1">Crea, edita y asigna programas de entrenamiento de fuerza y acondicionamiento.</p>
         </div>
         <a href="{{ route('rutinas.crear') }}" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
@@ -25,7 +25,7 @@
             </div>
             <div>
                 <span class="block text-slate-400 text-xs font-semibold">Total Plantillas</span>
-                <span class="block text-xl font-bold text-white">{{ $rutinas->count() }} Rutinas</span>
+                <span class="block text-xl font-bold text-slate-100">{{ $rutinas->count() }} Rutinas</span>
             </div>
         </div>
         <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex items-center gap-4">
@@ -34,7 +34,7 @@
             </div>
             <div>
                 <span class="block text-slate-400 text-xs font-semibold">Clientes Entrenando</span>
-                <span class="block text-xl font-bold text-white">{{ $activeAssignmentsCount }} Atletas</span>
+                <span class="block text-xl font-bold text-slate-100">{{ $activeAssignmentsCount }} Atletas</span>
             </div>
         </div>
         <div class="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex items-center gap-4">
@@ -43,7 +43,7 @@
             </div>
             <div>
                 <span class="block text-slate-400 text-xs font-semibold">Más Popular</span>
-                <span class="block text-xl font-bold text-white truncate max-w-[200px]" title="{{ $popularRoutineName }}">{{ $popularRoutineName }}</span>
+                <span class="block text-xl font-bold text-slate-100 truncate max-w-[200px]" title="{{ $popularRoutineName }}">{{ $popularRoutineName }}</span>
             </div>
         </div>
     </div>
@@ -68,7 +68,7 @@
                             <i data-lucide="users" class="w-3.5 h-3.5"></i> {{ $rutina->active_assignments_count }} activos
                         </span>
                     </div>
-                    <h3 class="font-bold text-lg text-white">{{ $rutina->name }}</h3>
+                    <h3 class="font-bold text-lg text-slate-100">{{ $rutina->name }}</h3>
                     <p class="text-xs text-slate-400 mt-1 line-clamp-2">{{ $rutina->description ?? 'Sin descripción disponible.' }}</p>
                     
                     <div class="mt-4 grid grid-cols-2 gap-3 bg-slate-950/40 p-3 rounded-xl border border-slate-850/60 text-xs">
@@ -107,10 +107,10 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
-                <h3 class="font-bold text-lg text-white">Asignar Rutina</h3>
+                <h3 class="font-bold text-lg text-slate-100">Asignar Rutina</h3>
                 <span id="modal-routine-name" class="text-xs text-lime-400 font-semibold"></span>
             </div>
-            <button onclick="toggleModal('assign-routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <button onclick="toggleModal('assign-routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

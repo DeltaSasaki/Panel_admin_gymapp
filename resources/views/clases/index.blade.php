@@ -8,13 +8,13 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Clases Grupales & Sesiones</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Clases Grupales & Sesiones</h1>
             <p class="text-slate-400 text-xs mt-1">Organiza las disciplinas grupales, programa sesiones específicas y supervisa las reservas.</p>
         </div>
         
         <!-- Action Buttons -->
         <div class="flex items-center gap-3">
-            <button onclick="openModal('modal-create-class')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+            <button onclick="openModal('modal-create-class')" class="px-4 py-2 bg-slate-900 border border-slate-800 text-slate-200 hover:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
                 <i data-lucide="plus" class="w-4 h-4 text-lime-400"></i>
                 Nueva Clase
             </button>
@@ -91,7 +91,7 @@
                                     </p>
                                 </div>
 
-                                <a href="{{ route('clases.bookings', $sched->id) }}" class="w-full py-1.5 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-white border border-slate-850 hover:border-slate-800 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                                <a href="{{ route('clases.bookings', $sched->id) }}" class="w-full py-1.5 bg-slate-950 hover:bg-slate-900 text-slate-300 hover:text-slate-100 border border-slate-850 hover:border-slate-800 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
                                     <i data-lucide="users" class="w-3 h-3"></i>
                                     Reservaciones
                                 </a>
@@ -153,7 +153,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden animate-scale-up">
         <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <h3 class="font-black text-sm text-slate-100 uppercase tracking-widest">Crear Nueva Clase Grupal</h3>
-            <button onclick="closeModal('modal-create-class')" class="text-slate-400 hover:text-white transition-colors">
+            <button onclick="closeModal('modal-create-class')" class="text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -179,7 +179,7 @@
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal('modal-create-class')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 text-slate-300 hover:text-white rounded-xl transition-all">Cancelar</button>
+                <button type="button" onclick="closeModal('modal-create-class')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 text-slate-300 hover:text-slate-100 rounded-xl transition-all">Cancelar</button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">Crear Clase</button>
             </div>
         </form>
@@ -191,7 +191,7 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden animate-scale-up">
         <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <h3 class="font-black text-sm text-slate-100 uppercase tracking-widest">Programar Nueva Sesión</h3>
-            <button onclick="closeModal('modal-create-schedule')" class="text-slate-400 hover:text-white transition-colors">
+            <button onclick="closeModal('modal-create-schedule')" class="text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -231,7 +231,7 @@
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
-                <button type="button" onclick="closeModal('modal-create-schedule')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 text-slate-300 hover:text-white rounded-xl transition-all">Cancelar</button>
+                <button type="button" onclick="closeModal('modal-create-schedule')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 text-slate-300 hover:text-slate-100 rounded-xl transition-all">Cancelar</button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">Programar</button>
             </div>
         </form>

@@ -8,7 +8,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800/60 pb-6">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight flex items-center gap-3">
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-3">
                 <i data-lucide="search" class="w-7 h-7 text-lime-400"></i>
                 Resultados para: <span class="text-lime-400">"{{ $queryStr }}"</span>
             </h1>

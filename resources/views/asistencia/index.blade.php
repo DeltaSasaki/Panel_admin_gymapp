@@ -8,7 +8,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Control de Asistencia</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Control de Asistencia</h1>
             <p class="text-slate-400 text-xs mt-1">Registra la entrada y salida manual de atletas, y supervisa el flujo de accesos.</p>
         </div>
     </div>
@@ -171,7 +171,7 @@
                                         @if(!$log->check_out)
                                             <form action="{{ route('asistencia.check_out', $log->id) }}" method="POST">
                                                 @csrf
-                                                <button type="submit" class="px-2.5 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750 hover:text-white text-xs font-bold rounded-lg transition-all">
+                                                <button type="submit" class="px-2.5 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750 hover:text-slate-100 text-xs font-bold rounded-lg transition-all">
                                                     Marcar Salida
                                                 </button>
                                             </form>

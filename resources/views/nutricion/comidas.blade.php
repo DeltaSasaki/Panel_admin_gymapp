@@ -18,7 +18,7 @@
 
     <!-- Header Section -->
     <div class="bg-gradient-to-r from-slate-900 via-slate-900/60 to-transparent p-6 rounded-3xl border border-slate-800/40">
-        <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">{{ $plan->name }}</h1>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">{{ $plan->name }}</h1>
         <p class="text-slate-400 text-sm mt-1">{{ $plan->description ?? 'Menú diario y desglose nutricional.' }}</p>
         <div class="flex items-center gap-4 mt-4 text-xs font-bold text-slate-400">
             <span class="flex items-center gap-1.5"><i data-lucide="flame" class="w-4 h-4 text-amber-500"></i> {{ number_format($plan->daily_calories, 0) }} kcal</span>
@@ -50,7 +50,7 @@
                 <div id="menu-day-{{ $day->day_number }}" class="day-menu-content space-y-6 {{ $index === 0 ? '' : 'hidden' }}">
                     
                     <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                        <h2 class="text-lg font-bold text-white">Distribución del Día {{ $day->day_number }}</h2>
+                        <h2 class="text-lg font-bold text-slate-100">Distribución del Día {{ $day->day_number }}</h2>
                         <span class="text-xs text-slate-400">Total: 5 Comidas Planificadas</span>
                     </div>
 
@@ -76,7 +76,7 @@
                                         </div>
                                         <div>
                                             <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">{{ $meal['label'] }}</span>
-                                            <h4 class="font-bold text-white text-base">{{ $meal['recipe']->name }}</h4>
+                                            <h4 class="font-bold text-slate-100 text-base">{{ $meal['recipe']->name }}</h4>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-3 text-xs bg-slate-950 p-2 rounded-lg border border-slate-850">

@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Equipamiento del Gimnasio</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Equipamiento del Gimnasio</h1>
             <p class="text-xs text-slate-400 mt-1">Control de máquinas, racks y pesas asignadas a las salas de entrenamiento.</p>
         </div>
         <div>
@@ -39,18 +39,18 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5">
             <span class="block text-slate-550 text-[10px] font-bold uppercase mb-1">Total de Equipos Registrados</span>
-            <h3 class="text-xl font-black text-white">{{ $totalMachines }} Equipos</h3>
+            <h3 class="text-xl font-black text-slate-100">{{ $totalMachines }} Equipos</h3>
         </div>
         <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5">
             <span class="block text-lime-400 text-[10px] font-bold uppercase mb-1">Sede Física Requerida</span>
-            <h3 class="text-xl font-black text-white text-lime-400">100% Instalado en Sala</h3>
+            <h3 class="text-xl font-black text-slate-100 text-lime-400">100% Instalado en Sala</h3>
         </div>
     </div>
 
     <!-- Equipment Table -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Inventario Físico de Sala</h3>
+            <h3 class="font-bold text-lg text-slate-100">Inventario Físico de Sala</h3>
         </div>
         
         <div class="overflow-x-auto">
@@ -111,8 +111,8 @@
 <div id="equipment-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Registrar Equipo Deportivo</h3>
-            <button onclick="toggleModal('equipment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Registrar Equipo Deportivo</h3>
+            <button onclick="toggleModal('equipment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -150,8 +150,8 @@
 <div id="edit-equipment-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Editar Equipo Deportivo</h3>
-            <button onclick="toggleModal('edit-equipment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Editar Equipo Deportivo</h3>
+            <button onclick="toggleModal('edit-equipment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

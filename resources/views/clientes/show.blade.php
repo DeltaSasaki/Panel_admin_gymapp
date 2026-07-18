@@ -28,7 +28,7 @@
                          class="w-24 h-24 rounded-full object-cover mx-auto ring-4 ring-lime-500/20">
                     <span class="absolute bottom-0 right-2 w-4 h-4 {{ $cliente->is_active ? 'bg-emerald-500' : 'bg-slate-500' }} border-2 border-slate-900 rounded-full"></span>
                 </div>
-                <h2 class="text-xl font-bold text-white mt-4">{{ $cliente->profile->first_name }} {{ $cliente->profile->last_name }}</h2>
+                <h2 class="text-xl font-bold text-slate-100 mt-4">{{ $cliente->profile->first_name }} {{ $cliente->profile->last_name }}</h2>
                 <span class="px-3 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 text-xs font-semibold rounded-full mt-2 inline-block">
                     {{ $cliente->role === 'member' ? 'Atleta' : 'Admin' }}
                 </span>
@@ -122,7 +122,7 @@
             <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
                 <div class="flex items-center justify-between mb-6">
                     <div>
-                        <h3 class="font-bold text-lg text-white">Evolución de Peso</h3>
+                        <h3 class="font-bold text-lg text-slate-100">Evolución de Peso</h3>
                         <p class="text-xs text-slate-400">Histórico de mediciones (kg)</p>
                     </div>
                     <span class="px-2.5 py-1 bg-slate-950 text-xs font-bold text-lime-400 border border-slate-850 rounded-lg">
@@ -177,7 +177,7 @@
                 <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-2xl">
                     <span class="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Índice de Masa Corporal (IMC)</span>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-extrabold text-white">{{ $cliente->latestMeasurement->bmi ?? 'N/A' }}</span>
+                        <span class="text-2xl font-extrabold text-slate-100">{{ $cliente->latestMeasurement->bmi ?? 'N/A' }}</span>
                         @if($cliente->latestMeasurement)
                             @php
                                 $badgeColor = 'bg-emerald-500/10 text-emerald-400';
@@ -197,7 +197,7 @@
                 <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-2xl">
                     <span class="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Masa Muscular Estimada</span>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-extrabold text-white">{{ $cliente->latestMeasurement->muscle_mass_kg ?? 'N/A' }} kg</span>
+                        <span class="text-2xl font-extrabold text-slate-100">{{ $cliente->latestMeasurement->muscle_mass_kg ?? 'N/A' }} kg</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Última medición</p>
                 </div>
@@ -206,7 +206,7 @@
                 <div class="bg-slate-900/50 border border-slate-800 p-5 rounded-2xl">
                     <span class="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Porcentaje de Grasa</span>
                     <div class="flex items-baseline gap-2">
-                        <span class="text-2xl font-extrabold text-white">{{ $cliente->latestMeasurement->body_fat_pct ?? 'N/A' }}%</span>
+                        <span class="text-2xl font-extrabold text-slate-100">{{ $cliente->latestMeasurement->body_fat_pct ?? 'N/A' }}%</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Grasa subcutánea</p>
                 </div>
@@ -215,7 +215,7 @@
             @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
             <!-- Membership & Payments Section (Visible to Admins/Superadmins only) -->
             <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
-                <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                <h3 class="font-bold text-lg text-slate-100 mb-4 flex items-center gap-2">
                     <i data-lucide="credit-card" class="w-5 h-5 text-lime-400"></i> Membresía y Estado de Pagos
                 </h3>
                 @if($cliente->activeMembership)
@@ -288,7 +288,7 @@
                 <!-- Training Plan Card -->
                 <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
                     <div>
-                        <h4 class="font-bold text-white mb-3 flex items-center gap-2">
+                        <h4 class="font-bold text-slate-100 mb-3 flex items-center gap-2">
                             <i data-lucide="dumbbell" class="w-5 h-5 text-lime-400"></i> Programa de Entrenamiento
                         </h4>
                         @if($cliente->activeRoutine)
@@ -321,7 +321,7 @@
                 <!-- Meal Plan Card -->
                 <div class="bg-slate-900/40 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
                     <div>
-                        <h4 class="font-bold text-white mb-3 flex items-center gap-2">
+                        <h4 class="font-bold text-slate-100 mb-3 flex items-center gap-2">
                             <i data-lucide="apple" class="w-5 h-5 text-amber-400"></i> Plan Nutricional
                         </h4>
                         @if($cliente->activeMealPlan)
@@ -363,8 +363,8 @@
 <div id="routine-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Asignar Rutina de Entrenamiento</h3>
-            <button onclick="toggleModal('routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Asignar Rutina de Entrenamiento</h3>
+            <button onclick="toggleModal('routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -399,8 +399,8 @@
 <div id="meal-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Asignar Plan de Nutrición</h3>
-            <button onclick="toggleModal('meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Asignar Plan de Nutrición</h3>
+            <button onclick="toggleModal('meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

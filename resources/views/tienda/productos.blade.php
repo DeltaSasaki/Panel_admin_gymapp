@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Inventario de Productos</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Inventario de Productos</h1>
             <p class="text-xs text-slate-400 mt-1">Configura el catálogo, costos, precios al público y niveles de stock de alerta.</p>
         </div>
         <div class="flex items-center gap-2">
@@ -51,7 +51,7 @@
                 <span>Los siguientes productos tienen existencias iguales o inferiores al mínimo configurado:</span>
                 <ul class="list-disc list-inside mt-2 font-mono">
                     @foreach($lowStockProducts as $lowProduct)
-                        <li>{{ $lowProduct->name }} (Stock: <strong class="text-white">{{ $lowProduct->stock_quantity }}</strong> / Mínimo: {{ $lowProduct->min_stock }})</li>
+                        <li>{{ $lowProduct->name }} (Stock: <strong class="text-slate-100">{{ $lowProduct->stock_quantity }}</strong> / Mínimo: {{ $lowProduct->min_stock }})</li>
                     @endforeach
                 </ul>
             </div>
@@ -61,7 +61,7 @@
     <!-- Products Table -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Listado de Artículos</h3>
+            <h3 class="font-bold text-lg text-slate-100">Listado de Artículos</h3>
         </div>
         
         <div class="overflow-x-auto">
@@ -109,7 +109,7 @@
                             </td>
                             <td class="p-4 text-right pr-6">
                                 <div class="flex items-center justify-end gap-2.5">
-                                    <button onclick="openRestockModal({{ $p->id }}, '{{ $p->name }}')" class="px-2 py-1 bg-slate-950 hover:bg-slate-850 border border-slate-800 rounded-lg text-[9px] font-bold text-slate-300 hover:text-white transition-colors uppercase">
+                                    <button onclick="openRestockModal({{ $p->id }}, '{{ $p->name }}')" class="px-2 py-1 bg-slate-950 hover:bg-slate-850 border border-slate-800 rounded-lg text-[9px] font-bold text-slate-300 hover:text-slate-100 transition-colors uppercase">
                                         + Stock
                                     </button>
                                     <button 
@@ -145,8 +145,8 @@
 <div id="category-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Crear Categoría de Producto</h3>
-            <button onclick="toggleModal('category-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Crear Categoría de Producto</h3>
+            <button onclick="toggleModal('category-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -176,8 +176,8 @@
 <div id="product-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Registrar Producto de Venta</h3>
-            <button onclick="toggleModal('product-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Registrar Producto de Venta</h3>
+            <button onclick="toggleModal('product-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -240,8 +240,8 @@
 <div id="edit-product-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Editar Producto</h3>
-            <button onclick="toggleModal('edit-product-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Editar Producto</h3>
+            <button onclick="toggleModal('edit-product-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -302,8 +302,8 @@
 <div id="restock-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Reabastecer Producto</h3>
-            <button onclick="toggleModal('restock-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Reabastecer Producto</h3>
+            <button onclick="toggleModal('restock-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

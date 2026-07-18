@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Gestión de Sucursales (Gimnasios)</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Gestión de Sucursales (Gimnasios)</h1>
             <p class="text-slate-400 text-xs mt-1">Supervisa sucursales, activa/suspende el servicio y gestiona el acceso a la plataforma.</p>
         </div>
         <button onclick="toggleNewGymModal()" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
@@ -123,7 +123,7 @@
                             <td class="py-4 px-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <!-- Edit Button -->
-                                    <button onclick="openEditGymModal({{ json_encode($gym) }})" class="p-1.5 bg-slate-800/80 text-slate-300 border border-slate-700/50 hover:bg-slate-700 hover:text-white rounded-lg transition-all" title="Editar Sucursal">
+                                    <button onclick="openEditGymModal({{ json_encode($gym) }})" class="p-1.5 bg-slate-800/80 text-slate-300 border border-slate-700/50 hover:bg-slate-700 hover:text-slate-100 rounded-lg transition-all" title="Editar Sucursal">
                                         <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </button>
 
@@ -164,11 +164,11 @@
     <div id="new-gym-modal" class="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm hidden p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl my-auto animate-scale-up">
             <div class="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                <h3 class="font-extrabold text-white text-lg flex items-center gap-2">
+                <h3 class="font-extrabold text-slate-100 text-lg flex items-center gap-2">
                     <i data-lucide="dumbbell" class="text-lime-400 w-5 h-5"></i>
                     Registrar Nueva Sucursal
                 </h3>
-                <button onclick="toggleNewGymModal()" class="text-slate-400 hover:text-white">
+                <button onclick="toggleNewGymModal()" class="text-slate-400 hover:text-slate-100">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -275,11 +275,11 @@
     <div id="edit-gym-modal" class="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm hidden p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl my-auto animate-scale-up">
             <div class="flex items-center justify-between mb-6 border-b border-slate-800 pb-4">
-                <h3 class="font-extrabold text-white text-lg flex items-center gap-2">
+                <h3 class="font-extrabold text-slate-100 text-lg flex items-center gap-2">
                     <i data-lucide="edit-3" class="text-lime-400 w-5 h-5"></i>
                     Editar Sucursal
                 </h3>
-                <button onclick="toggleEditGymModal()" class="text-slate-400 hover:text-white">
+                <button onclick="toggleEditGymModal()" class="text-slate-400 hover:text-slate-100">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>

@@ -8,7 +8,7 @@
     <!-- Top Header & Actions -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Finanzas y Membresías</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Finanzas y Membresías</h1>
             <p class="text-xs text-slate-400 mt-1">Administra los planes de suscripción, cobros, cupones y estados de facturación.</p>
         </div>
         <div class="flex items-center gap-2">
@@ -51,7 +51,7 @@
                     <i data-lucide="dollar-sign" class="w-4 h-4"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-white">${{ number_format($totalCollected, 2) }}</h3>
+            <h3 class="text-2xl font-black text-slate-100">${{ number_format($totalCollected, 2) }}</h3>
             <p class="text-[10px] text-slate-500 mt-2">Suma acumulada de cobros registrados</p>
         </div>
 
@@ -62,7 +62,7 @@
                     <i data-lucide="clock" class="w-4 h-4"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-white">${{ number_format($pendingAmount, 2) }}</h3>
+            <h3 class="text-2xl font-black text-slate-100">${{ number_format($pendingAmount, 2) }}</h3>
             <p class="text-[10px] text-slate-500 mt-2">Membresías activas pendientes de pago</p>
         </div>
 
@@ -73,7 +73,7 @@
                     <i data-lucide="tag" class="w-4 h-4"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-white">{{ $promos->where('is_active', 1)->count() }} Activos</h3>
+            <h3 class="text-2xl font-black text-slate-100">{{ $promos->where('is_active', 1)->count() }} Activos</h3>
             <p class="text-[10px] text-slate-500 mt-2">Promociones habilitadas en la sucursal</p>
         </div>
     </div>
@@ -103,7 +103,7 @@
     <!-- Tab 1: Membresías de Socios -->
     <div x-show="activeTab === 'membresias'" class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Historial y Estado de Suscripciones</h3>
+            <h3 class="font-bold text-lg text-slate-100">Historial y Estado de Suscripciones</h3>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
@@ -178,7 +178,7 @@
 
     <!-- Tab 2: Planes de Suscripción -->
     <div x-show="activeTab === 'planes'" class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
-        <h3 class="font-bold text-lg text-white mb-6">Planes de Suscripción Disponibles</h3>
+        <h3 class="font-bold text-lg text-slate-100 mb-6">Planes de Suscripción Disponibles</h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             @forelse($plans as $plan)
                 <div class="bg-slate-950/40 border border-slate-850 p-5 rounded-2xl flex flex-col justify-between hover:border-slate-700 transition-colors">
@@ -207,7 +207,7 @@
     <!-- Tab 3: Cupones de Descuento -->
     <div x-show="activeTab === 'cupones'" class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Códigos Promocionales y Descuentos</h3>
+            <h3 class="font-bold text-lg text-slate-100">Códigos Promocionales y Descuentos</h3>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
@@ -282,8 +282,8 @@
 <div id="plan-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Crear Nuevo Plan de Membresía</h3>
-            <button onclick="toggleModal('plan-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Crear Nuevo Plan de Membresía</h3>
+            <button onclick="toggleModal('plan-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -331,8 +331,8 @@
 <div id="membership-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Asignar Membresía a Socio</h3>
-            <button onclick="toggleModal('membership-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Asignar Membresía a Socio</h3>
+            <button onclick="toggleModal('membership-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -376,8 +376,8 @@
 <div id="payment-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Registrar Cobro Facturado</h3>
-            <button onclick="toggleModal('payment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Registrar Cobro Facturado</h3>
+            <button onclick="toggleModal('payment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -394,7 +394,7 @@
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Código Promocional (Opcional)</label>
                 <div class="flex gap-2">
                     <input type="text" name="promo_code" id="payment_promo_code" placeholder="Ej: VERANO10" class="flex-1 px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 uppercase focus:outline-none focus:border-lime-500/50">
-                    <button type="button" onclick="applyPromoCode()" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-xl border border-slate-750 transition-colors">
+                    <button type="button" onclick="applyPromoCode()" class="px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-slate-100 text-xs font-bold rounded-xl border border-slate-750 transition-colors">
                         Aplicar
                     </button>
                 </div>
@@ -430,8 +430,8 @@
 <div id="promo-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-white">Crear Código Promocional</h3>
-            <button onclick="toggleModal('promo-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <h3 class="font-bold text-lg text-slate-100">Crear Código Promocional</h3>
+            <button onclick="toggleModal('promo-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

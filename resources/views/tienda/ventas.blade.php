@@ -7,14 +7,14 @@
     
     <!-- Top Header -->
     <div>
-        <h1 class="text-3xl font-extrabold text-white tracking-tight">Historial de Ventas</h1>
+        <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Historial de Ventas</h1>
         <p class="text-xs text-slate-400 mt-1">Monitorea los comprobantes de caja y transacciones de productos de la tienda.</p>
     </div>
 
     <!-- Sales Receipts Logs -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Transacciones Registradas</h3>
+            <h3 class="font-bold text-lg text-slate-100">Transacciones Registradas</h3>
         </div>
         
         <div class="overflow-x-auto">

@@ -9,7 +9,7 @@
     <div class="lg:col-span-2 space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-extrabold text-white tracking-tight">Punto de Venta</h1>
+                <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Punto de Venta</h1>
                 <p class="text-xs text-slate-400 mt-1">Registra la venta rápida de productos para socios y clientes generales.</p>
             </div>
             <!-- Search bar -->
@@ -72,7 +72,7 @@
 
     <!-- Right Column: Shopping Cart (1/3 width) -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 flex flex-col h-[calc(100vh-120px)] sticky top-24">
-        <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2 pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-lg text-slate-100 mb-4 flex items-center gap-2 pb-3 border-b border-slate-800">
             <i data-lucide="shopping-cart" class="w-5 h-5 text-lime-400"></i> Detalle de Venta
         </h3>
 
@@ -122,7 +122,7 @@
                 <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Código Promocional (Opcional)</label>
                 <div class="flex gap-2">
                     <input type="text" name="promo_code" id="pos_promo_code" placeholder="Ej: DESCUENTO10" class="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 uppercase focus:outline-none focus:border-lime-500/50">
-                    <button type="button" onclick="applyPosPromo()" class="px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl border border-slate-750 transition-colors">
+                    <button type="button" onclick="applyPosPromo()" class="px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-slate-100 text-xs font-bold rounded-xl border border-slate-750 transition-colors">
                         Aplicar
                     </button>
                 </div>
@@ -144,7 +144,7 @@
                     <span class="text-rose-450" id="discount-amount-badge">-$0.00</span>
                 </div>
                 <div class="flex justify-between items-baseline border-t border-slate-850/50 pt-2">
-                    <span class="text-xs font-bold text-white uppercase">Monto Total:</span>
+                    <span class="text-xs font-bold text-slate-100 uppercase">Monto Total:</span>
                     <span class="text-lg font-black text-lime-400" id="total-amount-badge">$0.00</span>
                 </div>
             </div>
@@ -312,9 +312,9 @@
                 </div>
                 <div class="flex items-center gap-2.5 shrink-0">
                     <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-                        <button type="button" onclick="updateQuantity(${item.product_id}, -1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">-</button>
+                        <button type="button" onclick="updateQuantity(${item.product_id}, -1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors">-</button>
                         <span class="px-2.5 text-slate-200 font-bold font-mono">${item.quantity}</span>
-                        <button type="button" onclick="updateQuantity(${item.product_id}, 1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">+</button>
+                        <button type="button" onclick="updateQuantity(${item.product_id}, 1)" class="px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors">+</button>
                     </div>
                     <span class="font-extrabold text-slate-200 min-w-[50px] text-right">$${(item.price * item.quantity).toFixed(2)}</span>
                 </div>

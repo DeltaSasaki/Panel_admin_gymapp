@@ -12,7 +12,7 @@
                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
                 Volver a Retos & Clasificación
             </a>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">{{ $challenge->title }}</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">{{ $challenge->title }}</h1>
             <p class="text-slate-400 text-xs mt-1">
                 Vigencia: {{ \Carbon\Carbon::parse($challenge->start_date)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($challenge->end_date)->format('d/m/Y') }} |
                 Recompensas: +{{ $challenge->xp_reward }} XP, +{{ (float)$challenge->token_reward }} Tokens

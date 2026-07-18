@@ -18,7 +18,7 @@
 
     <!-- Header Section -->
     <div class="bg-gradient-to-r from-slate-900 via-slate-900/60 to-transparent p-6 rounded-3xl border border-slate-800/40">
-        <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">{{ $routine->name }}</h1>
+        <h1 class="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight">{{ $routine->name }}</h1>
         <p class="text-slate-400 text-sm mt-1">{{ $routine->description ?? 'Listado de ejercicios por día.' }}</p>
         <div class="flex items-center gap-4 mt-4 text-xs font-bold text-slate-400">
             <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-lime-500"></i> {{ $routine->duration_weeks }} Semanas</span>
@@ -58,7 +58,7 @@
                     
                     <div class="flex items-center justify-between border-b border-slate-880 pb-3">
                         <div>
-                            <h2 class="text-lg font-bold text-white">{{ $day->day_name }}</h2>
+                            <h2 class="text-lg font-bold text-slate-100">{{ $day->day_name }}</h2>
                             <p class="text-xs text-slate-500 mt-0.5">Enfoque: {{ $day->focus_area ?? 'General' }}</p>
                         </div>
                         <button onclick="openAddModal({{ $day->id }}, '{{ $day->day_name }}')" class="px-3.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1">
@@ -78,7 +78,7 @@
                                             <i data-lucide="dumbbell" class="w-5 h-5"></i>
                                         </div>
                                         <div>
-                                            <h4 class="font-bold text-white text-base">{{ $ex->exercise->name }}</h4>
+                                            <h4 class="font-bold text-slate-100 text-base">{{ $ex->exercise->name }}</h4>
                                             <div class="flex items-center gap-3 text-xs text-slate-400 mt-0.5 font-semibold">
                                                 <span class="text-purple-400">{{ $ex->exercise->muscle_group }}</span>
                                                 <span class="text-slate-650">•</span>
@@ -149,10 +149,10 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
-                <h3 class="font-bold text-lg text-white">Añadir Ejercicio</h3>
+                <h3 class="font-bold text-lg text-slate-100">Añadir Ejercicio</h3>
                 <span id="add-modal-day-title" class="text-xs text-lime-400 font-semibold"></span>
             </div>
-            <button onclick="toggleModal('add-exercise-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <button onclick="toggleModal('add-exercise-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -208,10 +208,10 @@
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
-                <h3 class="font-bold text-lg text-white">Editar Parámetros</h3>
+                <h3 class="font-bold text-lg text-slate-100">Editar Parámetros</h3>
                 <span id="edit-exercise-name" class="text-xs text-lime-400 font-semibold"></span>
             </div>
-            <button onclick="toggleModal('edit-exercise-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+            <button onclick="toggleModal('edit-exercise-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

@@ -8,7 +8,7 @@
     <!-- Top Action Bar -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-extrabold text-white tracking-tight">Mis Clientes</h1>
+            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Mis Clientes</h1>
             <p class="text-slate-400 text-xs mt-1">Gestiona los atletas, su progreso y planes activos.</p>
         </div>
         <a href="{{ route('clientes.crear') }}" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
@@ -61,11 +61,13 @@
             <div data-client-card data-is-active="{{ $cliente->is_active }}" data-has-routine="{{ $cliente->activeRoutine ? 'true' : 'false' }}" class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 hover:border-slate-700 transition-all duration-300 flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <img src="{{ $cliente->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800">
-                            <div>
-                                <h3 class="font-bold text-slate-100 flex flex-wrap items-center gap-1.5">
+                        <div class="flex items-start gap-3">
+                            <img src="{{ $cliente->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800 shrink-0">
+                            <div class="flex flex-col items-start gap-1">
+                                <h3 class="font-bold text-slate-100 leading-tight">
                                     {{ $cliente->profile->first_name ?? 'Atleta' }} {{ $cliente->profile->last_name ?? '' }}
+                                </h3>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
                                     @if($cliente->role === 'superadmin')
                                         <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-md uppercase tracking-wider">SuperAdmin</span>
                                     @elseif($cliente->role === 'admin')
@@ -81,11 +83,11 @@
                                     @else
                                         <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-md uppercase tracking-wider">Inactivo</span>
                                     @endif
-                                </h3>
-                                <span class="text-[10px] text-slate-500">Registro: {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
+                                </div>
+                                <span class="text-[10px] text-slate-500 mt-1">Registro: {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
                             </div>
                         </div>
-                        <span class="w-2.5 h-2.5 rounded-full {{ $cliente->is_active ? 'bg-emerald-500 ring-4 ring-emerald-500/10' : 'bg-slate-500' }}"></span>
+                        <span class="w-2.5 h-2.5 shrink-0 rounded-full {{ $cliente->is_active ? 'bg-emerald-500 ring-4 ring-emerald-500/10' : 'bg-slate-500' }}"></span>
                     </div>
 
                     <div class="mt-4 space-y-2">

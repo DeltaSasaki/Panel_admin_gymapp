@@ -65,19 +65,6 @@
             --color-slate-200: #1e293b;
             --color-slate-100: #0f172a;
 
-            /* Accent overrides for contrast in light mode */
-            --color-lime-400: #4d7c0f; /* lime-700 */
-            --color-lime-500: #3f6212; /* lime-800 */
-            --color-emerald-400: #047857; /* emerald-700 */
-            --color-emerald-500: #065f46; /* emerald-800 */
-            --color-amber-400: #b45309; /* amber-700 */
-            --color-amber-500: #78350f; /* amber-800 */
-            --color-purple-400: #6d28d9; /* purple-700 */
-            --color-purple-500: #5b21b6; /* purple-800 */
-            --color-blue-400: #1d4ed8; /* blue-700 */
-            --color-blue-500: #1e40af; /* blue-800 */
-            --color-rose-400: #be123c; /* rose-700 */
-            --color-rose-500: #9f1239; /* rose-800 */
         }
 
         body {
@@ -140,7 +127,7 @@
                 @endif
                 <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
             </div>
-            <button id="mobile-menu-btn" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-lime-500">
+            <button id="mobile-menu-btn" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-lime-500">
                 <i data-lucide="menu" class="w-6 h-6"></i>
             </button>
         </header>
@@ -167,7 +154,7 @@
                     </div>
                 </div>
                 <!-- Close button for Mobile Menu -->
-                <button id="close-menu-btn" class="md:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white">
+                <button id="close-menu-btn" class="md:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -203,7 +190,7 @@
 
                     <!-- Group 1: Resumen General (Recuadro Box) -->
                     <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isPrincipalActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-principal')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                        <button onclick="toggleSidebarGroup('group-principal')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
                             <span class="flex items-center gap-2.5">
                                 <div class="p-1.5 {{ $isPrincipalActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
                                     <i data-lucide="layout" class="w-3.5 h-3.5"></i>
@@ -235,7 +222,7 @@
 
                     <!-- Group 2: Ventas y Finanzas (Recuadro Box) -->
                     <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isCajaActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-caja')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                        <button onclick="toggleSidebarGroup('group-caja')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
                             <span class="flex items-center gap-2.5">
                                 <div class="p-1.5 {{ $isCajaActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
                                     <i data-lucide="banknote" class="w-3.5 h-3.5"></i>
@@ -279,7 +266,7 @@
 
                     <!-- Group 3: Entrenamiento & Nutrición (Recuadro Box) -->
                     <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
                             <span class="flex items-center gap-2.5">
                                 <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
                                     <i data-lucide="award" class="w-3.5 h-3.5"></i>
@@ -327,7 +314,7 @@
                     <!-- Group 4: Configuración & Administración (Recuadro Box) -->
                     @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
                         <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSaaSActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                            <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                            <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
                                 <span class="flex items-center gap-2.5">
                                     <div class="p-1.5 {{ $isSaaSActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
                                         <i data-lucide="shield" class="w-3.5 h-3.5"></i>
@@ -352,7 +339,7 @@
                     <!-- Group 5: Control SaaS Global (Recuadro Box) -->
                     @if(auth()->user()->role === 'superadmin')
                         <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSuperadminActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                            <button onclick="toggleSidebarGroup('group-superadmin')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                            <button onclick="toggleSidebarGroup('group-superadmin')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
                                 <span class="flex items-center gap-2.5">
                                     <div class="p-1.5 {{ $isSuperadminActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
                                         <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
@@ -483,13 +470,13 @@
                     </a> -->
 
                     <!-- Theme Toggle Button -->
-                    <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
+                    <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
                         <i data-lucide="moon" class="w-4 h-4 dark-icon block"></i>
                         <i data-lucide="sun" class="w-4 h-4 light-icon hidden"></i>
                     </button>
 
                     <!-- Notifications Dropdown Trigger -->
-                    <button class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none">
+                    <button class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none">
                         <i data-lucide="bell" class="w-4 h-4"></i>
                         <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900"></span>
                     </button>

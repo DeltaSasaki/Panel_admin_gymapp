@@ -8,7 +8,7 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-white tracking-tight">Auditoría de Movimientos</h1>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Auditoría de Movimientos</h1>
             <p class="text-xs text-slate-400 mt-1">Historial cronológico completo de entradas, salidas y ajustes de stock en almacén.</p>
         </div>
         <div class="flex items-center gap-2">
@@ -21,7 +21,7 @@
     <!-- Stock Movements Table -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-white">Registro de Auditoría de Almacén</h3>
+            <h3 class="font-bold text-lg text-slate-100">Registro de Auditoría de Almacén</h3>
         </div>
         
         <div class="overflow-x-auto">
