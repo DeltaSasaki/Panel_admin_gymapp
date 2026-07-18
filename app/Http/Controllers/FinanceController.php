@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\MembershipPlan;
 use App\Models\UserMembership;
 use App\Models\MembershipPayment;
+use App\Models\PromoCode;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -55,7 +56,16 @@ class FinanceController extends Controller
         }
         $pendingAmount = $pendingAmountQuery->sum('membership_plans.price');
 
-        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount'));
+        // Fetch promo codes
+        $promosQuery = PromoCode::with('gym');
+        if ($gymId !== 'all') {
+            $promosQuery->where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $promos = $promosQuery->orderBy('id', 'desc')->get();
+
+        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos'));
     }
 
     /**
@@ -102,15 +112,36 @@ class FinanceController extends Controller
             'amount' => 'required|numeric|min:0',
             'payment_method' => 'required|in:cash,card,transfer,other',
             'reference_number' => 'nullable|string|max:100',
+            'promo_code' => 'nullable|string',
         ]);
+
+        $gymId = $this->getActiveGymId();
+
+        // Find promo code if provided
+        $promoId = null;
+        if ($request->filled('promo_code')) {
+            $promo = PromoCode::where('code', $request->promo_code)
+                ->where('is_active', 1)
+                ->where(function($q) use ($gymId) {
+                    if ($gymId !== 'all') {
+                        $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+                    }
+                })
+                ->first();
+            if (!$promo) {
+                return redirect()->back()->withInput()->withErrors(['error' => 'El código promocional no es válido o ya expiró.']);
+            }
+            $promoId = $promo->id;
+        }
 
         try {
             $membership = UserMembership::findOrFail($request->user_membership_id);
 
-            // Record payment
+            // Record payment (DB trigger checks promo validation on insert)
             MembershipPayment::create([
                 'membership_id' => $membership->id,
                 'user_id' => $membership->user_id,
+                'promo_code_id' => $promoId,
                 'amount' => $request->amount,
                 'payment_date' => Carbon::now(),
                 'payment_method' => $request->payment_method,
@@ -188,6 +219,109 @@ class FinanceController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Store new promo code.
+     */
+    public function storePromoCode(Request $request)
+    {
+        $this->checkAdmin();
+        $request->validate([
+            'code' => 'required|string|max:50|unique:promo_codes,code',
+            'discount_type' => 'required|in:percentage,fixed',
+            'discount_value' => 'required|numeric|min:0',
+            'valid_from' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:valid_from',
+            'max_uses' => 'nullable|integer|min:1',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        
+        $targetGymId = $gymId;
+        if ($gymId === 'all') {
+            if (auth()->user()->role === 'superadmin') {
+                $targetGymId = null; // Global promo code
+            } else {
+                return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para crear un código promocional.']);
+            }
+        }
+
+        PromoCode::create([
+            'gym_id' => $targetGymId,
+            'code' => strtoupper($request->code),
+            'discount_type' => $request->discount_type,
+            'discount_value' => $request->discount_value,
+            'valid_from' => $request->valid_from,
+            'valid_until' => $request->valid_until,
+            'max_uses' => $request->max_uses,
+            'current_uses' => 0,
+            'is_active' => 1,
+        ]);
+
+        return redirect()->back()->with('success', 'Código promocional creado exitosamente.');
+    }
+
+    /**
+     * Toggle active status of a promo code.
+     */
+    public function togglePromoCode($id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $query = PromoCode::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+
+        $promo = $query->findOrFail($id);
+        $promo->update(['is_active' => $promo->is_active ? 0 : 1]);
+
+        return redirect()->back()->with('success', 'Estado del código promocional actualizado.');
+    }
+
+    /**
+     * AJAX validation API endpoint for applying coupons.
+     */
+    public function validatePromo(Request $request)
+    {
+        $gymId = $this->getActiveGymId();
+        $code = strtoupper($request->query('code'));
+
+        $promo = PromoCode::where('code', $code)
+            ->where('is_active', 1)
+            ->where(function($q) use ($gymId) {
+                if ($gymId !== 'all') {
+                    $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+                }
+            })
+            ->first();
+
+        if (!$promo) {
+            return response()->json(['valid' => false, 'message' => 'Código no válido o inactivo.']);
+        }
+
+        // Date check
+        $now = Carbon::now();
+        if ($promo->valid_from && Carbon::parse($promo->valid_from)->isFuture()) {
+            return response()->json(['valid' => false, 'message' => 'Esta promoción aún no inicia.']);
+        }
+        if ($promo->valid_until && Carbon::parse($promo->valid_until)->isPast()) {
+            return response()->json(['valid' => false, 'message' => 'Esta promoción ha expirado.']);
+        }
+
+        // Uses check
+        if ($promo->max_uses && $promo->current_uses >= $promo->max_uses) {
+            return response()->json(['valid' => false, 'message' => 'Esta promoción ya alcanzó su límite máximo de usos.']);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'discount_type' => $promo->discount_type,
+            'discount_value' => (float)$promo->discount_value,
+            'id' => $promo->id,
+        ]);
     }
 
     /**

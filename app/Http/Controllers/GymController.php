@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Gym;
 use App\Models\User;
+use App\Models\SaasSubscriptionPlan;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class GymController extends Controller
@@ -26,7 +28,7 @@ class GymController extends Controller
     {
         $this->checkSuperadmin();
         
-        $gyms = Gym::withCount([
+        $gyms = Gym::with('plan')->withCount([
             'users as members_count' => function($q) {
                 $q->where('role', 'member');
             },
@@ -35,7 +37,9 @@ class GymController extends Controller
             }
         ])->orderBy('name')->get();
 
-        return view('superadmin.gyms.index', compact('gyms'));
+        $plans = SaasSubscriptionPlan::where('is_active', 1)->orderBy('name')->get();
+
+        return view('superadmin.gyms.index', compact('gyms', 'plans'));
     }
 
     /**
@@ -46,10 +50,16 @@ class GymController extends Controller
         $this->checkSuperadmin();
         $request->validate([
             'name' => 'required|string|max:150',
+            'slug' => 'nullable|string|max:50|unique:gyms,slug',
+            'current_plan_id' => 'nullable|exists:saas_subscription_plans,id',
+            'subscription_status' => 'nullable|in:active,past_due,canceled,trialing',
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:150',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'primary_color' => 'nullable|string|max:7',
+            'secondary_color' => 'nullable|string|max:7',
+            'timezone' => 'nullable|string|max:80',
         ]);
 
         $logoUrl = null;
@@ -60,13 +70,20 @@ class GymController extends Controller
             $logoUrl = 'uploads/logos/' . $filename;
         }
 
+        $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
+
         Gym::create([
             'name' => $request->name,
+            'slug' => $slug,
+            'current_plan_id' => $request->current_plan_id,
+            'subscription_status' => $request->subscription_status ?? 'trialing',
             'address' => $request->address,
             'phone' => $request->phone,
             'email' => $request->email,
             'logo_url' => $logoUrl,
-            'timezone' => 'America/Caracas',
+            'primary_color' => $request->primary_color ?? '#000000',
+            'secondary_color' => $request->secondary_color ?? '#FFFFFF',
+            'timezone' => $request->timezone ?? 'Europe/Madrid',
             'is_active' => 1,
         ]);
 
@@ -83,17 +100,31 @@ class GymController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:150',
+            'slug' => 'nullable|string|max:50|unique:gyms,slug,' . $id,
+            'current_plan_id' => 'nullable|exists:saas_subscription_plans,id',
+            'subscription_status' => 'nullable|in:active,past_due,canceled,trialing',
             'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:150',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'primary_color' => 'nullable|string|max:7',
+            'secondary_color' => 'nullable|string|max:7',
+            'timezone' => 'nullable|string|max:80',
         ]);
+
+        $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
 
         $data = [
             'name' => $request->name,
+            'slug' => $slug,
+            'current_plan_id' => $request->current_plan_id,
+            'subscription_status' => $request->subscription_status ?? 'trialing',
             'address' => $request->address,
             'phone' => $request->phone,
             'email' => $request->email,
+            'primary_color' => $request->primary_color ?? '#000000',
+            'secondary_color' => $request->secondary_color ?? '#FFFFFF',
+            'timezone' => $request->timezone ?? 'Europe/Madrid',
         ];
 
         if ($request->hasFile('logo')) {

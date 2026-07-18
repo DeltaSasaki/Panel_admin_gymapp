@@ -14,6 +14,7 @@ class ProductSale extends Model
     protected $fillable = [
         'gym_id',
         'user_id',
+        'promo_code_id',
         'sold_by',
         'total_amount',
         'payment_method', // 'cash', 'card', 'transfer', 'other'
@@ -39,5 +40,10 @@ class ProductSale extends Model
     public function items()
     {
         return $this->hasMany(SaleItem::class, 'sale_id', 'id');
+    }
+
+    public function promoCode()
+    {
+        return $this->belongsTo(PromoCode::class, 'promo_code_id');
     }
 }

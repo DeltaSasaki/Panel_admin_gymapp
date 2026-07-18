@@ -141,10 +141,11 @@
                 <!-- Navigation Options -->
                 <nav class="space-y-4">
                     @php
-                        $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*');
+                        $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*') || Request::is('asistencia*');
                         $isCajaActive = Request::is('tienda*') || Request::is('finanzas*');
-                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('equipamiento*');
-                        $isSaaSActive = Request::is('staff*') || Request::is('superadmin*');
+                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*');
+                        $isSaaSActive = Request::is('staff*');
+                        $isSuperadminActive = Request::is('superadmin*');
                     @endphp
 
                     <!-- Group 1: Resumen General (Recuadro Box) -->
@@ -170,6 +171,11 @@
                                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('clientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
                                 <i data-lucide="users" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
                                 <span>Mis Clientes</span>
+                            </a>
+                            <a href="{{ url('/asistencia') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('asistencia*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="calendar-check" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Control Asistencia</span>
                             </a>
                         </div>
                     </div>
@@ -198,6 +204,11 @@
                                    class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/productos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
                                     <i data-lucide="package" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
                                     <span>Inventario Tienda</span>
+                                </a>
+                                <a href="{{ url('/tienda/movimientos') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/movimientos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="activity" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Auditoría Stock</span>
                                 </a>
                                 <a href="{{ url('/tienda/ventas') }}" 
                                    class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/ventas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
@@ -247,10 +258,20 @@
                                 <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
                                 <span>Equipamiento Gym</span>
                             </a>
+                            <a href="{{ url('/clases') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('clases*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Clases Grupales</span>
+                            </a>
+                            <a href="{{ url('/retos') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('retos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Retos & Incentivos</span>
+                            </a>
                         </div>
                     </div>
 
-                    <!-- Group 4: Configuración & SaaS (Recuadro Box) -->
+                    <!-- Group 4: Configuración & Administración (Recuadro Box) -->
                     @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
                         <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSaaSActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
                             <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
@@ -260,6 +281,7 @@
                                     </div>
                                     <span class="tracking-wider">Administración</span>
                                 </span>
+
                                 <div class="p-1 rounded-lg hover:bg-slate-800/50">
                                     <i data-lucide="chevron-down" id="chevron-group-saas" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isSaaSActive ? '' : '-rotate-90' }}"></i>
                                 </div>
@@ -270,13 +292,31 @@
                                     <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
                                     <span>Entrenadores (Staff)</span>
                                 </a>
-                                @if(auth()->user()->role === 'superadmin')
-                                    <a href="{{ url('/superadmin/gyms') }}" 
-                                       class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('superadmin/gyms*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                        <i data-lucide="shield-check" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                        <span>Gestionar Sucursales</span>
-                                    </a>
-                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    <!-- Group 5: Control SaaS Global (Recuadro Box) -->
+                    @if(auth()->user()->role === 'superadmin')
+                        <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSuperadminActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
+                            <button onclick="toggleSidebarGroup('group-superadmin')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-white px-1 py-0.5 transition-colors focus:outline-none">
+                                <span class="flex items-center gap-2.5">
+                                    <div class="p-1.5 {{ $isSuperadminActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                        <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="tracking-wider">Superadmin</span>
+                                </span>
+
+                                <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                    <i data-lucide="chevron-down" id="chevron-group-superadmin" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isSuperadminActive ? '' : '-rotate-90' }}"></i>
+                                </div>
+                            </button>
+                            <div id="group-superadmin" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isSuperadminActive ? '' : 'hidden' }}">
+                                <a href="{{ url('/superadmin/gyms') }}" 
+                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('superadmin/gyms*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                    <i data-lucide="globe" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                    <span>Gestionar Sucursales</span>
+                                </a>
                             </div>
                         </div>
                     @endif
@@ -544,6 +584,7 @@
             }
         });
     </script>
+    @stack('modals')
     @stack('scripts')
 </body>
 </html>

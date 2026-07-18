@@ -20,24 +20,93 @@ class CatalogController extends Controller
         return view('catalogos.equipamiento', compact('equipment', 'totalMachines'));
     }
 
-    /**
-     * Store new equipment.
-     */
     public function storeEquipment(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:150',
             'description' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'requires_gym' => 'nullable',
         ]);
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $filename = 'eq_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/equipment'), $filename);
+            $imageUrl = 'uploads/equipment/' . $filename;
+        }
 
         Equipment::create([
             'gym_id' => $this->getActiveGymId(),
             'name' => $request->name,
             'description' => $request->description,
-            'requires_gym' => 1,
+            'image_url' => $imageUrl,
+            'requires_gym' => $request->has('requires_gym') ? 1 : 0,
         ]);
 
         return redirect()->back()->with('success', 'Equipo registrado con éxito.');
+    }
+
+    /**
+     * Update existing equipment.
+     */
+    public function updateEquipment(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'requires_gym' => 'nullable',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+
+        $data = [
+            'name' => $request->name,
+            'description' => $request->description,
+            'requires_gym' => $request->has('requires_gym') ? 1 : 0,
+        ];
+
+        if ($request->hasFile('image')) {
+            // Delete old image file if it exists and is local
+            if ($equipment->image_url && file_exists(public_path($equipment->image_url))) {
+                @unlink(public_path($equipment->image_url));
+            }
+
+            $file = $request->file('image');
+            $filename = 'eq_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/equipment'), $filename);
+            $data['image_url'] = 'uploads/equipment/' . $filename;
+        } elseif ($request->remove_image == '1') {
+            if ($equipment->image_url && file_exists(public_path($equipment->image_url))) {
+                @unlink(public_path($equipment->image_url));
+            }
+            $data['image_url'] = null;
+        }
+
+        $equipment->update($data);
+
+        return redirect()->back()->with('success', 'Equipo actualizado con éxito.');
+    }
+
+    /**
+     * Delete existing equipment.
+     */
+    public function deleteEquipment($id)
+    {
+        $gymId = $this->getActiveGymId();
+        $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+
+        // Delete image file if exists
+        if ($equipment->image_url && file_exists(public_path($equipment->image_url))) {
+            @unlink(public_path($equipment->image_url));
+        }
+
+        $equipment->delete();
+
+        return redirect()->back()->with('success', 'Equipo eliminado con éxito.');
     }
 
     /**

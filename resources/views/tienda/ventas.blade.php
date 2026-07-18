@@ -26,6 +26,7 @@
                         <th class="p-4">Cliente / Socio</th>
                         <th class="p-4">Atendido Por</th>
                         <th class="p-4">Artículos Vendidos</th>
+                        <th class="p-4 text-center">Cupón</th>
                         <th class="p-4 text-center">Método Pago</th>
                         <th class="p-4 text-right pr-6">Monto Total</th>
                     </tr>
@@ -54,6 +55,15 @@
                                 </ul>
                             </td>
                             <td class="p-4 text-center">
+                                @if($sale->promoCode)
+                                    <span class="px-2 py-0.5 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded font-black tracking-wide text-[9px] uppercase">
+                                        {{ $sale->promoCode->code }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-600 font-bold italic">-</span>
+                                @endif
+                            </td>
+                            <td class="p-4 text-center">
                                 @if($sale->payment_method === 'cash')
                                     <span class="px-2 py-0.5 bg-slate-950/60 text-slate-300 border border-slate-850 rounded-md font-semibold text-[10px]">Efectivo</span>
                                 @elseif($sale->payment_method === 'card')
@@ -68,7 +78,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="p-8 text-center text-slate-550">
+                            <td colspan="8" class="p-8 text-center text-slate-550">
                                 No se ha registrado ninguna venta en caja todavía.
                             </td>
                         </tr>

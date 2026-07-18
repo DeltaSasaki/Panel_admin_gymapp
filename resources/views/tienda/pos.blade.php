@@ -117,13 +117,33 @@
                 <input type="text" name="notes" placeholder="Ej: Venta de shaker con tapa" class="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-700 focus:outline-none focus:border-lime-500/50">
             </div>
 
+            <!-- Promo Code -->
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Código Promocional (Opcional)</label>
+                <div class="flex gap-2">
+                    <input type="text" name="promo_code" id="pos_promo_code" placeholder="Ej: DESCUENTO10" class="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 uppercase focus:outline-none focus:border-lime-500/50">
+                    <button type="button" onclick="applyPosPromo()" class="px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-bold rounded-xl border border-slate-750 transition-colors">
+                        Aplicar
+                    </button>
+                </div>
+                <span id="pos-promo-feedback" class="block text-[9px] font-bold mt-1.5 hidden"></span>
+            </div>
+
             <!-- Total Price Calculation -->
-            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-850">
+            <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-850 space-y-2">
                 <div class="flex justify-between items-center text-xs text-slate-400">
                     <span>Artículos Totales:</span>
                     <span id="total-qty-badge">0</span>
                 </div>
-                <div class="flex justify-between items-baseline mt-2 border-t border-slate-850/50 pt-2">
+                <div class="flex justify-between items-center text-xs text-slate-400">
+                    <span>Subtotal:</span>
+                    <span id="subtotal-amount-badge">$0.00</span>
+                </div>
+                <div class="flex justify-between items-center text-xs text-slate-400 hidden" id="discount-row">
+                    <span>Descuento (<span id="discount-code-badge"></span>):</span>
+                    <span class="text-rose-450" id="discount-amount-badge">-$0.00</span>
+                </div>
+                <div class="flex justify-between items-baseline border-t border-slate-850/50 pt-2">
                     <span class="text-xs font-bold text-white uppercase">Monto Total:</span>
                     <span class="text-lg font-black text-lime-400" id="total-amount-badge">$0.00</span>
                 </div>
@@ -197,19 +217,74 @@
         renderCart();
     }
 
+    let appliedPromo = null;
+
+    async function applyPosPromo() {
+        const codeInput = document.getElementById('pos_promo_code');
+        const code = codeInput.value.trim().toUpperCase();
+        const feedback = document.getElementById('pos-promo-feedback');
+
+        if (cart.length === 0) {
+            alert('Agrega productos al carrito antes de aplicar una promoción.');
+            return;
+        }
+
+        if (!code) {
+            feedback.className = "block text-[9px] font-bold mt-1.5 text-rose-450";
+            feedback.innerText = "Ingresa un código.";
+            feedback.classList.remove('hidden');
+            return;
+        }
+
+        feedback.className = "block text-[9px] font-bold mt-1.5 text-slate-450";
+        feedback.innerText = "Validando...";
+        feedback.classList.remove('hidden');
+
+        try {
+            const response = await fetch(`/api/promos/validate?code=${encodeURIComponent(code)}`);
+            const data = await response.json();
+
+            if (data.valid) {
+                appliedPromo = data;
+                appliedPromo.code = code;
+                feedback.className = "block text-[9px] font-bold mt-1.5 text-emerald-400";
+                feedback.innerText = "¡Código de descuento aplicado con éxito!";
+            } else {
+                appliedPromo = null;
+                feedback.className = "block text-[9px] font-bold mt-1.5 text-rose-400";
+                feedback.innerText = data.message;
+            }
+            renderCart();
+        } catch (e) {
+            console.error(e);
+            feedback.className = "block text-[9px] font-bold mt-1.5 text-rose-400";
+            feedback.innerText = "Error al conectar con el servidor.";
+        }
+    }
+
     function renderCart() {
         const container = document.getElementById('cart-items-container');
         const emptyState = document.getElementById('empty-cart-state');
         const totalQty = document.getElementById('total-qty-badge');
+        const subtotalAmt = document.getElementById('subtotal-amount-badge');
+        const discountRow = document.getElementById('discount-row');
+        const discountCode = document.getElementById('discount-code-badge');
+        const discountAmt = document.getElementById('discount-amount-badge');
         const totalAmt = document.getElementById('total-amount-badge');
         const btn = document.getElementById('checkout-submit-btn');
 
         if (cart.length === 0) {
             emptyState.style.display = 'flex';
+            appliedPromo = null;
+            document.getElementById('pos_promo_code').value = '';
+            document.getElementById('pos-promo-feedback').classList.add('hidden');
+            
             // Clear other items
             const cards = container.querySelectorAll('.cart-item-row');
             cards.forEach(c => c.remove());
             totalQty.innerText = '0';
+            subtotalAmt.innerText = '$0.00';
+            discountRow.classList.add('hidden');
             totalAmt.innerText = '$0.00';
             btn.disabled = true;
             return;
@@ -222,11 +297,11 @@
         cards.forEach(c => c.remove());
 
         let totalQ = 0;
-        let totalA = 0;
+        let subtotal = 0;
 
         cart.forEach(item => {
             totalQ += item.quantity;
-            totalA += item.price * item.quantity;
+            subtotal += item.price * item.quantity;
 
             const row = document.createElement('div');
             row.className = 'cart-item-row flex items-center justify-between bg-slate-950/40 p-3 border border-slate-850 rounded-xl text-xs';
@@ -247,11 +322,29 @@
             container.appendChild(row);
         });
 
+        // Apply coupon discount
+        let discount = 0;
+        if (appliedPromo) {
+            if (appliedPromo.discount_type === 'percentage') {
+                discount = subtotal * (appliedPromo.discount_value / 100);
+            } else {
+                discount = appliedPromo.discount_value;
+            }
+            
+            discountRow.classList.remove('hidden');
+            discountCode.innerText = appliedPromo.code;
+            discountAmt.innerText = `-$${discount.toFixed(2)}`;
+        } else {
+            discountRow.classList.add('hidden');
+        }
+
+        const finalTotal = Math.max(0, subtotal - discount);
+
         totalQty.innerText = totalQ;
-        totalAmt.innerText = `$${totalA.toFixed(2)}`;
+        subtotalAmt.innerText = `$${subtotal.toFixed(2)}`;
+        totalAmt.innerText = `$${finalTotal.toFixed(2)}`;
         btn.disabled = false;
 
-        // Re-trigger Lucide icons for any dynamic elements if needed
         if (window.lucide) {
             window.lucide.createIcons();
         }

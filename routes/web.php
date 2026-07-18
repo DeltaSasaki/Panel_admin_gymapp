@@ -51,12 +51,18 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/finanzas/planes', [FinanceController::class, 'storePlan'])->name('finanzas.store_plan');
     Route::post('/finanzas/pagos', [FinanceController::class, 'recordPayment'])->name('finanzas.record_payment');
     Route::post('/finanzas/renovar', [FinanceController::class, 'renewMembership'])->name('finanzas.renew_membership');
+    Route::post('/finanzas/promos', [FinanceController::class, 'storePromoCode'])->name('finanzas.store_promo');
+    Route::post('/finanzas/promos/{id}/toggle', [FinanceController::class, 'togglePromoCode'])->name('finanzas.toggle_promo');
+    Route::get('/api/promos/validate', [FinanceController::class, 'validatePromo'])->name('api.promos.validate');
 
     // Tienda & Inventario (POS open to trainers/admins, catalog and sales history restricted to admins)
     Route::get('/tienda/pos', [InventoryController::class, 'pos'])->name('tienda.pos');
     Route::post('/tienda/pos', [InventoryController::class, 'registerSale'])->name('tienda.register_sale');
     Route::get('/tienda/productos', [InventoryController::class, 'products'])->name('tienda.products');
     Route::post('/tienda/productos', [InventoryController::class, 'storeProduct'])->name('tienda.store_product');
+    Route::put('/tienda/productos/{id}', [InventoryController::class, 'updateProduct'])->name('tienda.update_product');
+    Route::delete('/tienda/productos/{id}', [InventoryController::class, 'deleteProduct'])->name('tienda.delete_product');
+    Route::get('/tienda/movimientos', [InventoryController::class, 'stockMovements'])->name('tienda.stock_movements');
     Route::post('/tienda/categorias', [InventoryController::class, 'storeCategory'])->name('tienda.store_category');
     Route::post('/tienda/productos/{id}/stock', [InventoryController::class, 'addStock'])->name('tienda.add_stock');
     Route::get('/tienda/ventas', [InventoryController::class, 'salesHistory'])->name('tienda.sales_history');
@@ -64,6 +70,8 @@ Route::middleware(['auth'])->group(function () {
     // Equipamiento & Catálogos (open to trainers/admins for logistics/programming)
     Route::get('/equipamiento', [CatalogController::class, 'equipment'])->name('catalogos.equipment');
     Route::post('/equipamiento', [CatalogController::class, 'storeEquipment'])->name('catalogos.store_equipment');
+    Route::put('/equipamiento/{id}', [CatalogController::class, 'updateEquipment'])->name('catalogos.update_equipment');
+    Route::delete('/equipamiento/{id}', [CatalogController::class, 'deleteEquipment'])->name('catalogos.delete_equipment');
     Route::get('/ingredientes', [CatalogController::class, 'ingredients'])->name('catalogos.ingredients');
     Route::post('/ingredientes', [CatalogController::class, 'storeIngredient'])->name('catalogos.store_ingredient');
 
@@ -85,4 +93,26 @@ Route::middleware(['auth'])->group(function () {
     // Global search route
     Route::get('/search', [AdminController::class, 'globalSearch'])->name('global.search');
     Route::get('/api/search/live', [AdminController::class, 'liveSearch'])->name('api.search.live');
+
+    // Attendance routes
+    Route::get('/asistencia', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('asistencia.index');
+    Route::post('/asistencia/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn'])->name('asistencia.check_in');
+    Route::post('/asistencia/{id}/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut'])->name('asistencia.check_out');
+
+    // Group Classes routes
+    Route::get('/clases', [\App\Http\Controllers\ClassController::class, 'index'])->name('clases.index');
+    Route::post('/clases', [\App\Http\Controllers\ClassController::class, 'storeClass'])->name('clases.store');
+    Route::post('/clases/horarios', [\App\Http\Controllers\ClassController::class, 'storeSchedule'])->name('clases.store_schedule');
+    Route::get('/clases/horarios/{id}/reservas', [\App\Http\Controllers\ClassController::class, 'bookings'])->name('clases.bookings');
+    Route::post('/clases/horarios/reservar', [\App\Http\Controllers\ClassController::class, 'bookClient'])->name('clases.book_client');
+    Route::post('/clases/reservas/{id}/estado', [\App\Http\Controllers\ClassController::class, 'updateBookingStatus'])->name('clases.update_booking_status');
+
+    // Gamification routes
+    Route::get('/retos', [\App\Http\Controllers\GamificationController::class, 'index'])->name('retos.index');
+    Route::post('/retos', [\App\Http\Controllers\GamificationController::class, 'storeChallenge'])->name('retos.store_challenge');
+    Route::post('/retos/medallas', [\App\Http\Controllers\GamificationController::class, 'storeAchievement'])->name('retos.store_achievement');
+    Route::get('/retos/{id}/participantes', [\App\Http\Controllers\GamificationController::class, 'challengeParticipants'])->name('retos.participants');
+    Route::post('/retos/inscribir', [\App\Http\Controllers\GamificationController::class, 'enrollParticipant'])->name('retos.enroll_participant');
+    Route::post('/retos/participantes/{id}/actualizar', [\App\Http\Controllers\GamificationController::class, 'updateParticipant'])->name('retos.update_participant');
+    Route::post('/retos/medallas/otorgar', [\App\Http\Controllers\GamificationController::class, 'awardAchievementToUser'])->name('retos.award_achievement');
 });

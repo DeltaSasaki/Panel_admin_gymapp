@@ -47,6 +47,7 @@ class InventoryController extends Controller
             'user_id' => 'nullable|exists:users,id',
             'cart' => 'required|json', // JSON array of items: [{product_id: 1, quantity: 2}]
             'notes' => 'nullable|string',
+            'promo_code' => 'nullable|string',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -82,20 +83,70 @@ class InventoryController extends Controller
                     'unit_price' => $product->price,
                     'subtotal' => $subtotal,
                 ];
+            }
 
-                // Note: We DO NOT manually decrement stock_quantity or create InventoryMovement here in PHP.
-                // The database triggers `trg_prevent_negative_stock`, `trg_sale_creates_movement`,
-                // and `trg_update_stock_after_movement` automatically handle movement logging,
-                // stock checks, and deduct the stock on SaleItem insertion.
+            // Find and validate promo code if provided
+            $promoId = null;
+            $discountPercentage = 0;
+            $discountFixed = 0;
+
+            if ($request->filled('promo_code')) {
+                $promoCodeStr = strtoupper($request->promo_code);
+                $promo = \App\Models\PromoCode::where('code', $promoCodeStr)
+                    ->where('is_active', 1)
+                    ->where(function($q) use ($gymId) {
+                        $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+                    })
+                    ->first();
+
+                if (!$promo) {
+                    throw new \Exception("El código promocional '{$promoCodeStr}' no es válido o ya venció.");
+                }
+
+                // Date checks
+                $now = Carbon::now();
+                if ($promo->valid_from && Carbon::parse($promo->valid_from)->isFuture()) {
+                    throw new \Exception("El código promocional '{$promoCodeStr}' aún no inicia.");
+                }
+                if ($promo->valid_until && Carbon::parse($promo->valid_until)->isPast()) {
+                    throw new \Exception("El código promocional '{$promoCodeStr}' ha expirado.");
+                }
+
+                // Max uses check
+                if ($promo->max_uses && $promo->current_uses >= $promo->max_uses) {
+                    throw new \Exception("El código promocional '{$promoCodeStr}' ya alcanzó su límite máximo de usos.");
+                }
+
+                $promoId = $promo->id;
+                if ($promo->discount_type === 'percentage') {
+                    $discountPercentage = (float)$promo->discount_value;
+                } else {
+                    $discountFixed = (float)$promo->discount_value;
+                }
+            }
+
+            // Calculate discount if promo code applied
+            $originalTotal = $totalAmount;
+            if ($promoId) {
+                if ($discountPercentage > 0) {
+                    $totalAmount = $totalAmount * (1 - ($discountPercentage / 100));
+                } else {
+                    $totalAmount = max(0, $totalAmount - $discountFixed);
+                }
+                
+                // Increment promo code uses
+                $promo->increment('current_uses');
             }
 
             // Create product sale record
             $sale = ProductSale::create([
                 'gym_id' => $gymId,
                 'user_id' => $request->user_id,
+                'promo_code_id' => $promoId,
                 'sold_by' => auth()->user()->id,
                 'total_amount' => $totalAmount,
                 'payment_method' => $request->payment_method,
+                'sale_date' => Carbon::now(),
                 'notes' => $request->notes,
             ]);
 
@@ -106,7 +157,13 @@ class InventoryController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('tienda.pos')->with('success', 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2));
+
+            $successMsg = 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2);
+            if ($promoId) {
+                $successMsg .= ' (Descuento aplicado, total original: $' . number_format($originalTotal, 2) . ')';
+            }
+
+            return redirect()->route('tienda.pos')->with('success', $successMsg);
 
         } catch (\Illuminate\Database\QueryException $e) {
             DB::rollBack();
@@ -146,6 +203,25 @@ class InventoryController extends Controller
     }
 
     /**
+     * View stock movements history (restricted to Admins).
+     */
+    public function stockMovements()
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $movementsQuery = \App\Models\InventoryMovement::with(['product', 'performer.profile']);
+        if ($gymId !== 'all') {
+            $movementsQuery->whereHas('product', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            });
+        }
+        $movements = $movementsQuery->orderBy('createdAt', 'desc')->get();
+
+        return view('tienda.movimientos', compact('movements'));
+    }
+
+    /**
      * Store a new category (restristed to Admins).
      */
     public function storeCategory(Request $request)
@@ -170,9 +246,6 @@ class InventoryController extends Controller
         return redirect()->back()->with('success', 'Categoría de producto creada exitosamente.');
     }
 
-    /**
-     * Store new product (restristed to Admins).
-     */
     public function storeProduct(Request $request)
     {
         $this->checkAdmin();
@@ -184,6 +257,7 @@ class InventoryController extends Controller
             'cost_price' => 'required|numeric|min:0',
             'stock_quantity' => 'required|integer|min:0',
             'min_stock' => 'required|integer|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -193,6 +267,14 @@ class InventoryController extends Controller
 
         try {
             DB::beginTransaction();
+
+            $imageUrl = null;
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = 'prod_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/products'), $filename);
+                $imageUrl = 'uploads/products/' . $filename;
+            }
 
             // Note: We create the product with 0 stock_quantity first, because
             // the initial stock movement insert will automatically increment it to
@@ -206,6 +288,7 @@ class InventoryController extends Controller
                 'cost_price' => $request->cost_price,
                 'stock_quantity' => 0,
                 'min_stock' => $request->min_stock,
+                'image_url' => $imageUrl,
                 'is_available' => 1,
             ]);
 
@@ -227,6 +310,75 @@ class InventoryController extends Controller
             DB::rollBack();
             return redirect()->back()->withInput()->withErrors(['error' => 'Error al crear producto: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Update existing product.
+     */
+    public function updateProduct(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $request->validate([
+            'category_id' => 'required|exists:product_categories,id',
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'cost_price' => 'required|numeric|min:0',
+            'min_stock' => 'required|integer|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $product = InventoryProduct::where('gym_id', $gymId)->findOrFail($id);
+
+        $data = [
+            'category_id' => $request->category_id,
+            'name' => $request->name,
+            'description' => $request->description,
+            'price' => $request->price,
+            'cost_price' => $request->cost_price,
+            'min_stock' => $request->min_stock,
+        ];
+
+        if ($request->hasFile('image')) {
+            // Delete old logo file if it exists and is local
+            if ($product->image_url && file_exists(public_path($product->image_url))) {
+                @unlink(public_path($product->image_url));
+            }
+
+            $file = $request->file('image');
+            $filename = 'prod_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/products'), $filename);
+            $data['image_url'] = 'uploads/products/' . $filename;
+        } elseif ($request->remove_image == '1') {
+            if ($product->image_url && file_exists(public_path($product->image_url))) {
+                @unlink(public_path($product->image_url));
+            }
+            $data['image_url'] = null;
+        }
+
+        $product->update($data);
+
+        return redirect()->back()->with('success', 'Producto actualizado exitosamente.');
+    }
+
+    /**
+     * Delete existing product.
+     */
+    public function deleteProduct($id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+        $product = InventoryProduct::where('gym_id', $gymId)->findOrFail($id);
+
+        // Delete image file if exists
+        if ($product->image_url && file_exists(public_path($product->image_url))) {
+            @unlink(public_path($product->image_url));
+        }
+
+        $product->delete();
+
+        return redirect()->back()->with('success', 'Producto eliminado de inventario exitosamente.');
     }
 
     /**
@@ -269,7 +421,7 @@ class InventoryController extends Controller
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
 
-        $salesQuery = ProductSale::with(['client.profile', 'seller.profile', 'items.product']);
+        $salesQuery = ProductSale::with(['client.profile', 'seller.profile', 'items.product', 'promoCode']);
         if ($gymId !== 'all') {
             $salesQuery->where('gym_id', $gymId);
         }
