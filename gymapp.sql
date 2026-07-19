@@ -1301,6 +1301,7 @@ CREATE TABLE `user_profiles` (
   `user_id` int(11) NOT NULL,
   `first_name` varchar(80) NOT NULL,
   `last_name` varchar(80) NOT NULL,
+  `dni` varchar(20) DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `birth_date` date DEFAULT NULL,
   `gender` enum('male','female','other') DEFAULT NULL,
@@ -1875,7 +1876,8 @@ ALTER TABLE `user_memberships`
 --
 ALTER TABLE `user_profiles`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `user_id` (`user_id`);
+  ADD UNIQUE KEY `user_id` (`user_id`),
+  ADD UNIQUE KEY `unique_dni` (`dni`);
 
 --
 -- Indices de la tabla `user_referrals`
