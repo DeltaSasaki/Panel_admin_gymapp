@@ -241,8 +241,6 @@ class AdminController extends Controller
             'phone' => 'nullable|string|max:20',
             'birth_date' => 'nullable|date',
             'gender' => 'required|in:male,female,other',
-            'weight_kg' => 'required|numeric|min:30|max:300',
-            'height_cm' => 'required|numeric|min:100|max:250',
             'profile_photo' => 'nullable|url',
         ]);
 
@@ -273,25 +271,6 @@ class AdminController extends Controller
                 'birth_date' => $request->birth_date,
                 'gender' => $request->gender,
                 'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
-            ]);
-
-            // Calculate BMI
-            $heightM = $request->height_cm / 100;
-            $bmi = round($request->weight_kg / ($heightM * $heightM), 2);
-            
-            $bmiCategory = 'normal';
-            if ($bmi < 18.5) $bmiCategory = 'underweight';
-            elseif ($bmi >= 25 && $bmi < 30) $bmiCategory = 'overweight';
-            elseif ($bmi >= 30) $bmiCategory = 'obese';
-
-            // Create initial measurement
-            BodyMeasurement::create([
-                'user_id' => $user->id,
-                'weight_kg' => $request->weight_kg,
-                'height_cm' => $request->height_cm,
-                'bmi' => $bmi,
-                'bmi_category' => $bmiCategory,
-                'measured_at' => Carbon::now(),
             ]);
 
             \Illuminate\Support\Facades\DB::commit();

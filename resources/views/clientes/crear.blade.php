@@ -88,23 +88,7 @@
                 </div>
             </div>
 
-            <!-- Section 3: Anthropometrics -->
-            <div class="space-y-4 pt-4 border-t border-slate-850/60">
-                <h3 class="text-xs uppercase font-extrabold tracking-wider text-slate-500 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 3. Antropometría Inicial
-                </h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Peso Inicial (kg) *</label>
-                        <input type="number" step="0.1" name="weight_kg" required value="{{ old('weight_kg') }}" placeholder="65.5" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-lime-500/50">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Estatura (cm) *</label>
-                        <input type="number" step="0.5" name="height_cm" required value="{{ old('height_cm') }}" placeholder="170" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-lime-500/50">
-                    </div>
-                </div>
-            </div>
+
 
             <!-- Submit Section -->
             <div class="pt-6 border-t border-slate-850/60 flex items-center justify-end gap-3">
