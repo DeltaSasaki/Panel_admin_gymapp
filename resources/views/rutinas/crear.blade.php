@@ -59,6 +59,18 @@
                     </select>
                 </div>
 
+                <!-- BMI Category -->
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Categoría de IMC Recomendada *</label>
+                    <select name="bmi_category" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                        <option value="all" {{ old('bmi_category') === 'all' ? 'selected' : '' }}>Para Todos (Genérico)</option>
+                        <option value="underweight" {{ old('bmi_category') === 'underweight' ? 'selected' : '' }}>Bajo Peso</option>
+                        <option value="normal" {{ old('bmi_category') === 'normal' ? 'selected' : '' }}>Peso Normal</option>
+                        <option value="overweight" {{ old('bmi_category') === 'overweight' ? 'selected' : '' }}>Sobrepeso</option>
+                        <option value="obese" {{ old('bmi_category') === 'obese' ? 'selected' : '' }}>Obesidad</option>
+                    </select>
+                </div>
+
                 <!-- Difficulty -->
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Dificultad / Nivel *</label>
