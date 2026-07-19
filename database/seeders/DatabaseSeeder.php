@@ -33,6 +33,16 @@ use App\Models\Ingredient;
 use App\Models\UserGoal;
 use App\Models\UserAchievement;
 use App\Models\Notification;
+use App\Models\SaasSubscriptionPlan;
+use App\Models\AttendanceLog;
+use App\Models\GymClass;
+use App\Models\ClassSchedule;
+use App\Models\ClassBooking;
+use App\Models\PromoCode;
+use App\Models\Challenge;
+use App\Models\UserChallenge;
+use App\Models\AchievementDefinition;
+use App\Models\UserGamificationStat;
 
 class DatabaseSeeder extends Seeder
 {
@@ -43,6 +53,8 @@ class DatabaseSeeder extends Seeder
     {
         // Disable foreign key checks for clean seeding
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('saas_subscription_plans')->truncate();
+        DB::table('gyms')->truncate();
         DB::table('routine_exercises')->truncate();
         DB::table('routine_days')->truncate();
         DB::table('exercises')->truncate();
@@ -69,13 +81,73 @@ class DatabaseSeeder extends Seeder
         DB::table('user_goals')->truncate();
         DB::table('user_achievements')->truncate();
         DB::table('notifications')->truncate();
+        DB::table('attendance_logs')->truncate();
+        DB::table('gym_classes')->truncate();
+        DB::table('class_schedules')->truncate();
+        DB::table('class_bookings')->truncate();
+        DB::table('promo_codes')->truncate();
+        DB::table('challenges')->truncate();
+        DB::table('user_challenges')->truncate();
+        DB::table('achievement_definitions')->truncate();
+        DB::table('user_gamification_stats')->truncate();
+        DB::table('saas_plan_modules')->truncate();
+        DB::table('recipe_ingredients')->truncate();
+        DB::table('exercise_equipment')->truncate();
+        DB::table('session_exercises')->truncate();
+        DB::table('user_food_logs')->truncate();
+        DB::table('user_trainer_assignments')->truncate();
+        DB::table('fitness_assessments')->truncate();
+        DB::table('satisfaction_surveys')->truncate();
+        DB::table('user_referrals')->truncate();
+        DB::table('membership_payments')->truncate();
+        DB::table('gym_subscriptions')->truncate();
+        DB::table('admin_audit_logs')->truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+
+        // ==========================================
+        // 0. SEED SAAS SUBSCRIPTION PLANS
+        // ==========================================
+        $planBasic = SaasSubscriptionPlan::create([
+            'id' => 1,
+            'name' => 'Plan Básico',
+            'description' => 'Ideal para pequeños boxes y entrenamientos personales. Límite de 50 socios y 3 entrenadores.',
+            'monthly_price' => 29.99,
+            'currency' => 'USD',
+            'max_users' => 50,
+            'max_trainers' => 3,
+            'is_active' => 1,
+        ]);
+
+        $planPro = SaasSubscriptionPlan::create([
+            'id' => 2,
+            'name' => 'Plan Pro',
+            'description' => 'Para gimnasios en crecimiento. Límite de 200 socios y 10 entrenadores.',
+            'monthly_price' => 59.99,
+            'currency' => 'USD',
+            'max_users' => 200,
+            'max_trainers' => 10,
+            'is_active' => 1,
+        ]);
+
+        $planPremium = SaasSubscriptionPlan::create([
+            'id' => 3,
+            'name' => 'Plan Premium',
+            'description' => 'Acceso total sin límites para grandes sucursales o cadenas.',
+            'monthly_price' => 99.99,
+            'currency' => 'USD',
+            'max_users' => null,
+            'max_trainers' => null,
+            'is_active' => 1,
+        ]);
 
         // ==========================================
         // 1. CREATE GYM 1 (GymFlow HQ) & GYM 2 (PowerHouse Studio)
         // ==========================================
         $gym1 = Gym::create([
             'name' => 'GymFlow HQ',
+            'slug' => 'gymflow-hq',
+            'current_plan_id' => $planPro->id,
+            'subscription_status' => 'active',
             'address' => 'Av. de los Deportes 450, Madrid',
             'phone' => '+34 912 345 678',
             'email' => 'info@gymflowhq.com',
@@ -86,6 +158,9 @@ class DatabaseSeeder extends Seeder
 
         $gym2 = Gym::create([
             'name' => 'PowerHouse Studio',
+            'slug' => 'powerhouse-studio',
+            'current_plan_id' => $planBasic->id,
+            'subscription_status' => 'trialing',
             'address' => 'Calle Gran Vía 88, Barcelona',
             'phone' => '+34 931 999 888',
             'email' => 'contact@powerhousestudio.com',
@@ -713,17 +788,17 @@ class DatabaseSeeder extends Seeder
         $shaker = InventoryProduct::create([
             'gym_id' => $gym1->id, 'category_id' => $catAccG1->id, 'name' => 'Vaso Mezclador 500ml',
             'description' => 'Shaker clásico hermético', 'price' => 10.00, 'cost_price' => 4.00,
-            'stock_quantity' => 15, 'min_stock' => 3, 'is_available' => 1
+            'stock_quantity' => 0, 'min_stock' => 3, 'is_available' => 1
         ]);
         $whey = InventoryProduct::create([
             'gym_id' => $gym1->id, 'category_id' => $catSupG1->id, 'name' => 'Whey Protein 1kg (Fresa)',
             'description' => 'Concentrado de suero de leche de alta calidad', 'price' => 45.00, 'cost_price' => 28.00,
-            'stock_quantity' => 8, 'min_stock' => 2, 'is_available' => 1
+            'stock_quantity' => 0, 'min_stock' => 2, 'is_available' => 1
         ]);
         $bar = InventoryProduct::create([
             'gym_id' => $gym1->id, 'category_id' => $catSupG1->id, 'name' => 'Barra de Proteínas 60g',
             'description' => 'Aperitivo con 20g de proteína', 'price' => 3.50, 'cost_price' => 1.50,
-            'stock_quantity' => 2, 'min_stock' => 5, 'is_available' => 1 // Understocked!
+            'stock_quantity' => 0, 'min_stock' => 5, 'is_available' => 1
         ]);
 
         // Gym 2
@@ -733,7 +808,44 @@ class DatabaseSeeder extends Seeder
         $iso = InventoryProduct::create([
             'gym_id' => $gym2->id, 'category_id' => $catSupG2->id, 'name' => 'Iso Protein 900g (Vainilla)',
             'description' => 'Proteína aislada premium', 'price' => 55.00, 'cost_price' => 35.00,
-            'stock_quantity' => 12, 'min_stock' => 3, 'is_available' => 1
+            'stock_quantity' => 0, 'min_stock' => 3, 'is_available' => 1
+        ]);
+
+        // Load initial stock via movements (this triggers trg_update_stock_after_movement to update stock_quantity)
+        InventoryMovement::create([
+            'product_id' => $shaker->id,
+            'movement_type' => 'in',
+            'quantity' => 15,
+            'reason' => 'Carga de stock inicial',
+            'performed_by' => $trainerUser1->id,
+            'createdAt' => Carbon::now()->subDays(5)
+        ]);
+
+        InventoryMovement::create([
+            'product_id' => $whey->id,
+            'movement_type' => 'in',
+            'quantity' => 8,
+            'reason' => 'Carga de stock inicial',
+            'performed_by' => $trainerUser1->id,
+            'createdAt' => Carbon::now()->subDays(5)
+        ]);
+
+        InventoryMovement::create([
+            'product_id' => $bar->id,
+            'movement_type' => 'in',
+            'quantity' => 20,
+            'reason' => 'Carga de stock inicial',
+            'performed_by' => $trainerUser1->id,
+            'createdAt' => Carbon::now()->subDays(5)
+        ]);
+
+        InventoryMovement::create([
+            'product_id' => $iso->id,
+            'movement_type' => 'in',
+            'quantity' => 12,
+            'reason' => 'Carga de stock inicial',
+            'performed_by' => $trainerUser2->id,
+            'createdAt' => Carbon::now()->subDays(5)
         ]);
 
         // ==========================================
@@ -773,5 +885,637 @@ class DatabaseSeeder extends Seeder
         // Gym 2
         UserGoal::create(['user_id' => $user5->id, 'goal_type' => 'gain_muscle', 'target_weight' => 82.0, 'target_date' => Carbon::now()->addWeeks(8), 'is_active' => 1]);
         UserAchievement::create(['user_id' => $user5->id, 'achievement_type' => '10k_calories', 'description' => 'Quemaste más de 10,000 kcal en sesiones registradas.', 'achieved_at' => Carbon::now()->subDays(2)]);
+
+        // ==========================================
+        // 10. PROMO CODES / CUPONES (Gym 1 & Gym 2)
+        // ==========================================
+        $promoG1 = PromoCode::create([
+            'gym_id' => $gym1->id,
+            'code' => 'DESCUENTO10',
+            'discount_type' => 'percentage',
+            'discount_value' => 10.00,
+            'valid_from' => Carbon::now()->subDays(10),
+            'valid_until' => Carbon::now()->addDays(30),
+            'max_uses' => 100,
+            'current_uses' => 5,
+            'is_active' => 1
+        ]);
+
+        $promoFixedG1 = PromoCode::create([
+            'gym_id' => $gym1->id,
+            'code' => 'VERANO5',
+            'discount_type' => 'fixed',
+            'discount_value' => 5.00,
+            'valid_from' => Carbon::now()->subDays(10),
+            'valid_until' => Carbon::now()->addDays(30),
+            'max_uses' => 50,
+            'current_uses' => 2,
+            'is_active' => 1
+        ]);
+
+        $promoG2 = PromoCode::create([
+            'gym_id' => $gym2->id,
+            'code' => 'KETO20',
+            'discount_type' => 'percentage',
+            'discount_value' => 20.00,
+            'valid_from' => Carbon::now()->subDays(5),
+            'valid_until' => Carbon::now()->addDays(25),
+            'max_uses' => 10,
+            'current_uses' => 1,
+            'is_active' => 1
+        ]);
+
+        // ==========================================
+        // 11. POS SALES & SALE ITEMS
+        // ==========================================
+        $sale1 = ProductSale::create([
+            'gym_id' => $gym1->id,
+            'user_id' => $user1->id,
+            'promo_code_id' => $promoG1->id,
+            'sold_by' => $trainerUser1->id,
+            'total_amount' => 9.00,
+            'payment_method' => 'cash',
+            'sale_date' => Carbon::now()->subDays(1),
+            'notes' => 'Venta con cupón de descuento.',
+            'createdAt' => now()
+        ]);
+
+        SaleItem::create([
+            'sale_id' => $sale1->id,
+            'product_id' => $shaker->id,
+            'quantity' => 1,
+            'unit_price' => 10.00,
+            'subtotal' => 10.00
+        ]);
+
+        $sale2 = ProductSale::create([
+            'gym_id' => $gym1->id,
+            'user_id' => $user2->id,
+            'sold_by' => $trainerUser1->id,
+            'total_amount' => 7.00,
+            'payment_method' => 'card',
+            'sale_date' => Carbon::now()->subDays(2),
+            'notes' => 'Venta sin cupón.',
+            'createdAt' => now()
+        ]);
+
+        SaleItem::create([
+            'sale_id' => $sale2->id,
+            'product_id' => $bar->id,
+            'quantity' => 2,
+            'unit_price' => 3.50,
+            'subtotal' => 7.00
+        ]);
+
+        // ==========================================
+        // 12. GYM CLASSES & SCHEDULES & BOOKINGS
+        // ==========================================
+        // Gym 1
+        $classCrossfit = GymClass::create([
+            'gym_id' => $gym1->id,
+            'name' => 'CrossFit WOD',
+            'description' => 'Acondicionamiento metabólico de alta intensidad y fuerza.',
+            'duration_minutes' => 60,
+            'capacity' => 12,
+            'color_code' => '#ef4444',
+            'is_active' => 1
+        ]);
+
+        $classYoga = GymClass::create([
+            'gym_id' => $gym1->id,
+            'name' => 'Yoga Vinyasa',
+            'description' => 'Fluidez de movimientos coordinados con la respiración.',
+            'duration_minutes' => 60,
+            'capacity' => 15,
+            'color_code' => '#3b82f6',
+            'is_active' => 1
+        ]);
+
+        // Schedules Gym 1 (past and future)
+        $scheduleCrossfitPast = ClassSchedule::create([
+            'gym_id' => $gym1->id,
+            'gym_class_id' => $classCrossfit->id,
+            'trainer_id' => $trainer1->id,
+            'scheduled_date' => Carbon::now()->subDays(1)->format('Y-m-d'),
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'status' => 'completed'
+        ]);
+
+        $scheduleCrossfitFuture = ClassSchedule::create([
+            'gym_id' => $gym1->id,
+            'gym_class_id' => $classCrossfit->id,
+            'trainer_id' => $trainer1->id,
+            'scheduled_date' => Carbon::now()->addDays(2)->format('Y-m-d'),
+            'start_time' => '19:00:00',
+            'end_time' => '20:00:00',
+            'status' => 'scheduled'
+        ]);
+
+        // Bookings
+        ClassBooking::create([
+            'class_schedule_id' => $scheduleCrossfitPast->id,
+            'user_id' => $user1->id,
+            'status' => 'attended',
+            'booked_at' => Carbon::now()->subDays(2)
+        ]);
+
+        ClassBooking::create([
+            'class_schedule_id' => $scheduleCrossfitFuture->id,
+            'user_id' => $user1->id,
+            'status' => 'booked',
+            'booked_at' => Carbon::now()->subMinutes(30)
+        ]);
+
+        ClassBooking::create([
+            'class_schedule_id' => $scheduleCrossfitFuture->id,
+            'user_id' => $user2->id,
+            'status' => 'booked',
+            'booked_at' => Carbon::now()->subMinutes(15)
+        ]);
+
+        // Gym 2 Classes
+        $classSpinning = GymClass::create([
+            'gym_id' => $gym2->id,
+            'name' => 'Spinning Pro',
+            'description' => 'Cardio de alta exigencia sobre bicicleta estática.',
+            'duration_minutes' => 45,
+            'capacity' => 10,
+            'color_code' => '#f59e0b',
+            'is_active' => 1
+        ]);
+
+        $scheduleSpinningFuture = ClassSchedule::create([
+            'gym_id' => $gym2->id,
+            'gym_class_id' => $classSpinning->id,
+            'trainer_id' => $trainer2->id,
+            'scheduled_date' => Carbon::now()->addDays(1)->format('Y-m-d'),
+            'start_time' => '18:00:00',
+            'end_time' => '18:45:00',
+            'status' => 'scheduled'
+        ]);
+
+        ClassBooking::create([
+            'class_schedule_id' => $scheduleSpinningFuture->id,
+            'user_id' => $user3->id,
+            'status' => 'booked',
+            'booked_at' => Carbon::now()->subHours(5)
+        ]);
+
+        // ==========================================
+        // 13. ATTENDANCE LOGS
+        // ==========================================
+        // Gym 1
+        for ($i = 0; $i < 10; $i++) {
+            AttendanceLog::create([
+                'gym_id' => $gym1->id,
+                'user_id' => $user1->id,
+                'check_in' => Carbon::now()->subDays($i)->hour(8)->minute(15)->second(0),
+                'check_out' => Carbon::now()->subDays($i)->hour(9)->minute(30)->second(0),
+                'entry_method' => 'biometric',
+                'status' => 'valid'
+            ]);
+
+            AttendanceLog::create([
+                'gym_id' => $gym1->id,
+                'user_id' => $user2->id,
+                'check_in' => Carbon::now()->subDays($i)->hour(18)->minute(0)->second(0),
+                'check_out' => Carbon::now()->subDays($i)->hour(19)->minute(15)->second(0),
+                'entry_method' => 'rfid',
+                'status' => 'valid'
+            ]);
+        }
+
+        // Gym 2
+        for ($i = 0; $i < 4; $i++) {
+            AttendanceLog::create([
+                'gym_id' => $gym2->id,
+                'user_id' => $user3->id,
+                'check_in' => Carbon::now()->subDays($i)->hour(7)->minute(30)->second(0),
+                'check_out' => Carbon::now()->subDays($i)->hour(8)->minute(45)->second(0),
+                'entry_method' => 'app_manual',
+                'status' => 'valid'
+            ]);
+        }
+
+        // ==========================================
+        // 14. GAMIFICATION (Challenges, Achievements & Stats)
+        // ==========================================
+        // Gym 1 Challenge
+        $challengeStrength1 = Challenge::create([
+            'gym_id' => $gym1->id,
+            'title' => 'Reto Fuerza Total G1',
+            'description' => 'Completa 10 rutinas de fuerza asignadas por tu entrenador.',
+            'start_date' => Carbon::now()->subWeeks(2)->format('Y-m-d'),
+            'end_date' => Carbon::now()->addWeeks(2)->format('Y-m-d'),
+            'xp_reward' => 150,
+            'token_reward' => 50.00
+        ]);
+
+        $challengeCardio1 = Challenge::create([
+            'gym_id' => $gym1->id,
+            'title' => 'Maratón de Spinning G1',
+            'description' => 'Asiste a 5 clases grupales de Spinning consecutivas.',
+            'start_date' => Carbon::now()->subDays(5)->format('Y-m-d'),
+            'end_date' => Carbon::now()->addDays(10)->format('Y-m-d'),
+            'xp_reward' => 100,
+            'token_reward' => 30.00
+        ]);
+
+        // Gym 2 Challenge
+        $challengeKeto2 = Challenge::create([
+            'gym_id' => $gym2->id,
+            'title' => 'Desafío Nutricional Keto G2',
+            'description' => 'Mantén tu plan alimentario keto por 7 días.',
+            'start_date' => Carbon::now()->subDays(3)->format('Y-m-d'),
+            'end_date' => Carbon::now()->addDays(4)->format('Y-m-d'),
+            'xp_reward' => 120,
+            'token_reward' => 40.00
+        ]);
+
+        // User Challenge Enrolments
+        UserChallenge::create([
+            'user_id' => $user1->id,
+            'challenge_id' => $challengeStrength1->id,
+            'progress_value' => 6,
+            'status' => 'active',
+            'completed_at' => null
+        ]);
+
+        UserChallenge::create([
+            'user_id' => $user2->id,
+            'challenge_id' => $challengeStrength1->id,
+            'progress_value' => 10,
+            'status' => 'completed',
+            'completed_at' => Carbon::now()->subDays(2)
+        ]);
+
+        // Achievement Definitions
+        $badgeWelcome = AchievementDefinition::create([
+            'gym_id' => $gym1->id,
+            'name' => 'Bienvenida de Hierro',
+            'description' => 'Tu primer paso en la comunidad. Registra tu primer check-in.',
+            'xp_reward' => 50,
+            'token_reward' => 10.00,
+            'icon_url' => 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop',
+            'condition_type' => 'workouts_completed',
+            'target_value' => 1
+        ]);
+
+        $badgeConsistencia = AchievementDefinition::create([
+            'gym_id' => $gym1->id,
+            'name' => 'Consistencia de Acero',
+            'description' => 'Completaste 10 check-ins consecutivos de asistencia.',
+            'xp_reward' => 200,
+            'token_reward' => 50.00,
+            'icon_url' => 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=150&auto=format&fit=crop',
+            'condition_type' => 'consecutive_days',
+            'target_value' => 10
+        ]);
+
+        // Award Achievements to Users
+        UserAchievement::create([
+            'user_id' => $user1->id,
+            'achievement_type' => 'workouts_completed',
+            'description' => '¡Bienvenida de Hierro! Registraste tu primer check-in.',
+            'achieved_at' => Carbon::now()->subWeeks(1)
+        ]);
+
+        UserAchievement::create([
+            'user_id' => $user2->id,
+            'achievement_type' => 'workouts_completed',
+            'description' => '¡Bienvenida de Hierro! Registraste tu primer check-in.',
+            'achieved_at' => Carbon::now()->subWeeks(2)
+        ]);
+
+        // Gamification Stats for Leaderboard
+        UserGamificationStat::create([
+            'user_id' => $user1->id,
+            'gym_id' => $gym1->id,
+            'total_xp' => 1250,
+            'current_level' => 2,
+            'token_balance' => 60.00,
+            'current_streak_days' => 3,
+            'longest_streak_days' => 5
+        ]);
+
+        UserGamificationStat::create([
+            'user_id' => $user2->id,
+            'gym_id' => $gym1->id,
+            'total_xp' => 2850,
+            'current_level' => 3,
+            'token_balance' => 110.00,
+            'current_streak_days' => 7,
+            'longest_streak_days' => 12
+        ]);
+
+        UserGamificationStat::create([
+            'user_id' => $user3->id,
+            'gym_id' => $gym2->id,
+            'total_xp' => 450,
+            'current_level' => 1,
+            'token_balance' => 0.00,
+            'current_streak_days' => 1,
+            'longest_streak_days' => 3
+        ]);
+
+        UserGamificationStat::create([
+            'user_id' => $user5->id,
+            'gym_id' => $gym2->id,
+            'total_xp' => 950,
+            'current_level' => 1,
+            'token_balance' => 25.00,
+            'current_streak_days' => 2,
+            'longest_streak_days' => 4
+        ]);
+
+        // ==========================================
+        // 15. SAAS PLAN MODULES (Pivot Mapping)
+        // ==========================================
+        DB::table('saas_plan_modules')->insert([
+            ['plan_id' => 1, 'module_id' => 1],
+            ['plan_id' => 2, 'module_id' => 1],
+            ['plan_id' => 2, 'module_id' => 2],
+            ['plan_id' => 2, 'module_id' => 3],
+            ['plan_id' => 2, 'module_id' => 4],
+            ['plan_id' => 3, 'module_id' => 1],
+            ['plan_id' => 3, 'module_id' => 2],
+            ['plan_id' => 3, 'module_id' => 3],
+            ['plan_id' => 3, 'module_id' => 4],
+            ['plan_id' => 3, 'module_id' => 5],
+            ['plan_id' => 3, 'module_id' => 6],
+        ]);
+
+        $ingPollo = Ingredient::where('gym_id', $gym1->id)->where('name', 'Pechuga de Pollo')->first();
+        $ingArroz = Ingredient::where('gym_id', $gym1->id)->where('name', 'Arroz Blanco Cocido')->first();
+        $ingHuevo = Ingredient::where('gym_id', $gym1->id)->where('name', 'Huevo Entero')->first();
+
+        // ==========================================
+        // 16. RECIPE INGREDIENTS
+        // ==========================================
+        DB::table('recipe_ingredients')->insert([
+            [
+                'recipe_id' => $recipeBreakfast1->id,
+                'ingredient_id' => $ingHuevo->id,
+                'quantity' => 4.00,
+                'unit' => 'unit',
+                'notes' => 'Usar preferiblemente solo las claras.'
+            ],
+            [
+                'recipe_id' => $recipeLunch1->id,
+                'ingredient_id' => $ingPollo->id,
+                'quantity' => 150.00,
+                'unit' => 'g',
+                'notes' => 'Pechuga a la plancha sin piel.'
+            ],
+            [
+                'recipe_id' => $recipeLunch1->id,
+                'ingredient_id' => $ingArroz->id,
+                'quantity' => 100.00,
+                'unit' => 'g',
+                'notes' => 'Arroz jazmín hervido.'
+            ],
+        ]);
+
+        $eqSmith = Equipment::where('gym_id', $gym1->id)->where('name', 'Rack de Sentadillas Smith')->first();
+        $eqPrensa = Equipment::where('gym_id', $gym1->id)->where('name', 'Prensa de Piernas 45° Matrix')->first();
+
+        // ==========================================
+        // 17. EXERCISE EQUIPMENT (Pivot Mapping)
+        // ==========================================
+        DB::table('exercise_equipment')->insert([
+            ['exercise_id' => $exSquat1->id, 'equipment_id' => $eqSmith->id, 'is_optional' => 0],
+            ['exercise_id' => $exPress1->id, 'equipment_id' => $eqPrensa->id, 'is_optional' => 0],
+        ]);
+
+        $session1 = WorkoutSession::where('user_id', $user1->id)->first();
+        if ($session1) {
+            // ==========================================
+            // 18. SESSION EXERCISES
+            // ==========================================
+            DB::table('session_exercises')->insert([
+                [
+                    'session_id' => $session1->id,
+                    'exercise_id' => $exSquat1->id,
+                    'sets_completed' => 4,
+                    'reps_completed' => '8,8,6,6',
+                    'weight_kg' => 80.00,
+                    'duration_seconds' => 300,
+                    'notes' => 'RPE 8 en la última serie.'
+                ]
+            ]);
+        }
+
+        // ==========================================
+        // 19. USER FOOD LOGS
+        // ==========================================
+        DB::table('user_food_logs')->insert([
+            [
+                'user_id' => $user1->id,
+                'gym_id' => $gym1->id,
+                'log_date' => Carbon::now()->subDays(1)->format('Y-m-d'),
+                'meal_type' => 'breakfast',
+                'recipe_id' => $recipeBreakfast1->id,
+                'custom_food_name' => null,
+                'calories' => 450.00,
+                'protein_g' => 30.00,
+                'carbs_g' => 55.00,
+                'fat_g' => 10.00,
+                'createdAt' => Carbon::now()->subDays(1)
+            ],
+            [
+                'user_id' => $user1->id,
+                'gym_id' => $gym1->id,
+                'log_date' => Carbon::now()->subDays(1)->format('Y-m-d'),
+                'meal_type' => 'snack',
+                'recipe_id' => null,
+                'custom_food_name' => 'Manzana verde con mantequilla de maní',
+                'calories' => 200.00,
+                'protein_g' => 4.00,
+                'carbs_g' => 25.00,
+                'fat_g' => 8.00,
+                'createdAt' => Carbon::now()->subDays(1)
+            ]
+        ]);
+
+        // ==========================================
+        // 20. USER TRAINER ASSIGNMENTS
+        // ==========================================
+        DB::table('user_trainer_assignments')->insert([
+            [
+                'user_id' => $user1->id,
+                'trainer_id' => $trainer1->id,
+                'assigned_at' => Carbon::now()->subMonths(1),
+                'end_date' => Carbon::now()->addMonths(5)->format('Y-m-d'),
+                'is_active' => 1,
+                'notes' => 'Asignado para plan de hipertrofia de pierna.',
+                'createdAt' => Carbon::now()->subMonths(1),
+                'updatedAt' => Carbon::now()->subMonths(1)
+            ],
+            [
+                'user_id' => $user2->id,
+                'trainer_id' => $trainer1->id,
+                'assigned_at' => Carbon::now()->subMonths(1),
+                'end_date' => Carbon::now()->addMonths(5)->format('Y-m-d'),
+                'is_active' => 1,
+                'notes' => 'Recomendado por Admin.',
+                'createdAt' => Carbon::now()->subMonths(1),
+                'updatedAt' => Carbon::now()->subMonths(1)
+            ]
+        ]);
+
+        // ==========================================
+        // 21. FITNESS ASSESSMENTS
+        // ==========================================
+        DB::table('fitness_assessments')->insert([
+            [
+                'gym_id' => $gym1->id,
+                'user_id' => $user1->id,
+                'trainer_id' => $trainer1->id,
+                'assessment_date' => Carbon::now()->subWeeks(3)->format('Y-m-d'),
+                'posture_notes' => 'Ligera hiperlordosis lumbar.',
+                'flexibility_rating' => 'good',
+                'cardio_rating' => 'excellent',
+                'strength_notes' => 'Fuerza en tren superior moderada, tren inferior sobresaliente.',
+                'general_recommendations' => 'Enfocarse en core y estabilizadores de cadera.',
+                'next_assessment_date' => Carbon::now()->addWeeks(5)->format('Y-m-d'),
+                'createdAt' => Carbon::now()->subWeeks(3)
+            ]
+        ]);
+
+        // ==========================================
+        // 22. SATISFACTION SURVEYS
+        // ==========================================
+        DB::table('satisfaction_surveys')->insert([
+            [
+                'gym_id' => $gym1->id,
+                'user_id' => $user1->id,
+                'survey_date' => Carbon::now()->subDays(3)->format('Y-m-d'),
+                'rating' => 9,
+                'category' => 'general',
+                'feedback_text' => 'Me encantan las instalaciones y las máquinas Smith, pero a veces está muy lleno por la tarde.',
+                'status' => 'resolved',
+                'createdAt' => Carbon::now()->subDays(3)
+            ],
+            [
+                'gym_id' => $gym1->id,
+                'user_id' => $user2->id,
+                'survey_date' => Carbon::now()->subDays(2)->format('Y-m-d'),
+                'rating' => 10,
+                'category' => 'trainers',
+                'feedback_text' => 'El coach Carlos Ruiz es excelente y muy atento con la técnica.',
+                'status' => 'pending',
+                'createdAt' => Carbon::now()->subDays(2)
+            ]
+        ]);
+
+        // ==========================================
+        // 23. USER REFERRALS
+        // ==========================================
+        DB::table('user_referrals')->insert([
+            [
+                'gym_id' => $gym1->id,
+                'referrer_id' => $user2->id,
+                'referred_id' => $user1->id,
+                'status' => 'completed',
+                'reward_granted' => 1,
+                'createdAt' => Carbon::now()->subWeeks(3),
+                'completedAt' => Carbon::now()->subWeeks(2)
+            ]
+        ]);
+
+        $m_user1 = UserMembership::where('user_id', $user1->id)->first();
+        $m_user2 = UserMembership::where('user_id', $user2->id)->first();
+
+        // ==========================================
+        // 24. MEMBERSHIP PAYMENTS
+        // ==========================================
+        if ($m_user1) {
+            DB::table('membership_payments')->insert([
+                'membership_id' => $m_user1->id,
+                'user_id' => $user1->id,
+                'promo_code_id' => null,
+                'amount' => 50.00,
+                'currency' => 'USD',
+                'payment_method' => 'card',
+                'payment_date' => Carbon::now()->subDays(15),
+                'reference_code' => 'PAY-XYZ-998877',
+                'received_by' => $adminUser1->id,
+                'notes' => 'Pago de suscripción VIP mensual.',
+                'createdAt' => Carbon::now()->subDays(15),
+                'updatedAt' => Carbon::now()->subDays(15)
+            ]);
+        }
+
+        // ==========================================
+        // 25. GYM SUBSCRIPTIONS (SaaS Level Billing)
+        // ==========================================
+        DB::table('gym_subscriptions')->insert([
+            [
+                'gym_id' => $gym1->id,
+                'plan_id' => $planPro->id,
+                'start_date' => Carbon::now()->subMonths(2)->format('Y-m-d'),
+                'end_date' => Carbon::now()->addMonths(1)->format('Y-m-d'),
+                'status' => 'active',
+                'payment_method' => 'Zelle',
+                'reference_code' => 'TXN-SaaS-443322',
+                'createdAt' => Carbon::now()->subMonths(2)
+            ],
+            [
+                'gym_id' => $gym2->id,
+                'plan_id' => $planBasic->id,
+                'start_date' => Carbon::now()->subDays(10)->format('Y-m-d'),
+                'end_date' => Carbon::now()->addDays(20)->format('Y-m-d'),
+                'status' => 'trialing',
+                'payment_method' => null,
+                'reference_code' => null,
+                'createdAt' => Carbon::now()->subDays(10)
+            ],
+        ]);
+
+        // ==========================================
+        // 26. ADMIN AUDIT LOGS
+        // ==========================================
+        DB::table('admin_audit_logs')->insert([
+            [
+                'gym_id' => $gym1->id,
+                'admin_id' => $adminUser1->id,
+                'action_type' => 'UPDATE',
+                'table_name' => 'membership_plans',
+                'record_id' => '1',
+                'old_data' => json_encode(['price' => 45.00]),
+                'new_data' => json_encode(['price' => 50.00]),
+                'ip_address' => '192.168.1.100',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'createdAt' => Carbon::now()->subDays(4)
+            ]
+        ]);
+
+        // ==========================================
+        // 27. USER NOTIFICATIONS
+        // ==========================================
+        Notification::create([
+            'user_id' => $user1->id,
+            'title' => '¡Nueva rutina asignada!',
+            'body' => 'El coach Carlos Ruiz te asignó la rutina: Pierna & Glúteo Avanzado G1.',
+            'type' => 'new_routine',
+            'is_read' => 0
+        ]);
+
+        Notification::create([
+            'user_id' => $user1->id,
+            'title' => '¡Logro desbloqueado!',
+            'body' => 'Has conseguido la medalla: Bienvenida de Hierro.',
+            'type' => 'achievement',
+            'is_read' => 1
+        ]);
+
+        Notification::create([
+            'user_id' => $user2->id,
+            'title' => 'Recordatorio de Pago',
+            'body' => 'Tu membresía Plan Básico Mensual vence en 5 días.',
+            'type' => 'payment_reminder',
+            'is_read' => 0
+        ]);
     }
 }
