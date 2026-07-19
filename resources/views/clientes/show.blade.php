@@ -56,6 +56,21 @@
 
                 <div class="flex items-center gap-3">
                     <div class="p-2 bg-slate-950 text-slate-400 rounded-lg">
+                        <i data-lucide="id-card" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] text-slate-500">DNI</span>
+                        <span class="text-slate-200 font-medium">
+                            @if(auth()->user()->role === 'trainer' && $cliente->profile->dni)
+                                {{ substr($cliente->profile->dni, 0, 2) . '•••' . substr($cliente->profile->dni, -2) }}
+                            @else
+                                {{ $cliente->profile->dni ?? 'No registrado' }}
+                            @endif
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-slate-950 text-slate-400 rounded-lg">
                         <i data-lucide="phone" class="w-4 h-4"></i>
                     </div>
                     <div>

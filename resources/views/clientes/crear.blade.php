@@ -66,6 +66,10 @@
                         <input type="text" name="last_name" required value="{{ old('last_name') }}" placeholder="Silva" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-lime-500/50">
                     </div>
                     <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">DNI *</label>
+                        <input type="text" name="dni" required value="{{ old('dni') }}" placeholder="12345678" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-lime-500/50">
+                    </div>
+                    <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Teléfono</label>
                         <input type="text" name="phone" value="{{ old('phone') }}" placeholder="+34 600 000 000" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-lime-500/50">
                     </div>

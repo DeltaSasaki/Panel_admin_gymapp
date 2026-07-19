@@ -19,7 +19,7 @@ class StaffController extends Controller
     {
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
-        
+
         $query = Trainer::with('user.profile');
         if ($gymId !== 'all') {
             $query->where('gym_id', $gymId);
@@ -38,6 +38,7 @@ class StaffController extends Controller
         $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
+            'dni' => 'required|string|max:20',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6',
             'phone' => 'nullable|string|max:20',
@@ -70,6 +71,7 @@ class StaffController extends Controller
                 'user_id' => $user->id,
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
+                'dni' => $request->dni,
                 'phone' => $request->phone,
                 'gender' => 'other',
             ]);
@@ -92,11 +94,10 @@ class StaffController extends Controller
 
             DB::commit();
             return redirect()->back()->with('success', 'Entrenador registrado exitosamente.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             $errorMessage = $e->getMessage();
-            
+
             if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
                 $errorText = trim($matches[1]);
             } else {

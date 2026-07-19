@@ -30,30 +30,46 @@ class AdminController extends Controller
     public function dashboard()
     {
         $gymId = $this->getActiveGymId();
-        
+
         $totalClients = User::where('role', 'member')
-            ->when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
             ->count();
 
-        $activeClientsToday = WorkoutSession::whereHas('user', function($q) use ($gymId) {
-                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
-            })->whereDate('session_date', Carbon::today())->count();
-        
-        $totalRoutines = WorkoutRoutine::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('is_active', 1)->count();
-        $totalMealPlans = MealPlan::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('is_active', 1)->count();
+        $activeClientsToday = WorkoutSession::whereHas('user', function ($q) use ($gymId) {
+            $q->when($gymId !== 'all', function ($sq) use ($gymId) {
+                $sq->where('gym_id', $gymId);
+            });
+        })->whereDate('session_date', Carbon::today())->count();
+
+        $totalRoutines = WorkoutRoutine::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })->where('is_active', 1)->count();
+        $totalMealPlans = MealPlan::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })->where('is_active', 1)->count();
 
         // Admin-level metrics
-        $monthlyIncome = MembershipPayment::whereHas('membership', function($q) use ($gymId) {
-                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
-            })
+        $monthlyIncome = MembershipPayment::whereHas('membership', function ($q) use ($gymId) {
+            $q->when($gymId !== 'all', function ($sq) use ($gymId) {
+                $sq->where('gym_id', $gymId);
+            });
+        })
             ->whereMonth('payment_date', Carbon::now()->month)
-            ->sum('amount') 
-            + ProductSale::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->sum('amount')
+            + ProductSale::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
             ->whereMonth('createdAt', Carbon::now()->month)
             ->sum('total_amount');
 
-        $pendingPaymentsCount = UserMembership::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->where('payment_status', 'pending')->count();
-        $lowStockCount = InventoryProduct::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })->whereRaw('stock_quantity <= min_stock')->count();
+        $pendingPaymentsCount = UserMembership::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })->where('payment_status', 'pending')->count();
+        $lowStockCount = InventoryProduct::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })->whereRaw('stock_quantity <= min_stock')->count();
 
         // Superadmin-level global metrics
         $totalGyms = \App\Models\Gym::count();
@@ -61,7 +77,7 @@ class AdminController extends Controller
         $inactiveGymsCount = \App\Models\Gym::where('is_active', 0)->count();
         $totalSystemUsers = User::count();
         $globalSalesTotal = MembershipPayment::sum('amount') + ProductSale::sum('total_amount');
-        
+
         $systemAlerts = [
             ['type' => 'warning', 'message' => 'Almacenamiento del servidor SSD en 78%.', 'time' => 'Hace 12 min'],
             ['type' => 'info', 'message' => 'Copia de seguridad semanal de la base de datos completada.', 'time' => 'Hace 3 horas'],
@@ -72,16 +88,18 @@ class AdminController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
-        $sessionsByDay = WorkoutSession::whereHas('user', function($q) use ($gymId) {
-                $q->when($gymId !== 'all', function($sq) use ($gymId) { $sq->where('gym_id', $gymId); });
-            })
+        $sessionsByDay = WorkoutSession::whereHas('user', function ($q) use ($gymId) {
+            $q->when($gymId !== 'all', function ($sq) use ($gymId) {
+                $sq->where('gym_id', $gymId);
+            });
+        })
             ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
             ->selectRaw('DAYOFWEEK(session_date) as day, COUNT(*) as count')
             ->groupBy('day')
             ->pluck('count', 'day')
             ->toArray();
 
-        $daysMap = [2, 3, 4, 5, 6, 7, 1]; 
+        $daysMap = [2, 3, 4, 5, 6, 7, 1];
         $attendanceData = [];
         foreach ($daysMap as $dayNum) {
             $attendanceData[] = $sessionsByDay[$dayNum] ?? 0;
@@ -104,7 +122,9 @@ class AdminController extends Controller
         $chartPolygonPoints = implode(' ', $polygonPoints);
 
         $recentClients = User::where('role', 'member')
-            ->when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
             ->with(['profile', 'latestMeasurement', 'activeRoutine.routine'])
             ->orderBy('id', 'desc')
             ->take(3)
@@ -137,8 +157,10 @@ class AdminController extends Controller
     public function clientes()
     {
         $gymId = $this->getActiveGymId();
-        
-        $query = User::when($gymId !== 'all', function($q) use ($gymId) { $q->where('gym_id', $gymId); })
+
+        $query = User::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })
             ->with(['profile', 'latestMeasurement', 'activeRoutine.routine', 'activeMealPlan.mealPlan']);
 
         if (auth()->user()->role !== 'superadmin') {
@@ -158,19 +180,19 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $cliente = User::where('role', 'member')
-            ->when($gymId !== 'all', function($q) use ($gymId) {
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
             ->with([
-                'profile', 
-                'bodyMeasurements' => function($q) {
+                'profile',
+                'bodyMeasurements' => function ($q) {
                     $q->orderBy('measured_at', 'asc');
-                }, 
-                'latestMeasurement', 
-                'activeRoutine.routine', 
-                'activeRoutine.assigner', 
-                'activeMealPlan.mealPlan', 
-                'activeMealPlan.assigner', 
+                },
+                'latestMeasurement',
+                'activeRoutine.routine',
+                'activeRoutine.assigner',
+                'activeMealPlan.mealPlan',
+                'activeMealPlan.assigner',
                 'activeMembership.plan'
             ])
             ->findOrFail($id);
@@ -186,11 +208,11 @@ class AdminController extends Controller
             $minWeight = $measurements->min('weight_kg') - 2;
             $maxWeight = $measurements->max('weight_kg') + 2;
             $weightRange = $maxWeight - $minWeight ?: 1;
-            
+
             $xStep = $measurements->count() > 1 ? (540 / ($measurements->count() - 1)) : 540;
             $pts = [];
             $polyPts = ["30,200"];
-            
+
             foreach ($measurements as $index => $m) {
                 $x = 30 + ($index * $xStep);
                 $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
@@ -200,7 +222,7 @@ class AdminController extends Controller
                 $weightValues[] = $m->weight_kg;
             }
             $polyPts[] = "570,200";
-            
+
             $weightPoints = implode(' ', $pts);
             $weightPolygonPoints = implode(' ', $polyPts);
         }
@@ -238,6 +260,7 @@ class AdminController extends Controller
             'password' => 'required|min:6',
             'first_name' => 'required|string|max:80',
             'last_name' => 'required|string|max:80',
+            'dni' => 'required|string|max:20',
             'phone' => 'nullable|string|max:20',
             'birth_date' => 'nullable|date',
             'gender' => 'required|in:male,female,other',
@@ -267,6 +290,7 @@ class AdminController extends Controller
                 'user_id' => $user->id,
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
+                'dni' => $request->dni,
                 'phone' => $request->phone,
                 'birth_date' => $request->birth_date,
                 'gender' => $request->gender,
@@ -275,11 +299,10 @@ class AdminController extends Controller
 
             \Illuminate\Support\Facades\DB::commit();
             return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
-
         } catch (\Illuminate\Database\QueryException $e) {
             \Illuminate\Support\Facades\DB::rollBack();
             $errorMessage = $e->getMessage();
-            
+
             // Check if it's a trigger exception (SQLSTATE 45000)
             if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
                 $errorText = trim($matches[1]);
@@ -357,19 +380,19 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $rutinas = WorkoutRoutine::where('gym_id', $gymId)
-            ->withCount(['assignments as active_assignments_count' => function($q) {
+            ->withCount(['assignments as active_assignments_count' => function ($q) {
                 $q->where('is_active', 1);
             }])->get();
 
         $totalClients = User::where('role', 'member')->where('gym_id', $gymId)->count();
-        
+
         $activeAssignmentsCount = UserAssignedRoutine::where('is_active', 1)
-            ->whereHas('user', function($q) use ($gymId) {
+            ->whereHas('user', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })->count();
 
         $popularRoutine = WorkoutRoutine::where('gym_id', $gymId)
-            ->withCount(['assignments' => function($q) {
+            ->withCount(['assignments' => function ($q) {
                 $q->where('is_active', 1);
             }])
             ->orderBy('assignments_count', 'desc')
@@ -433,7 +456,7 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $dietas = MealPlan::where('gym_id', $gymId)
-            ->withCount(['assignments as active_assignments_count' => function($q) {
+            ->withCount(['assignments as active_assignments_count' => function ($q) {
                 $q->where('is_active', 1);
             }])->get();
 
@@ -668,42 +691,42 @@ class AdminController extends Controller
 
         // Search Clients
         $clientes = User::where('role', 'member')
-            ->when($gymId !== 'all', function($q) use ($gymId) {
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
-            ->where(function($q) use ($queryStr) {
+            ->where(function ($q) use ($queryStr) {
                 $q->where('email', 'like', "%{$queryStr}%")
-                  ->orWhereHas('profile', function($pq) use ($queryStr) {
-                      $pq->where('first_name', 'like', "%{$queryStr}%")
-                        ->orWhere('last_name', 'like', "%{$queryStr}%")
-                        ->orWhere('phone', 'like', "%{$queryStr}%");
-                  });
+                    ->orWhereHas('profile', function ($pq) use ($queryStr) {
+                        $pq->where('first_name', 'like', "%{$queryStr}%")
+                            ->orWhere('last_name', 'like', "%{$queryStr}%")
+                            ->orWhere('phone', 'like', "%{$queryStr}%");
+                    });
             })
             ->with(['profile', 'gym'])
             ->take(20)
             ->get();
 
         // Search Workout Routines
-        $rutinas = WorkoutRoutine::when($gymId !== 'all', function($q) use ($gymId) {
-                $q->where('gym_id', $gymId);
-            })
-            ->where(function($q) use ($queryStr) {
+        $rutinas = WorkoutRoutine::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })
+            ->where(function ($q) use ($queryStr) {
                 $q->where('name', 'like', "%{$queryStr}%")
-                  ->orWhere('description', 'like', "%{$queryStr}%")
-                  ->orWhere('goal_type', 'like', "%{$queryStr}%");
+                    ->orWhere('description', 'like', "%{$queryStr}%")
+                    ->orWhere('goal_type', 'like', "%{$queryStr}%");
             })
             ->with('gym')
             ->take(20)
             ->get();
 
         // Search Meal Plans (Dietas)
-        $dietas = MealPlan::when($gymId !== 'all', function($q) use ($gymId) {
-                $q->where('gym_id', $gymId);
-            })
-            ->where(function($q) use ($queryStr) {
+        $dietas = MealPlan::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })
+            ->where(function ($q) use ($queryStr) {
                 $q->where('name', 'like', "%{$queryStr}%")
-                  ->orWhere('description', 'like', "%{$queryStr}%")
-                  ->orWhere('goal_type', 'like', "%{$queryStr}%");
+                    ->orWhere('description', 'like', "%{$queryStr}%")
+                    ->orWhere('goal_type', 'like', "%{$queryStr}%");
             })
             ->with('gym')
             ->take(20)
@@ -725,21 +748,21 @@ class AdminController extends Controller
         }
 
         $users = User::whereIn('role', ['member', 'trainer'])
-            ->when($gymId !== 'all', function($q) use ($gymId) {
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
-            ->where(function($q) use ($queryStr) {
+            ->where(function ($q) use ($queryStr) {
                 $q->where('email', 'like', "%{$queryStr}%")
-                  ->orWhereHas('profile', function($pq) use ($queryStr) {
-                      $pq->where('first_name', 'like', "%{$queryStr}%")
-                        ->orWhere('last_name', 'like', "%{$queryStr}%");
-                  });
+                    ->orWhereHas('profile', function ($pq) use ($queryStr) {
+                        $pq->where('first_name', 'like', "%{$queryStr}%")
+                            ->orWhere('last_name', 'like', "%{$queryStr}%");
+                    });
             })
             ->with(['profile', 'gym'])
             ->take(5)
             ->get();
 
-        $results = $users->map(function($user) {
+        $results = $users->map(function ($user) {
             return [
                 'id' => $user->id,
                 'name' => ($user->profile->first_name ?? 'Usuario') . ' ' . ($user->profile->last_name ?? ''),
