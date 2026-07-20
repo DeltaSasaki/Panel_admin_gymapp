@@ -117,6 +117,23 @@
                         </span>
                     </div>
                 </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-slate-950 text-slate-400 rounded-lg">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] text-slate-500">Entrenador Personal</span>
+                        <span class="text-slate-200 font-medium text-xs">
+                            @if($cliente->activeTrainerAssignment && $cliente->activeTrainerAssignment->trainer)
+                                {{ $cliente->activeTrainerAssignment->trainer->first_name }} {{ $cliente->activeTrainerAssignment->trainer->last_name }}
+                                <span class="block text-[9px] text-slate-400">({{ $cliente->activeTrainerAssignment->trainer->specialty }})</span>
+                            @else
+                                <span class="text-slate-500 italic text-[11px]">Sin asignar</span>
+                            @endif
+                        </span>
+                    </div>
+                </div>
             </div>
 
             <!-- Profile Actions -->
@@ -127,6 +144,11 @@
                 <button onclick="toggleModal('meal-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2">
                     <i data-lucide="apple" class="w-4 h-4"></i> Asignar Nutrición
                 </button>
+                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                    <button onclick="toggleModal('trainer-assignment-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="user-check" class="w-4 h-4"></i> Asignar Entrenador
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -440,6 +462,47 @@
                 </button>
                 <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
                     Asignar Dieta
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= MODAL: ASIGNAR ENTRENADOR ================= -->
+<div id="trainer-assignment-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <h3 class="font-bold text-lg text-slate-100">Asignar Entrenador Personal</h3>
+            <button onclick="toggleModal('trainer-assignment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <form action="{{ route('clientes.assign_trainer', $cliente->id) }}" method="POST" class="space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Entrenador</label>
+                <select name="trainer_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <option value="" disabled selected>Selecciona un entrenador...</option>
+                    @foreach($trainers as $trainer)
+                        @php
+                            $activeMarker = ($cliente->activeTrainerAssignment && $cliente->activeTrainerAssignment->trainer_id == $trainer->id) ? ' (Actual)' : '';
+                        @endphp
+                        <option value="{{ $trainer->id }}" {{ $cliente->activeTrainerAssignment && $cliente->activeTrainerAssignment->trainer_id == $trainer->id ? 'selected' : '' }}>
+                            {{ $trainer->first_name }} {{ $trainer->last_name }} - {{ $trainer->specialty }}{{ $activeMarker }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Notas / Instrucciones especiales (Opcional)</label>
+                <textarea name="notes" rows="3" placeholder="Ej: Enfoque en pérdida de peso y rehabilitación de rodilla..." class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 resize-none">{{ $cliente->activeTrainerAssignment->notes ?? '' }}</textarea>
+            </div>
+            <div class="pt-4 flex gap-3">
+                <button type="button" onclick="toggleModal('trainer-assignment-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer">
+                    Asignar Entrenador
                 </button>
             </div>
         </form>

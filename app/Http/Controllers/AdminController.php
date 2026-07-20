@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Trainer;
@@ -18,9 +19,13 @@ use App\Models\Exercise;
 use App\Models\RoutineDay;
 use App\Models\RoutineExercise;
 use App\Models\MembershipPayment;
+use App\Models\MealPlanDay;
+use App\Models\Recipe;
+use App\Models\Notification;
 use App\Models\ProductSale;
 use App\Models\UserMembership;
 use App\Models\InventoryProduct;
+use App\Models\UserTrainerAssignment;
 
 class AdminController extends Controller
 {
@@ -193,7 +198,8 @@ class AdminController extends Controller
                 'activeRoutine.assigner',
                 'activeMealPlan.mealPlan',
                 'activeMealPlan.assigner',
-                'activeMembership.plan'
+                'activeMembership.plan',
+                'activeTrainerAssignment.trainer'
             ])
             ->findOrFail($id);
 
@@ -230,6 +236,7 @@ class AdminController extends Controller
         // Fetch routines & meal plans for assignment modals scoped to this gym
         $routines = WorkoutRoutine::where('gym_id', $cliente->gym_id)->where('is_active', 1)->get();
         $mealPlans = MealPlan::where('gym_id', $cliente->gym_id)->where('is_active', 1)->get();
+        $trainers = Trainer::where('gym_id', $cliente->gym_id)->where('is_active', 1)->get();
 
         return view('clientes.show', compact(
             'cliente',
@@ -238,7 +245,8 @@ class AdminController extends Controller
             'weightDates',
             'weightValues',
             'routines',
-            'mealPlans'
+            'mealPlans',
+            'trainers'
         ));
     }
 
@@ -514,7 +522,12 @@ class AdminController extends Controller
             ->with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
             ->findOrFail($id);
 
-        return view('nutricion.comidas', compact('plan'));
+        $recipes = Recipe::where('gym_id', $gymId)
+            ->orWhereNull('gym_id')
+            ->orderBy('name')
+            ->get();
+
+        return view('nutricion.comidas', compact('plan', 'recipes'));
     }
 
     /**
@@ -775,5 +788,212 @@ class AdminController extends Controller
         });
 
         return response()->json($results);
+    }
+
+    /**
+     * Add a new day to the meal plan.
+     */
+    public function addMealPlanDay($id)
+    {
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $nextDayNumber = (MealPlanDay::where('meal_plan_id', $plan->id)->max('day_number') ?? 0) + 1;
+
+        MealPlanDay::create([
+            'meal_plan_id' => $plan->id,
+            'day_number' => $nextDayNumber,
+        ]);
+
+        return redirect()->back()->with('success', "Día $nextDayNumber añadido al plan de nutrición.");
+    }
+
+    /**
+     * Save/update recipe assignments for a diet day.
+     */
+    public function saveComidasDay(Request $request, $id)
+    {
+        $request->validate([
+            'day_number' => 'required|integer',
+            'breakfast_recipe_id' => 'nullable|integer',
+            'snack1_recipe_id' => 'nullable|integer',
+            'lunch_recipe_id' => 'nullable|integer',
+            'snack2_recipe_id' => 'nullable|integer',
+            'dinner_recipe_id' => 'nullable|integer',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $day = MealPlanDay::where('meal_plan_id', $plan->id)
+            ->where('day_number', $request->day_number)
+            ->firstOrFail();
+
+        $day->update([
+            'breakfast_recipe_id' => $request->breakfast_recipe_id,
+            'snack1_recipe_id' => $request->snack1_recipe_id,
+            'lunch_recipe_id' => $request->lunch_recipe_id,
+            'snack2_recipe_id' => $request->snack2_recipe_id,
+            'dinner_recipe_id' => $request->dinner_recipe_id,
+        ]);
+
+        return redirect()->back()->with('success', "Distribución de comidas del Día {$request->day_number} guardada con éxito.");
+    }
+
+    /**
+     * Delete a day from the meal plan.
+     */
+    public function deleteMealPlanDay(Request $request, $id, $day_id)
+    {
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $day = MealPlanDay::where('meal_plan_id', $plan->id)->findOrFail($day_id);
+        $deletedDayNumber = $day->day_number;
+        $day->delete();
+
+        // Re-sequence day numbers so they are contiguous starting from 1
+        $days = MealPlanDay::where('meal_plan_id', $plan->id)->orderBy('day_number')->get();
+        foreach ($days as $index => $d) {
+            $d->update(['day_number' => $index + 1]);
+        }
+
+        return redirect()->back()->with('success', "Día $deletedDayNumber eliminado y días reordenados con éxito.");
+    }
+
+    /**
+     * Get unread notifications for the header bell dropdown.
+     */
+    public function getUnreadNotifications()
+    {
+        $userId = auth()->id();
+        $unreadCount = Notification::where('user_id', $userId)->where('is_read', 0)->count();
+        $latestNotifications = Notification::where('user_id', $userId)
+            ->orderBy('createdAt', 'desc')
+            ->take(5)
+            ->get();
+
+        return response()->json([
+            'unread_count' => $unreadCount,
+            'notifications' => $latestNotifications,
+        ]);
+    }
+
+    /**
+     * Mark a notification as read and redirect based on type.
+     */
+    public function readAndRedirect($id)
+    {
+        $userId = auth()->id();
+        $notification = Notification::where('user_id', $userId)->findOrFail($id);
+        
+        $notification->update(['is_read' => 1]);
+
+        switch ($notification->type) {
+            case 'membership_expiry':
+                return redirect()->route('clientes.index');
+            case 'payment_reminder':
+                return redirect()->route('finanzas.index');
+            case 'new_routine':
+                return redirect()->route('rutinas.index');
+            case 'general':
+                if (auth()->user()->role === 'superadmin') {
+                    return redirect()->route('superadmin.gyms.index');
+                }
+                return redirect()->route('notificaciones.index');
+            default:
+                return redirect()->route('notificaciones.index');
+        }
+    }
+
+    /**
+     * Mark all notifications of the active user as read.
+     */
+    public function markAllAsRead()
+    {
+        $userId = auth()->id();
+        Notification::where('user_id', $userId)->where('is_read', 0)->update(['is_read' => 1]);
+
+        return redirect()->back()->with('success', 'Todas las notificaciones se han marcado como leídas.');
+    }
+
+    /**
+     * Display notifications history view.
+     */
+    public function notificationsHistory()
+    {
+        $userId = auth()->id();
+        $notifications = Notification::where('user_id', $userId)
+            ->orderBy('createdAt', 'desc')
+            ->paginate(15);
+
+        return view('notificaciones.index', compact('notifications'));
+    }
+
+    /**
+     * Assign a trainer to a client.
+     */
+    public function assignTrainer(Request $request, $id)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'superadmin'])) {
+            abort(403, 'Acceso Denegado. Solo administradores pueden asignar entrenadores.');
+        }
+        $gymId = $this->getActiveGymId();
+        $cliente = User::where('role', 'member')
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->findOrFail($id);
+
+        $request->validate([
+            'trainer_id' => 'required|exists:trainers,id',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $trainer = Trainer::where('gym_id', $cliente->gym_id)->findOrFail($request->trainer_id);
+
+        try {
+            DB::beginTransaction();
+
+            // Deactivate any existing active trainer assignments for this client
+            UserTrainerAssignment::where('user_id', $cliente->id)
+                ->where('is_active', 1)
+                ->update([
+                    'is_active' => 0, 
+                    'end_date' => Carbon::today()
+                ]);
+
+            // Create new trainer assignment
+            UserTrainerAssignment::create([
+                'user_id' => $cliente->id,
+                'trainer_id' => $trainer->id,
+                'assigned_at' => Carbon::now(),
+                'is_active' => 1,
+                'notes' => $request->notes,
+            ]);
+
+            // Notify the trainer
+            Notification::create([
+                'user_id' => $trainer->user_id,
+                'title' => 'Nuevo socio asignado',
+                'body' => 'Se te ha asignado como entrenador personal del socio: ' . ($cliente->profile->first_name ?? '') . ' ' . ($cliente->profile->last_name ?? ''),
+                'type' => 'new_routine',
+                'is_read' => 0,
+            ]);
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Entrenador asignado exitosamente al cliente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            // Check if capacity trigger threw an error (SQLSTATE 45000)
+            $errorMessage = $e->getMessage();
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error al asignar entrenador: ' . $errorMessage;
+            }
+            return redirect()->back()->withErrors(['error' => $errorText]);
+        }
     }
 }

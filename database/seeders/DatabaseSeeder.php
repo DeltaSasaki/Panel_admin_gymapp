@@ -300,6 +300,25 @@ class DatabaseSeeder extends Seeder
             'profile_photo' => 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=150&auto=format&fit=crop',
         ]);
 
+        // Super Admin 2 (Root Admin)
+        $superAdminUser2 = User::create([
+            'gym_id' => $gym1->id,
+            'email' => 'admin.root@gymflow.com',
+            'password_hash' => Hash::make('password'),
+            'role' => 'superadmin',
+            'is_active' => 1,
+            'email_verified' => 1,
+        ]);
+        UserProfile::create([
+            'user_id' => $superAdminUser2->id,
+            'first_name' => 'Root',
+            'last_name' => 'GymFlow',
+            'phone' => '+34 600 888 888',
+            'birth_date' => '1990-05-15',
+            'gender' => 'male',
+            'profile_photo' => 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=150&auto=format&fit=crop',
+        ]);
+
         // ==========================================
         // 3. SEED INGREDIENTS (15+ Total)
         // ==========================================

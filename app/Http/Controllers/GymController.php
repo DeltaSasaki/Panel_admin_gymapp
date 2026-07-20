@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Gym;
 use App\Models\User;
 use App\Models\SaasSubscriptionPlan;
+use App\Models\Notification;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
@@ -72,7 +73,7 @@ class GymController extends Controller
 
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
 
-        Gym::create([
+        $gym = Gym::create([
             'name' => $request->name,
             'slug' => $slug,
             'current_plan_id' => $request->current_plan_id,
@@ -86,6 +87,21 @@ class GymController extends Controller
             'timezone' => $request->timezone ?? 'Europe/Madrid',
             'is_active' => 1,
         ]);
+
+        // Notify other Super Admins
+        $otrosSuperAdmins = User::where('role', 'superadmin')
+            ->where('id', '!=', auth()->id())
+            ->get();
+
+        foreach ($otrosSuperAdmins as $sa) {
+            Notification::create([
+                'user_id' => $sa->id,
+                'title' => 'Nueva sucursal registrada',
+                'body' => 'El superadmin ' . (auth()->user()->profile->first_name ?? 'Soporte') . ' ha registrado la sucursal: ' . $gym->name,
+                'type' => 'general',
+                'is_read' => 0,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Sucursal de gimnasio creada exitosamente.');
     }

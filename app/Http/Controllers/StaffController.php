@@ -46,11 +46,22 @@ class StaffController extends Controller
             'certification' => 'nullable|string|max:200',
             'experience_years' => 'nullable|integer|min:0',
             'salary' => 'required|numeric|min:0',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'bio' => 'nullable|string',
+            'max_clients' => 'nullable|integer|min:1',
         ]);
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
             return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder registrar un entrenador.']);
+        }
+
+        $photoUrl = null;
+        if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            $filename = 'trainer_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/trainers'), $filename);
+            $photoUrl = 'uploads/trainers/' . $filename;
         }
 
         try {
@@ -74,6 +85,7 @@ class StaffController extends Controller
                 'dni' => $request->dni,
                 'phone' => $request->phone,
                 'gender' => 'other',
+                'profile_photo' => $photoUrl,
             ]);
 
             // Create Trainer Specialty Info
@@ -87,6 +99,9 @@ class StaffController extends Controller
                 'specialty' => $request->specialty ?? 'Entrenador General',
                 'certification' => $request->certification ?? 'Certificación Fitness',
                 'experience_years' => $request->experience_years ?? 0,
+                'photo_url' => $photoUrl,
+                'bio' => $request->bio,
+                'max_clients' => $request->max_clients ?? 20,
                 'is_active' => 1,
                 'hire_date' => Carbon::today(),
                 'salary' => $request->salary,
@@ -126,6 +141,127 @@ class StaffController extends Controller
         $user->update(['is_active' => $newStatus]);
 
         return redirect()->back()->with('success', 'Estado del entrenador actualizado.');
+    }
+
+    /**
+     * Update an existing trainer.
+     */
+    public function update(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+        $query = Trainer::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+        $trainer = $query->findOrFail($id);
+        $user = User::findOrFail($trainer->user_id);
+        $profile = UserProfile::where('user_id', $user->id)->first();
+
+        $request->validate([
+            'first_name' => 'required|string|max:100',
+            'last_name' => 'required|string|max:100',
+            'dni' => 'required|string|max:20',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:6',
+            'phone' => 'nullable|string|max:20',
+            'specialty' => 'nullable|string|max:200',
+            'certification' => 'nullable|string|max:200',
+            'experience_years' => 'nullable|integer|min:0',
+            'salary' => 'required|numeric|min:0',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
+            'bio' => 'nullable|string',
+            'max_clients' => 'nullable|integer|min:1',
+        ]);
+
+        $photoUrl = $trainer->photo_url;
+        if ($request->hasFile('photo')) {
+            // Delete old photo if it exists on disk
+            if ($trainer->photo_url && file_exists(public_path($trainer->photo_url))) {
+                @unlink(public_path($trainer->photo_url));
+            }
+            $file = $request->file('photo');
+            $filename = 'trainer_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('uploads/trainers'), $filename);
+            $photoUrl = 'uploads/trainers/' . $filename;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update core User
+            $userData = [
+                'email' => $request->email,
+            ];
+            if ($request->filled('password')) {
+                $userData['password_hash'] = Hash::make($request->password);
+            }
+            $user->update($userData);
+
+            // Update Profile
+            if ($profile) {
+                $profile->update([
+                    'first_name' => $request->first_name,
+                    'last_name' => $request->last_name,
+                    'dni' => $request->dni,
+                    'phone' => $request->phone,
+                    'profile_photo' => $photoUrl,
+                ]);
+            }
+
+            // Update Trainer
+            $trainer->update([
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'specialty' => $request->specialty ?? 'Entrenador General',
+                'certification' => $request->certification ?? 'Certificación Fitness',
+                'experience_years' => $request->experience_years ?? 0,
+                'photo_url' => $photoUrl,
+                'bio' => $request->bio,
+                'max_clients' => $request->max_clients ?? 20,
+                'salary' => $request->salary,
+            ]);
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Datos del entrenador actualizados exitosamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withInput()->withErrors(['error' => 'Error al actualizar entrenador: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Delete/destroy a trainer.
+     */
+    public function destroy($id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+        $query = Trainer::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+        $trainer = $query->findOrFail($id);
+        $user = User::findOrFail($trainer->user_id);
+
+        // Delete photo if exists
+        if ($trainer->photo_url && file_exists(public_path($trainer->photo_url))) {
+            @unlink(public_path($trainer->photo_url));
+        }
+
+        try {
+            DB::beginTransaction();
+            // Core User delete cascades profile deletion
+            $trainer->delete();
+            $user->delete();
+            DB::commit();
+            return redirect()->back()->with('success', 'Entrenador eliminado del staff correctamente.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->withErrors(['error' => 'Error al eliminar entrenador: ' . $e->getMessage()]);
+        }
     }
 
     /**

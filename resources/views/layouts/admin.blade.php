@@ -293,6 +293,16 @@
                                 <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
                                 <span>Ingredientes & Macros</span>
                             </a>
+                            <a href="{{ url('/recetas') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('recetas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="utensils" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Recetario & Platos</span>
+                            </a>
+                            <a href="{{ url('/ejercicios') }}" 
+                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('ejercicios*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
+                                <i data-lucide="book-open" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
+                                <span>Ejercicios & Biblioteca</span>
+                            </a>
                             <a href="{{ url('/equipamiento') }}" 
                                class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('equipamiento*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
                                 <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
@@ -476,10 +486,31 @@
                     </button>
 
                     <!-- Notifications Dropdown Trigger -->
-                    <button class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none">
-                        <i data-lucide="bell" class="w-4 h-4"></i>
-                        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900"></span>
-                    </button>
+                    <div class="relative inline-block text-left animate-fade-in" id="notifications-menu-container">
+                        <button onclick="toggleNotificationsDropdown()" class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Notificaciones">
+                            <i data-lucide="bell" class="w-4 h-4"></i>
+                            <span id="unread-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900 hidden"></span>
+                        </button>
+                        
+                        <!-- Dropdown Panel -->
+                        <div id="notifications-dropdown" class="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 hidden py-2 overflow-hidden">
+                            <div class="px-4 py-2 border-b border-slate-850 flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-200">Notificaciones</span>
+                                <form action="{{ route('notificaciones.read_all') }}" method="POST" class="m-0 inline">
+                                    @csrf
+                                    <button type="submit" class="text-[10px] text-lime-450 hover:text-lime-300 font-bold uppercase transition-colors">Leer todas</button>
+                                </form>
+                            </div>
+                            
+                            <div id="notifications-list" class="max-h-64 overflow-y-auto divide-y divide-slate-850/50">
+                                <div class="p-4 text-center text-xs text-slate-500">Cargando...</div>
+                            </div>
+                            
+                            <div class="p-2 border-t border-slate-850 text-center">
+                                <a href="{{ route('notificaciones.index') }}" class="block text-[10px] text-slate-400 hover:text-slate-200 font-bold uppercase py-1">Ver todo el historial</a>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Profile quick dropdown (Desktop) -->
                     <div class="flex items-center gap-3 pl-3 border-l border-slate-850">
@@ -662,6 +693,111 @@
                     updateToggleIcons(isLight);
                 });
             }
+        });
+    </script>
+
+    <!-- Notifications Handling -->
+    <script>
+        function toggleNotificationsDropdown() {
+            const dropdown = document.getElementById('notifications-dropdown');
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) {
+                loadNotifications();
+            }
+        }
+
+        async function loadNotifications() {
+            const listEl = document.getElementById('notifications-list');
+            try {
+                const response = await fetch('/api/notifications/unread');
+                if (!response.ok) throw new Error('Network error');
+                const data = await response.json();
+                
+                // Update unread dot
+                const unreadDot = document.getElementById('unread-dot');
+                if (data.unread_count > 0) {
+                    unreadDot.classList.remove('hidden');
+                } else {
+                    unreadDot.classList.add('hidden');
+                }
+                
+                if (data.notifications.length === 0) {
+                    listEl.innerHTML = '<div class="p-4 text-center text-xs text-slate-550">No tienes notificaciones pendientes.</div>';
+                    return;
+                }
+                
+                let html = '';
+                data.notifications.forEach(n => {
+                    const readClass = n.is_read ? 'opacity-65 bg-slate-900/10' : 'bg-slate-900/40 border-l-2 border-lime-500';
+                    let iconColor = 'text-lime-400 bg-lime-500/10';
+                    let icon = 'bell';
+                    
+                    if (n.type === 'membership_expiry' || n.type === 'payment_reminder') {
+                        iconColor = 'text-amber-400 bg-amber-500/10';
+                        icon = 'alert-triangle';
+                    } else if (n.type === 'new_routine') {
+                        iconColor = 'text-purple-400 bg-purple-500/10';
+                        icon = 'dumbbell';
+                    } else if (n.type === 'achievement') {
+                        iconColor = 'text-yellow-400 bg-yellow-500/10';
+                        icon = 'trophy';
+                    }
+                    
+                    const timeAgo = formatTimeAgo(new Date(n.createdAt));
+
+                    html += `
+                        <a href="/notificaciones/${n.id}/read" class="block p-3.5 hover:bg-slate-850/60 transition-colors ${readClass}">
+                            <div class="flex gap-2.5 items-start">
+                                <div class="p-1.5 rounded-lg shrink-0 ${iconColor}">
+                                    <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <div class="space-y-0.5">
+                                    <span class="block text-xs font-bold text-slate-200">${escapeHtml(n.title)}</span>
+                                    <span class="block text-[10px] text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(n.body || '')}</span>
+                                    <span class="block text-[9px] text-slate-500 font-bold uppercase mt-1">${timeAgo}</span>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+                listEl.innerHTML = html;
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                listEl.innerHTML = '<div class="p-4 text-center text-xs text-rose-500">Error al cargar notificaciones.</div>';
+            }
+        }
+
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            if (diffMins < 1) return 'hace un momento';
+            if (diffMins < 60) return `hace ${diffMins} min`;
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `hace ${diffHours} hr`;
+            const diffDays = Math.floor(diffHours / 24);
+            return `hace ${diffDays} días`;
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Check on load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadNotifications();
+            
+            // Close dropdown if click outside
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('notifications-menu-container');
+                const dropdown = document.getElementById('notifications-dropdown');
+                if (container && !container.contains(e.target) && dropdown) {
+                    dropdown.classList.add('hidden');
+                }
+            });
         });
     </script>
 

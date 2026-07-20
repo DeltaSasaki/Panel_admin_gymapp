@@ -28,6 +28,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/clientes/{id}', [AdminController::class, 'showCliente'])->name('clientes.show');
     Route::post('/clientes/{id}/assign-routine', [AdminController::class, 'assignRoutine'])->name('clientes.assign_routine');
     Route::post('/clientes/{id}/assign-meal-plan', [AdminController::class, 'assignMealPlan'])->name('clientes.assign_meal_plan');
+    Route::post('/clientes/{id}/assign-trainer', [AdminController::class, 'assignTrainer'])->name('clientes.assign_trainer');
 
     // Rutinas routes
     Route::get('/rutinas', [AdminController::class, 'rutinas'])->name('rutinas.index');
@@ -44,6 +45,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/nutricion/crear', [AdminController::class, 'crearNutricion'])->name('nutricion.crear');
     Route::post('/nutricion', [AdminController::class, 'storeNutricion'])->name('nutricion.store');
     Route::get('/nutricion/{id}/comidas', [AdminController::class, 'showComidas'])->name('nutricion.comidas');
+    Route::post('/nutricion/{id}/comidas/add-day', [AdminController::class, 'addMealPlanDay'])->name('nutricion.add_meal_plan_day');
+    Route::post('/nutricion/{id}/comidas/save', [AdminController::class, 'saveComidasDay'])->name('nutricion.save_comidas_day');
+    Route::delete('/nutricion/{id}/comidas/{day_id}', [AdminController::class, 'deleteMealPlanDay'])->name('nutricion.delete_meal_plan_day');
     Route::post('/nutricion/{id}/assign', [AdminController::class, 'assignMealPlanToUser'])->name('nutricion.assign');
 
     // Finanzas & Membresías routes (restricted to admin/superadmin in controller constructor)
@@ -74,10 +78,57 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/equipamiento/{id}', [CatalogController::class, 'deleteEquipment'])->name('catalogos.delete_equipment');
     Route::get('/ingredientes', [CatalogController::class, 'ingredients'])->name('catalogos.ingredients');
     Route::post('/ingredientes', [CatalogController::class, 'storeIngredient'])->name('catalogos.store_ingredient');
+    
+    Route::get('/ejercicios', [CatalogController::class, 'exercises'])->name('catalogos.exercises');
+    Route::post('/ejercicios', [CatalogController::class, 'storeExercise'])->name('catalogos.store_exercise');
+    Route::put('/ejercicios/{id}', [CatalogController::class, 'updateExercise'])->name('catalogos.update_exercise');
+    Route::delete('/ejercicios/{id}', [CatalogController::class, 'deleteExercise'])->name('catalogos.delete_exercise');
+    Route::post('/ejercicios/categorias', [CatalogController::class, 'storeExerciseCategory'])->name('catalogos.store_exercise_category');
+
+    Route::get('/recetas', [CatalogController::class, 'recipes'])->name('catalogos.recipes');
+    Route::post('/recetas', [CatalogController::class, 'storeRecipe'])->name('catalogos.store_recipe');
+    Route::put('/recetas/{id}', [CatalogController::class, 'updateRecipe'])->name('catalogos.update_recipe');
+    Route::delete('/recetas/{id}', [CatalogController::class, 'deleteRecipe'])->name('catalogos.delete_recipe');
+    Route::post('/recetas/categorias', [CatalogController::class, 'storeRecipeCategory'])->name('catalogos.store_recipe_category');
+
+    // Notificaciones routes
+    Route::get('/api/notifications/unread', [AdminController::class, 'getUnreadNotifications'])->name('api.notifications.unread');
+    Route::get('/notificaciones', [AdminController::class, 'notificationsHistory'])->name('notificaciones.index');
+    Route::get('/notificaciones/{id}/read', [AdminController::class, 'readAndRedirect'])->name('notificaciones.read_and_redirect');
+    Route::post('/notificaciones/read-all', [AdminController::class, 'markAllAsRead'])->name('notificaciones.read_all');
+
+    // Ruta de prueba temporal para generar notificaciones
+    Route::get('/generar-notificacion-prueba', function() {
+        $user = auth()->user();
+        if (!$user) {
+            return "Debes iniciar sesión primero.";
+        }
+        
+        $roleLabel = ($user->role === 'superadmin') ? 'SuperAdmin' : (($user->role === 'admin') ? 'Administrador' : 'Entrenador');
+        $title = ($user->role === 'superadmin') 
+            ? 'Nueva Sucursal Registrada' 
+            : (($user->role === 'admin') ? 'Recordatorio: Membresía por vencer' : 'Nueva Rutina Asignada');
+        $body = ($user->role === 'superadmin')
+            ? 'El gimnasio "Iron Muscle S.A." ha registrado una nueva sucursal en Barcelona y espera aprobación.'
+            : (($user->role === 'admin') ? 'El socio "Juan Pérez" tiene su suscripción activa próxima a vencer en 3 días.' : 'Se te ha asignado el entrenamiento de la tarde del socio "María Gómez".');
+        $type = ($user->role === 'superadmin') ? 'general' : (($user->role === 'admin') ? 'membership_expiry' : 'new_routine');
+
+        \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'title' => $title,
+            'body' => $body,
+            'type' => $type,
+            'is_read' => 0
+        ]);
+
+        return redirect()->back()->with('success', "¡Notificación de prueba para rol [$roleLabel] generada con éxito! Revisa la campana en la barra superior.");
+    });
 
     // Staff / Entrenadores routes (restricted to admin/superadmin)
     Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+    Route::put('/staff/{id}', [StaffController::class, 'update'])->name('staff.update');
+    Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->name('staff.destroy');
     Route::post('/staff/{id}/toggle', [StaffController::class, 'toggleStatus'])->name('staff.toggle_status');
     
     // Superadmin context switcher route

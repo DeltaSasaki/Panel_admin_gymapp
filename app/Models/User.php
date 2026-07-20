@@ -110,4 +110,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserMembership::class, 'user_id')->where('status', 'active');
     }
+
+    public function trainerAssignments()
+    {
+        return $this->hasMany(UserTrainerAssignment::class, 'user_id');
+    }
+
+    public function activeTrainerAssignment()
+    {
+        return $this->hasOne(UserTrainerAssignment::class, 'user_id')->where('is_active', 1);
+    }
 }

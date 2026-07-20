@@ -74,9 +74,7 @@
                                 <div class="space-y-3 flex-1">
                                     <!-- Title & Meta -->
                                     <div class="flex items-start gap-3">
-                                        <div class="p-2.5 rounded-xl bg-purple-500/10 text-purple-400">
-                                            <i data-lucide="dumbbell" class="w-5 h-5"></i>
-                                        </div>
+                                        <img src="{{ $ex->exercise->image_url ? asset($ex->exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}" class="w-12 h-12 rounded-xl object-cover border border-slate-800 shrink-0">
                                         <div>
                                             <h4 class="font-bold text-slate-100 text-base">{{ $ex->exercise->name }}</h4>
                                             <div class="flex items-center gap-3 text-xs text-slate-400 mt-0.5 font-semibold">
@@ -114,7 +112,7 @@
 
                                 <!-- Actions Buttons -->
                                 <div class="flex sm:flex-col gap-2 self-end sm:self-start">
-                                    <button onclick="openEditModal('{{ route('rutinas.update_ejercicio', [$routine->id, $ex->id]) }}', {{ $ex->sets }}, '{{ $ex->reps }}', {{ $ex->rest_seconds }}, '{{ $ex->notes }}', '{{ $ex->exercise->name }}')" 
+                                    <button onclick="openEditModal('{{ route('rutinas.update_ejercicio', [$routine->id, $ex->id]) }}', {{ $ex->sets }}, '{{ $ex->reps }}', {{ $ex->rest_seconds }}, '{{ $ex->notes }}', '{{ $ex->exercise->name }}', '{{ $ex->exercise->image_url ? asset($ex->exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}')" 
                                             class="flex-1 sm:flex-none px-3 py-2 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-lg border border-slate-850 hover:border-slate-700 text-slate-300 transition-colors flex items-center justify-center gap-1.5">
                                         <i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Editar
                                     </button>
@@ -162,12 +160,16 @@
             
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Ejercicio *</label>
-                <select name="exercise_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <select name="exercise_id" id="select-add-exercise" onchange="updateAddExercisePreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
                     <option value="" disabled selected>Selecciona un ejercicio...</option>
                     @foreach($exercises as $exercise)
-                        <option value="{{ $exercise->id }}">{{ $exercise->name }} ({{ $exercise->muscle_group }})</option>
+                        <option value="{{ $exercise->id }}" data-image="{{ $exercise->image_url ? asset($exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}">{{ $exercise->name }} ({{ $exercise->muscle_group }})</option>
                     @endforeach
                 </select>
+            </div>
+            
+            <div class="mt-2 hidden text-center" id="add-exercise-preview-container">
+                <img src="" id="add-exercise-preview-img" class="w-full h-32 object-cover rounded-2xl border border-slate-800">
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -215,6 +217,11 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
+        
+        <div class="text-center" id="edit-exercise-preview-container">
+            <img src="" id="edit-exercise-preview-img" class="w-full h-32 object-cover rounded-2xl border border-slate-800">
+        </div>
+
         <form id="edit-form" method="POST" class="space-y-4">
             @csrf
             
@@ -285,14 +292,42 @@
         toggleModal('add-exercise-modal');
     }
 
-    function openEditModal(actionUrl, sets, reps, rest, notes, exerciseName) {
+    function openEditModal(actionUrl, sets, reps, rest, notes, exerciseName, imageUrl) {
         document.getElementById('edit-form').action = actionUrl;
         document.getElementById('edit-exercise-name').innerText = exerciseName;
         document.getElementById('edit-sets').value = sets;
         document.getElementById('edit-reps').value = reps;
         document.getElementById('edit-rest').value = rest;
         document.getElementById('edit-notes').value = notes;
+        
+        const previewImg = document.getElementById('edit-exercise-preview-img');
+        if (imageUrl) {
+            previewImg.src = imageUrl;
+            document.getElementById('edit-exercise-preview-container').classList.remove('hidden');
+        } else {
+            document.getElementById('edit-exercise-preview-container').classList.add('hidden');
+        }
+        
         toggleModal('edit-exercise-modal');
+    }
+
+    function updateAddExercisePreview() {
+        const select = document.getElementById('select-add-exercise');
+        const container = document.getElementById('add-exercise-preview-container');
+        const img = document.getElementById('add-exercise-preview-img');
+        
+        if (select.selectedIndex > 0) {
+            const option = select.options[select.selectedIndex];
+            const imgUrl = option.getAttribute('data-image');
+            if (imgUrl) {
+                img.src = imgUrl;
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        } else {
+            container.classList.add('hidden');
+        }
     }
 </script>
 @endsection

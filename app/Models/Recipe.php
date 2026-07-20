@@ -28,4 +28,16 @@ class Recipe extends Model
         'image_url',
         'is_active',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(RecipeCategory::class, 'category_id');
+    }
+}
+
+class RecipeCategory extends Model
+{
+    public $timestamps = false;
+    protected $table = 'recipe_categories';
+    protected $fillable = ['gym_id', 'name', 'description'];
 }
