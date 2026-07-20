@@ -75,6 +75,9 @@ class AuthController extends Controller
     public function switchGym(Request $request)
     {
         if (!Auth::check() || Auth::user()->role !== 'superadmin') {
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => 'Acceso Denegado.'], 403);
+            }
             abort(403, 'Acceso Denegado.');
         }
 
@@ -85,11 +88,22 @@ class AuthController extends Controller
         if ($request->gym_id !== 'all') {
             $exists = \App\Models\Gym::where('id', $request->gym_id)->exists();
             if (!$exists) {
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json(['error' => 'Gimnasio inválido.'], 422);
+                }
                 return redirect()->back()->withErrors(['gym_id' => 'Gimnasio inválido.']);
             }
         }
 
         session(['superadmin_gym_id' => $request->gym_id]);
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'gym_id' => $request->gym_id,
+                'message' => 'Contexto de gimnasio cambiado con éxito.'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Contexto de gimnasio cambiado con éxito.');
     }

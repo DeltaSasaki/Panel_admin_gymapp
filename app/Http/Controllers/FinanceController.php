@@ -8,6 +8,7 @@ use App\Models\UserMembership;
 use App\Models\MembershipPayment;
 use App\Models\PromoCode;
 use App\Models\User;
+use App\Models\AdminAuditLog;
 use Carbon\Carbon;
 
 class FinanceController extends Controller
@@ -84,10 +85,14 @@ class FinanceController extends Controller
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder crear un plan de membresía.']);
+            $errMsg = 'Debes seleccionar una sucursal específica para poder crear un plan de membresía.';
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errMsg], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
         }
 
-        MembershipPlan::create([
+        $plan = MembershipPlan::create([
             'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
@@ -97,6 +102,23 @@ class FinanceController extends Controller
             'includes_trainer' => $request->has('includes_trainer') ? 1 : 0,
             'is_active' => 1,
         ]);
+
+        AdminAuditLog::logAction(
+            'CREACION',
+            'Plan de Membresía',
+            "Plan '{$plan->name}' ({$plan->duration_days} días - \${$plan->price} {$plan->currency}) creado exitosamente.",
+            null,
+            $plan->toArray(),
+            $gymId
+        );
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'message' => "Plan de membresía '{$plan->name}' creado exitosamente.",
+                'plan' => $plan
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Plan de membresía creado exitosamente.');
     }
@@ -129,7 +151,11 @@ class FinanceController extends Controller
                 })
                 ->first();
             if (!$promo) {
-                return redirect()->back()->withInput()->withErrors(['error' => 'El código promocional no es válido o ya expiró.']);
+                $errMsg = 'El código promocional no es válido o ya expiró.';
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json(['error' => $errMsg], 422);
+                }
+                return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
             }
             $promoId = $promo->id;
         }
@@ -137,8 +163,8 @@ class FinanceController extends Controller
         try {
             $membership = UserMembership::findOrFail($request->user_membership_id);
 
-            // Record payment (DB trigger checks promo validation on insert)
-            MembershipPayment::create([
+            // Record payment
+            $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
                 'user_id' => $membership->user_id,
                 'promo_code_id' => $promoId,
@@ -151,10 +177,32 @@ class FinanceController extends Controller
             ]);
 
             // Update membership status
+            $oldData = $membership->toArray();
             $membership->update([
                 'payment_status' => 'paid',
                 'status' => 'active',
             ]);
+
+            $userName = ($membership->user && $membership->user->profile) 
+                ? $membership->user->profile->first_name . ' ' . $membership->user->profile->last_name 
+                : ($membership->user->email ?? 'Socio');
+
+            AdminAuditLog::logAction(
+                'TRANSACCION',
+                'Pago de Membresía',
+                "Pago de \${$payment->amount} {$payment->currency} registrado para el socio {$userName} (Método: {$request->payment_method}).",
+                $oldData,
+                $membership->toArray(),
+                $membership->gym_id
+            );
+
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Pago de \${$payment->amount} registrado y membresía activada con éxito.",
+                    'membership' => $membership
+                ]);
+            }
 
             return redirect()->back()->with('success', 'Pago registrado y membresía activada con éxito.');
 
@@ -165,9 +213,16 @@ class FinanceController extends Controller
             } else {
                 $errorText = 'Error de base de datos al registrar el pago: ' . $errorMessage;
             }
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 422);
+            }
             return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+            $errorText = 'Error inesperado: ' . $e->getMessage();
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 500);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         }
     }
 
@@ -196,15 +251,36 @@ class FinanceController extends Controller
         $endDate = $startDate->copy()->addDays($plan->duration_days);
 
         try {
-            UserMembership::create([
+            $membership = UserMembership::create([
                 'user_id' => $request->user_id,
                 'gym_id' => $targetGymId,
                 'plan_id' => $plan->id,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'status' => 'active',
-                'payment_status' => 'pending', // Pending payment registration
+                'payment_status' => 'pending',
             ]);
+
+            $userName = ($user->profile) 
+                ? $user->profile->first_name . ' ' . $user->profile->last_name 
+                : $user->email;
+
+            AdminAuditLog::logAction(
+                'CREACION',
+                'Asignación de Membresía',
+                "Membresía '{$plan->name}' asignada al socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')}).",
+                null,
+                $membership->toArray(),
+                $targetGymId
+            );
+
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Nueva membresía asignada al socio {$userName}. Registra el pago para activarla.",
+                    'membership' => $membership
+                ]);
+            }
 
             return redirect()->back()->with('success', 'Nueva membresía asignada. Registra el pago para activarla.');
 
@@ -215,9 +291,16 @@ class FinanceController extends Controller
             } else {
                 $errorText = 'Error de base de datos al asignar membresía: ' . $errorMessage;
             }
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 422);
+            }
             return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+            $errorText = 'Error inesperado: ' . $e->getMessage();
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 500);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         }
     }
 
@@ -243,11 +326,15 @@ class FinanceController extends Controller
             if (auth()->user()->role === 'superadmin') {
                 $targetGymId = null; // Global promo code
             } else {
-                return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para crear un código promocional.']);
+                $errMsg = 'Debes seleccionar una sucursal específica para crear un código promocional.';
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json(['error' => $errMsg], 422);
+                }
+                return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
             }
         }
 
-        PromoCode::create([
+        $promo = PromoCode::create([
             'gym_id' => $targetGymId,
             'code' => strtoupper($request->code),
             'discount_type' => $request->discount_type,
@@ -258,6 +345,24 @@ class FinanceController extends Controller
             'current_uses' => 0,
             'is_active' => 1,
         ]);
+
+        $discountText = ($promo->discount_type === 'percentage') ? "{$promo->discount_value}%" : "\${$promo->discount_value}";
+        AdminAuditLog::logAction(
+            'CREACION',
+            'Cupón Promocional',
+            "Cupón promocional '{$promo->code}' ({$discountText} descuento) creado exitosamente.",
+            null,
+            $promo->toArray(),
+            $targetGymId
+        );
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'message' => "Código promocional '{$promo->code}' creado exitosamente.",
+                'promo' => $promo
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Código promocional creado exitosamente.');
     }
@@ -276,7 +381,29 @@ class FinanceController extends Controller
         }
 
         $promo = $query->findOrFail($id);
-        $promo->update(['is_active' => $promo->is_active ? 0 : 1]);
+        $oldState = $promo->toArray();
+        $newStatus = $promo->is_active ? 0 : 1;
+        $promo->update(['is_active' => $newStatus]);
+
+        $actionLabel = $newStatus ? 'HABILITADO' : 'INHABILITADO';
+        $descLabel = $newStatus ? 'activado' : 'desactivado';
+
+        AdminAuditLog::logAction(
+            $actionLabel,
+            'Cupón Promocional',
+            "Cupón promocional '{$promo->code}' {$descLabel} por el administrador.",
+            $oldState,
+            $promo->toArray(),
+            $promo->gym_id
+        );
+
+        if (request()->wantsJson() || request()->ajax() || request()->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'is_active' => $newStatus,
+                'message' => "Estado del código promocional '{$promo->code}' actualizado a " . ($newStatus ? 'Activo' : 'Inactivo') . "."
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Estado del código promocional actualizado.');
     }

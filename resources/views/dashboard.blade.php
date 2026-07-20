@@ -22,7 +22,7 @@
         </div>
         <div class="flex items-center gap-3">
             <span class="px-3 py-1 text-xs font-semibold text-lime-400 bg-lime-500/10 rounded-full border border-lime-500/20 flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-lime-400 animate-ping"></span>
+                <span class="w-2 h-2 rounded-full bg-lime-400 shadow-sm shadow-lime-400/50"></span>
                 Gym Abierto
             </span>
             <div class="text-xs text-slate-500 font-medium">{{ date('d M, Y') }}</div>
@@ -81,7 +81,7 @@
                 <div class="bg-slate-900/40 border border-purple-500/20 p-5 rounded-2xl relative overflow-hidden group">
                     <div class="flex items-center justify-between mb-3 relative z-10">
                         <span class="text-[10px] font-bold text-purple-300 uppercase tracking-widest">Estado Servidor</span>
-                        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl animate-pulse">
+                        <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
                             <i data-lucide="server" class="w-4 h-4"></i>
                         </div>
                     </div>
@@ -100,7 +100,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
             <!-- Total Clients Card -->
-            <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+            <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Clientes</span>
                     <div class="p-2 bg-lime-500/10 text-lime-400 rounded-xl">
@@ -114,7 +114,7 @@
             </div>
 
             <!-- Active Clients Today Card -->
-            <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+            <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Entrenando Hoy</span>
                     <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
@@ -130,7 +130,7 @@
             <!-- Card 3: Dynamic based on role -->
             @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
                 <!-- Monthly Cashflow (Admin / Superadmin only) -->
-                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Caja Mensual</span>
                         <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl">
@@ -144,7 +144,7 @@
                 </div>
             @else
                 <!-- Total Routines (Trainers only) -->
-                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Rutina</span>
                         <div class="p-2 bg-purple-500/10 text-purple-400 rounded-xl">
@@ -161,7 +161,7 @@
             <!-- Card 4: Dynamic based on role -->
             @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
                 <!-- Administrative Alerts (Admin / Superadmin only) -->
-                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Alertas Administrativas</span>
                         <div class="p-2 bg-rose-500/10 text-rose-400 rounded-xl">
@@ -182,7 +182,7 @@
                 </div>
             @else
                 <!-- Total Meal Plans (Trainers only) -->
-                <div class="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-6 rounded-2xl hover:border-slate-700/60 transition-all hover:-translate-y-1 duration-300">
+                <div class="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl hover:border-lime-500/40 hover:bg-slate-900/80 transition-colors duration-200 shadow-sm hover:shadow-lime-500/[0.03]">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Planes de Dieta</span>
                         <div class="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
@@ -202,64 +202,38 @@
     <!-- Graphic and Activity Rows -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- Attendance Chart Card (SVG Powered for Clean Render) -->
-        <div class="lg:col-span-2 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
-            <div class="flex items-center justify-between mb-6">
+        <!-- Attendance Chart Card (Chart.js Powered) -->
+        <div class="lg:col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
-                    <h3 class="font-bold text-lg text-slate-100">Asistencia Semanal</h3>
+                    <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                        <i data-lucide="activity" class="w-5 h-5 text-lime-400"></i>
+                        Asistencia Semanal
+                    </h3>
                     <p class="text-xs text-slate-400">Entrenamientos registrados por día (esta semana)</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 bg-lime-400 rounded-full"></span>
-                    <span class="text-xs text-slate-300 font-medium">Esta Semana</span>
+                <!-- Interactive Chart Type Selector -->
+                <div class="flex items-center gap-1.5 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+                    <button type="button" onclick="changeAttendanceChartType('line')" id="chart-btn-line" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-lime-500/10 text-lime-400 border border-lime-500/20 shadow-sm flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="line-chart" class="w-3.5 h-3.5"></i>
+                        Área
+                    </button>
+                    <button type="button" onclick="changeAttendanceChartType('bar')" id="chart-btn-bar" class="px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 flex items-center gap-1.5 cursor-pointer">
+                        <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i>
+                        Barras
+                    </button>
                 </div>
             </div>
 
-            <!-- Custom Premium SVG Chart -->
-            <div class="relative h-64 w-full flex items-end">
-                <svg class="w-full h-full" viewBox="0 0 600 220" preserveAspectRatio="none">
-                    <!-- Grid Lines -->
-                    <line x1="0" y1="20" x2="600" y2="20" stroke="#1e293b" stroke-dasharray="4" />
-                    <line x1="0" y1="80" x2="600" y2="80" stroke="#1e293b" stroke-dasharray="4" />
-                    <line x1="0" y1="140" x2="600" y2="140" stroke="#1e293b" stroke-dasharray="4" />
-                    <line x1="0" y1="200" x2="600" y2="200" stroke="#334155" />
-
-                    <!-- Gradient Definition -->
-                    <defs>
-                        <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="#a3e635" stop-opacity="0.3"/>
-                            <stop offset="100%" stop-color="#a3e635" stop-opacity="0.0"/>
-                        </linearGradient>
-                    </defs>
-
-                    <!-- Shaded Area Under Line -->
-                    <polygon points="{{ $chartPolygonPoints }}" fill="url(#chart-grad)" />
-
-                    <!-- Chart Line -->
-                    <polyline points="{{ $chartLinePoints }}" fill="none" stroke="#a3e635" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-
-                    <!-- Data dots -->
-                    @foreach($attendanceData as $index => $count)
-                        @php
-                            $xCoords = [30, 120, 210, 300, 390, 480, 570];
-                            $x = $xCoords[$index];
-                            $maxVal = max($attendanceData) ?: 1;
-                            $y = 180 - (($count / $maxVal) * 145);
-                        @endphp
-                        <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#a3e635" class="stroke-slate-950" stroke-width="2" />
-                    @endforeach
-                </svg>
+            <!-- Chart.js Container -->
+            <div class="relative h-64 w-full">
+                <canvas id="attendanceChartCanvas"></canvas>
             </div>
-            
-            <!-- X Axis Labels -->
-            <div class="flex justify-between items-center mt-4 px-4 text-xs font-semibold text-slate-500">
-                <span>Lun ({{ $attendanceData[0] }})</span>
-                <span>Mar ({{ $attendanceData[1] }})</span>
-                <span>Mié ({{ $attendanceData[2] }})</span>
-                <span>Jue ({{ $attendanceData[3] }})</span>
-                <span>Vie ({{ $attendanceData[4] }})</span>
-                <span>Sáb ({{ $attendanceData[5] }})</span>
-                <span>Dom ({{ $attendanceData[6] }})</span>
+
+            <!-- Summary Footer -->
+            <div class="flex justify-between items-center mt-4 pt-3 border-t border-slate-800/50 text-xs font-semibold text-slate-400">
+                <span>Total Semana: <strong class="text-slate-100 font-extrabold">{{ array_sum($attendanceData) }} asistencias</strong></span>
+                <span>Día Pico: <strong class="text-lime-400 font-extrabold">{{ max($attendanceData) }} asistencias</strong></span>
             </div>
         </div>
 
@@ -439,4 +413,119 @@
         </div>
     </div>
 </div>
+
+<script>
+    (function renderAttendanceChart() {
+        const canvas = document.getElementById('attendanceChartCanvas');
+        if (!canvas) return;
+
+        if (window.attendanceChartInstance) {
+            window.attendanceChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const attendanceData = @json($attendanceData);
+        const daysLabels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+        gradient.addColorStop(0, 'rgba(163, 230, 53, 0.35)');
+        gradient.addColorStop(1, 'rgba(163, 230, 53, 0.00)');
+
+        window.attendanceChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: daysLabels,
+                datasets: [{
+                    label: 'Asistencias',
+                    data: attendanceData,
+                    fill: true,
+                    backgroundColor: gradient,
+                    borderColor: '#a3e635',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    pointBackgroundColor: '#a3e635',
+                    pointBorderColor: '#090d16',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: '#a3e635',
+                    pointHoverBorderWidth: 3,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#a3e635',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 12,
+                        displayColors: false,
+                        titleFont: { size: 12, weight: 'bold', family: "'Plus Jakarta Sans', sans-serif" },
+                        bodyFont: { size: 13, weight: '800', family: "'Plus Jakarta Sans', sans-serif" },
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y + ' ' + (context.parsed.y === 1 ? 'Sesión de entrenamiento' : 'Sesiones de entrenamiento');
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { size: 11, weight: '600' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: { size: 11, weight: '600' },
+                            stepSize: 1,
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+
+        window.changeAttendanceChartType = function(type) {
+            if (!window.attendanceChartInstance) return;
+
+            const btnLine = document.getElementById('chart-btn-line');
+            const btnBar = document.getElementById('chart-btn-bar');
+
+            if (type === 'bar') {
+                window.attendanceChartInstance.config.type = 'bar';
+                window.attendanceChartInstance.data.datasets[0].backgroundColor = 'rgba(163, 230, 53, 0.75)';
+                window.attendanceChartInstance.data.datasets[0].hoverBackgroundColor = '#a3e635';
+
+                if (btnBar && btnLine) {
+                    btnBar.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-lime-500/10 text-lime-400 border border-lime-500/20 shadow-sm flex items-center gap-1.5 cursor-pointer";
+                    btnLine.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 flex items-center gap-1.5 cursor-pointer";
+                }
+            } else {
+                window.attendanceChartInstance.config.type = 'line';
+                window.attendanceChartInstance.data.datasets[0].backgroundColor = gradient;
+
+                if (btnBar && btnLine) {
+                    btnLine.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition-all bg-lime-500/10 text-lime-400 border border-lime-500/20 shadow-sm flex items-center gap-1.5 cursor-pointer";
+                    btnBar.className = "px-3 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 flex items-center gap-1.5 cursor-pointer";
+                }
+            }
+            window.attendanceChartInstance.update();
+        };
+    })();
+</script>
 @endsection

@@ -56,7 +56,7 @@ class AdminController extends Controller
         })->where('is_active', 1)->count();
 
         // Admin-level metrics
-        $monthlyIncome = MembershipPayment::whereHas('membership', function ($q) use ($gymId) {
+        $monthlyIncome = MembershipPayment::whereHas('user', function ($q) use ($gymId) {
             $q->when($gymId !== 'all', function ($sq) use ($gymId) {
                 $sq->where('gym_id', $gymId);
             });
@@ -466,7 +466,9 @@ class AdminController extends Controller
         $dietas = MealPlan::where('gym_id', $gymId)
             ->withCount(['assignments as active_assignments_count' => function ($q) {
                 $q->where('is_active', 1);
-            }])->get();
+            }])
+            ->with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
+            ->get();
 
         $clientes = User::where('role', 'member')->where('gym_id', $gymId)->with('profile')->get();
 

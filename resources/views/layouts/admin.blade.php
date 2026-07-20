@@ -42,6 +42,9 @@
     <!-- Lucide Icons CDN for easy, clean modern icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Chart.js CDN for interactive high-performance charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         /* Theme overrides for light mode */
         :root {
@@ -77,33 +80,104 @@
         *, *::before, *::after {
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
-        /* Custom scrollbars for a premium dark layout */
-        .scrollbar-thin::-webkit-scrollbar,
-        *::-webkit-scrollbar {
-            width: 4px !important;
-            height: 4px !important;
+        /* Custom Scrollbars for Premium Aesthetic */
+        ::-webkit-scrollbar {
+            width: 6px !important;
+            height: 6px !important;
         }
-        .scrollbar-thin::-webkit-scrollbar-track,
-        *::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.15) !important;
+        ::-webkit-scrollbar-track {
+            background: rgba(7, 10, 19, 0.7) !important;
         }
-        .scrollbar-thin::-webkit-scrollbar-thumb,
-        *::-webkit-scrollbar-thumb {
-            background: rgba(163, 230, 53, 0.25) !important;
-            border-radius: 10px !important;
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b !important;
+            border-radius: 9999px !important;
+            border: 1px solid rgba(51, 65, 85, 0.4) !important;
         }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover,
-        *::-webkit-scrollbar-thumb:hover {
+        ::-webkit-scrollbar-thumb:hover {
             background: rgba(163, 230, 53, 0.5) !important;
+            border-color: rgba(163, 230, 53, 0.3) !important;
+        }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #1e293b rgba(7, 10, 19, 0.7);
         }
 
-        /* Smooth page transition animation */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(3px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* GPU-Accelerated Fluid Micro-Animations */
+        @keyframes fadeInSlide {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         .animate-fade-in {
-            animation: fadeIn 0.22s ease-out forwards;
+            animation: fadeInSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            will-change: transform, opacity;
+        }
+
+        .card-hover-effect {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+            will-change: transform;
+        }
+        .card-hover-effect:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Fluid Accordion Animation for Navigation Groups */
+        .sidebar-accordion-wrapper {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out;
+            overflow: hidden;
+        }
+        .sidebar-accordion-wrapper.open {
+            grid-template-rows: 1fr;
+            opacity: 1;
+        }
+        .sidebar-accordion-inner {
+            min-height: 0;
+        }
+
+        /* Smooth Chevron Rotation */
+        .sidebar-chevron {
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+
+        /* Ultra-Smooth Sidebar Link Hover & Active States */
+        .sidebar-link {
+            transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                        color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                        transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                        border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+        .sidebar-link:hover:not(.active-nav-link) {
+            transform: translateX(4px);
+        }
+        .sidebar-group-box {
+            transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                        border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+                        box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Fluid Dropdown Animation for Notifications & Profiles */
+        .dropdown-animate {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+            pointer-events: none;
+            transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+        .dropdown-animate.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
         }
     </style>
     @stack('styles')
@@ -189,184 +263,194 @@
                     @endphp
 
                     <!-- Group 1: Resumen General (Recuadro Box) -->
-                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isPrincipalActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-principal')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
+                    <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isPrincipalActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                        <button onclick="toggleSidebarGroup('group-principal')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
                             <span class="flex items-center gap-2.5">
-                                <div class="p-1.5 {{ $isPrincipalActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                <div class="p-1.5 {{ $isPrincipalActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
                                     <i data-lucide="layout" class="w-3.5 h-3.5"></i>
                                 </div>
                                 <span class="tracking-wider">General</span>
                             </span>
                             <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                <i data-lucide="chevron-down" id="chevron-group-principal" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isPrincipalActive ? '' : '-rotate-90' }}"></i>
+                                <i data-lucide="chevron-down" id="chevron-group-principal" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isPrincipalActive ? '' : '-rotate-90' }}"></i>
                             </div>
                         </button>
-                        <div id="group-principal" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isPrincipalActive ? '' : 'hidden' }}">
-                            <a href="{{ url('/dashboard') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('dashboard') || Request::is('/') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Dashboard</span>
-                            </a>
-                            <a href="{{ url('/clientes') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('clientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="users" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Mis Clientes</span>
-                            </a>
-                            <a href="{{ url('/asistencia') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('asistencia*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="calendar-check" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Control Asistencia</span>
-                            </a>
+                        <div id="group-principal" class="sidebar-accordion-wrapper {{ $isPrincipalActive ? 'open' : '' }}">
+                            <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                <a href="{{ url('/dashboard') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('dashboard') || Request::is('/') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Dashboard</span>
+                                </a>
+                                <a href="{{ url('/clientes') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('clientes*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="users" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Mis Clientes</span>
+                                </a>
+                                <a href="{{ url('/asistencia') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('asistencia*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="calendar-check" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Control Asistencia</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Group 2: Ventas y Finanzas (Recuadro Box) -->
-                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isCajaActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-caja')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
+                    <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isCajaActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                        <button onclick="toggleSidebarGroup('group-caja')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
                             <span class="flex items-center gap-2.5">
-                                <div class="p-1.5 {{ $isCajaActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                <div class="p-1.5 {{ $isCajaActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
                                     <i data-lucide="banknote" class="w-3.5 h-3.5"></i>
                                 </div>
                                 <span class="tracking-wider">Ventas & Caja</span>
                             </span>
                             <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                <i data-lucide="chevron-down" id="chevron-group-caja" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isCajaActive ? '' : '-rotate-90' }}"></i>
+                                <i data-lucide="chevron-down" id="chevron-group-caja" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isCajaActive ? '' : '-rotate-90' }}"></i>
                             </div>
                         </button>
-                        <div id="group-caja" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isCajaActive ? '' : 'hidden' }}">
-                            <a href="{{ url('/tienda/pos') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/pos') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="shopping-cart" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Venta Nueva (POS)</span>
-                            </a>
-                            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
-                                <a href="{{ url('/tienda/productos') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/productos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="package" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Inventario Tienda</span>
+                        <div id="group-caja" class="sidebar-accordion-wrapper {{ $isCajaActive ? 'open' : '' }}">
+                            <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                <a href="{{ url('/tienda/pos') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('tienda/pos') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="shopping-cart" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Venta Nueva (POS)</span>
                                 </a>
-                                <a href="{{ url('/tienda/movimientos') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/movimientos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="activity" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Auditoría Stock</span>
-                                </a>
-                                <a href="{{ url('/tienda/ventas') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('tienda/ventas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="receipt" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Historial Ventas</span>
-                                </a>
-                                <a href="{{ url('/finanzas') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('finanzas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Finanzas & Pagos</span>
-                                </a>
-                            @endif
+                                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                                    <a href="{{ url('/tienda/productos') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('tienda/productos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="package" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Inventario Tienda</span>
+                                    </a>
+                                    <a href="{{ url('/tienda/movimientos') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('tienda/movimientos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="activity" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Auditoría Stock</span>
+                                    </a>
+                                    <a href="{{ url('/tienda/ventas') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('tienda/ventas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="receipt" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Historial Ventas</span>
+                                    </a>
+                                    <a href="{{ url('/finanzas') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('finanzas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Finanzas & Pagos</span>
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     </div>
 
                     <!-- Group 3: Entrenamiento & Nutrición (Recuadro Box) -->
-                    <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
+                    <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
                             <span class="flex items-center gap-2.5">
-                                <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
                                     <i data-lucide="award" class="w-3.5 h-3.5"></i>
                                 </div>
                                 <span class="tracking-wider">Programas & Catálogos</span>
                             </span>
                             <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                <i data-lucide="chevron-down" id="chevron-group-entrenamiento" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isEntrenamientoActive ? '' : '-rotate-90' }}"></i>
+                                <i data-lucide="chevron-down" id="chevron-group-entrenamiento" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isEntrenamientoActive ? '' : '-rotate-90' }}"></i>
                             </div>
                         </button>
-                        <div id="group-entrenamiento" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isEntrenamientoActive ? '' : 'hidden' }}">
-                            <a href="{{ url('/rutinas') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('rutinas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="dumbbell" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Planes de Rutinas</span>
-                            </a>
-                            <a href="{{ url('/nutricion') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('nutricion*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="apple" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Planes de Nutrición</span>
-                            </a>
-                            <a href="{{ url('/ingredientes') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('ingredientes*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Ingredientes & Macros</span>
-                            </a>
-                            <a href="{{ url('/recetas') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('recetas*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="utensils" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Recetario & Platos</span>
-                            </a>
-                            <a href="{{ url('/ejercicios') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('ejercicios*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="book-open" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Ejercicios & Biblioteca</span>
-                            </a>
-                            <a href="{{ url('/equipamiento') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('equipamiento*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Equipamiento Gym</span>
-                            </a>
-                            <a href="{{ url('/clases') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('clases*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Clases Grupales</span>
-                            </a>
-                            <a href="{{ url('/retos') }}" 
-                               class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('retos*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                <span>Retos & Incentivos</span>
-                            </a>
+                        <div id="group-entrenamiento" class="sidebar-accordion-wrapper {{ $isEntrenamientoActive ? 'open' : '' }}">
+                            <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                <a href="{{ url('/rutinas') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('rutinas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="dumbbell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Planes de Rutinas</span>
+                                </a>
+                                <a href="{{ url('/nutricion') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('nutricion*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="apple" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Planes de Nutrición</span>
+                                </a>
+                                <a href="{{ url('/ingredientes') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ingredientes*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Ingredientes & Macros</span>
+                                </a>
+                                <a href="{{ url('/recetas') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('recetas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="utensils" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Recetario & Platos</span>
+                                </a>
+                                <a href="{{ url('/ejercicios') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ejercicios*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="book-open" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Ejercicios & Biblioteca</span>
+                                </a>
+                                <a href="{{ url('/equipamiento') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('equipamiento*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Equipamiento Gym</span>
+                                </a>
+                                <a href="{{ url('/clases') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('clases*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Clases Grupales</span>
+                                </a>
+                                <a href="{{ url('/retos') }}" 
+                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('retos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Retos & Incentivos</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Group 4: Configuración & Administración (Recuadro Box) -->
                     @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
-                        <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSaaSActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                            <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
+                        <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isSaaSActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                            <button onclick="toggleSidebarGroup('group-saas')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
                                 <span class="flex items-center gap-2.5">
-                                    <div class="p-1.5 {{ $isSaaSActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                    <div class="p-1.5 {{ $isSaaSActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
                                         <i data-lucide="shield" class="w-3.5 h-3.5"></i>
                                     </div>
                                     <span class="tracking-wider">Administración</span>
                                 </span>
 
                                 <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                    <i data-lucide="chevron-down" id="chevron-group-saas" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isSaaSActive ? '' : '-rotate-90' }}"></i>
+                                    <i data-lucide="chevron-down" id="chevron-group-saas" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isSaaSActive ? '' : '-rotate-90' }}"></i>
                                 </div>
                             </button>
-                            <div id="group-saas" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isSaaSActive ? '' : 'hidden' }}">
-                                <a href="{{ url('/staff') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('staff*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Entrenadores (Staff)</span>
-                                </a>
+                            <div id="group-saas" class="sidebar-accordion-wrapper {{ $isSaaSActive ? 'open' : '' }}">
+                                <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                    <a href="{{ url('/staff') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('staff*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Entrenadores (Staff)</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     @endif
 
                     <!-- Group 5: Control SaaS Global (Recuadro Box) -->
                     @if(auth()->user()->role === 'superadmin')
-                        <div class="rounded-2xl border p-2.5 transition-all duration-300 {{ $isSuperadminActive ? 'bg-slate-900/60 border-slate-800 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/40 hover:bg-slate-900/20' }}">
-                            <button onclick="toggleSidebarGroup('group-superadmin')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none">
+                        <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isSuperadminActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                            <button onclick="toggleSidebarGroup('group-superadmin')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
                                 <span class="flex items-center gap-2.5">
-                                    <div class="p-1.5 {{ $isSuperadminActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850' }} rounded-lg transition-colors">
+                                    <div class="p-1.5 {{ $isSuperadminActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
                                         <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
                                     </div>
                                     <span class="tracking-wider">Superadmin</span>
                                 </span>
 
                                 <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                    <i data-lucide="chevron-down" id="chevron-group-superadmin" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200 {{ $isSuperadminActive ? '' : '-rotate-90' }}"></i>
+                                    <i data-lucide="chevron-down" id="chevron-group-superadmin" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isSuperadminActive ? '' : '-rotate-90' }}"></i>
                                 </div>
                             </button>
-                            <div id="group-superadmin" class="pl-3 border-l border-slate-800/60 space-y-1 mt-2.5 {{ $isSuperadminActive ? '' : 'hidden' }}">
-                                <a href="{{ url('/superadmin/gyms') }}" 
-                                   class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all group/item {{ Request::is('superadmin/gyms*') ? 'bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200' }}">
-                                    <i data-lucide="globe" class="w-4 h-4 text-slate-500 group-hover/item:text-slate-300 group-hover/item:scale-105 transition-all"></i>
-                                    <span>Gestionar Sucursales</span>
-                                </a>
+                            <div id="group-superadmin" class="sidebar-accordion-wrapper {{ $isSuperadminActive ? 'open' : '' }}">
+                                <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                    <a href="{{ url('/superadmin/gyms') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('superadmin/gyms*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="globe" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Gestionar Sucursales</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     @endif
@@ -435,10 +519,9 @@
                             $allGyms = \App\Models\Gym::orderBy('name')->get();
                             $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
                         @endphp
-                        <form action="{{ route('superadmin.switch_gym') }}" method="POST" id="switch-gym-form" class="flex items-center gap-2">
-                            @csrf
+                        <div class="flex items-center gap-2">
                             <label for="gym_id" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sucursal:</label>
-                            <select name="gym_id" id="gym_id" onchange="document.getElementById('switch-gym-form').submit();" class="text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer">
+                            <select name="gym_id" id="gym_id" onchange="switchGymContext(this.value)" class="text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer">
                                 <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas las Sucursales</option>
                                 @foreach($allGyms as $g)
                                     <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
@@ -446,7 +529,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </form>
+                        </div>
                     @endif
                 </div>
                 <div class="sm:hidden text-sm font-semibold text-slate-400 flex items-center gap-2">
@@ -455,9 +538,8 @@
                             $allGyms = \App\Models\Gym::orderBy('name')->get();
                             $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
                         @endphp
-                        <form action="{{ route('superadmin.switch_gym') }}" method="POST" id="switch-gym-form-mobile" class="flex items-center gap-1.5">
-                            @csrf
-                            <select name="gym_id" id="gym_id_mobile" onchange="document.getElementById('switch-gym-form-mobile').submit();" class="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-lime-400 font-bold focus:outline-none cursor-pointer">
+                        <div class="flex items-center gap-1.5">
+                            <select name="gym_id" id="gym_id_mobile" onchange="switchGymContext(this.value)" class="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-lime-400 font-bold focus:outline-none cursor-pointer">
                                 <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas</option>
                                 @foreach($allGyms as $g)
                                     <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
@@ -465,7 +547,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </form>
+                        </div>
                     @else
                         Panel Entrenador
                     @endif
@@ -473,12 +555,6 @@
 
                 <!-- Right items: Actions, Notifications, Profile -->
                 <div class="flex items-center gap-4">
-                    <!-- Quick action button 
-                    <a href="{{ route('clientes.crear') }}" class="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">
-                        <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i>
-                        Registrar Cliente
-                    </a> -->
-
                     <!-- Theme Toggle Button -->
                     <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
                         <i data-lucide="moon" class="w-4 h-4 dark-icon block"></i>
@@ -492,8 +568,8 @@
                             <span id="unread-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900 hidden"></span>
                         </button>
                         
-                        <!-- Dropdown Panel -->
-                        <div id="notifications-dropdown" class="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 hidden py-2 overflow-hidden">
+                        <!-- Dropdown Panel (Fluid CSS Animated) -->
+                        <div id="notifications-dropdown" class="dropdown-animate absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 py-2 overflow-hidden">
                             <div class="px-4 py-2 border-b border-slate-850 flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-200">Notificaciones</span>
                                 <form action="{{ route('notificaciones.read_all') }}" method="POST" class="m-0 inline">
@@ -544,13 +620,14 @@
         function toggleSidebarGroup(groupId) {
             const content = document.getElementById(groupId);
             const chevron = document.getElementById('chevron-' + groupId);
-            if (content && chevron) {
-                if (content.classList.contains('hidden')) {
-                    content.classList.remove('hidden');
-                    chevron.classList.remove('-rotate-90');
+            if (content) {
+                const isOpen = content.classList.contains('open');
+                if (isOpen) {
+                    content.classList.remove('open');
+                    if (chevron) chevron.classList.add('-rotate-90');
                 } else {
-                    content.classList.add('hidden');
-                    chevron.classList.add('-rotate-90');
+                    content.classList.add('open');
+                    if (chevron) chevron.classList.remove('-rotate-90');
                 }
             }
         }
@@ -696,15 +773,62 @@
         });
     </script>
 
-    <!-- Notifications Handling -->
+    <!-- Superadmin Gym Switcher & Notifications Handling -->
     <script>
+        function switchGymContext(gymId) {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const formData = new FormData();
+            formData.append('gym_id', gymId);
+
+            // Sync selectors visually
+            const selectDesktop = document.getElementById('gym_id');
+            const selectMobile = document.getElementById('gym_id_mobile');
+            if (selectDesktop) selectDesktop.value = gymId;
+            if (selectMobile) selectMobile.value = gymId;
+
+            fetch('/superadmin/switch-gym', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof window.loadUrl === 'function') {
+                        window.loadUrl(window.location.href, false);
+                    } else {
+                        window.location.reload();
+                    }
+                }
+            })
+            .catch(err => console.error('Error al cambiar sucursal:', err));
+        }
+
         function toggleNotificationsDropdown() {
             const dropdown = document.getElementById('notifications-dropdown');
-            dropdown.classList.toggle('hidden');
-            if (!dropdown.classList.contains('hidden')) {
+            if (!dropdown) return;
+
+            const isOpen = dropdown.classList.contains('open');
+            if (isOpen) {
+                dropdown.classList.remove('open');
+            } else {
+                dropdown.classList.add('open');
                 loadNotifications();
             }
         }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const container = document.getElementById('notifications-menu-container');
+            const dropdown = document.getElementById('notifications-dropdown');
+            if (container && dropdown && !container.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
 
         async function loadNotifications() {
             const listEl = document.getElementById('notifications-list');
@@ -799,6 +923,168 @@
                 }
             });
         });
+    </script>
+
+    <!-- Ultra-Fast Seamless SPA PJAX Navigation Engine -->
+    <script>
+        (function() {
+            let progressBar = document.getElementById('pjax-progress-bar');
+            if (!progressBar) {
+                progressBar = document.createElement('div');
+                progressBar.id = 'pjax-progress-bar';
+                progressBar.className = 'fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-lime-400 via-emerald-400 to-lime-500 z-[9999] transition-all duration-300 pointer-events-none opacity-0';
+                progressBar.style.width = '0%';
+                document.body.appendChild(progressBar);
+            }
+
+            function showProgress() {
+                progressBar.style.width = '25%';
+                progressBar.classList.remove('opacity-0');
+                setTimeout(() => { progressBar.style.width = '75%'; }, 60);
+            }
+
+            function completeProgress() {
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    progressBar.classList.add('opacity-0');
+                    setTimeout(() => { progressBar.style.width = '0%'; }, 300);
+                }, 150);
+            }
+
+            async function loadPage(url, pushState = true) {
+                showProgress();
+                const mainContainer = document.querySelector('main');
+                if (mainContainer) {
+                    mainContainer.style.opacity = '0.4';
+                    mainContainer.style.transition = 'opacity 0.12s ease';
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'X-PJAX': 'true',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    const htmlText = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlText, 'text/html');
+
+                    const newMain = doc.querySelector('main');
+                    const newTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : document.title;
+
+                    if (!newMain || !mainContainer) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    document.title = newTitle;
+                    if (pushState) {
+                        window.history.pushState({ url: url }, newTitle, url);
+                    }
+
+                    mainContainer.innerHTML = newMain.innerHTML;
+                    mainContainer.style.opacity = '1';
+                    mainContainer.classList.remove('animate-fade-in');
+                    void mainContainer.offsetWidth;
+                    mainContainer.classList.add('animate-fade-in');
+
+                    // Re-execute inline scripts inside main
+                    const scripts = mainContainer.querySelectorAll('script');
+                    scripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
+                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        oldScript.parentNode.replaceChild(newScript, oldScript);
+                    });
+
+                    updateSidebarActiveLinks(url);
+
+                    if (window.lucide) {
+                        window.lucide.createIcons();
+                    }
+
+                    // Close mobile menu drawer if open
+                    const sidebar = document.getElementById('sidebar');
+                    const overlay = document.getElementById('sidebar-overlay');
+                    if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
+                        sidebar.classList.add('-translate-x-full');
+                        if (overlay) overlay.classList.add('hidden');
+                        document.body.classList.remove('overflow-hidden');
+                    }
+
+                    window.scrollTo({ top: 0, behavior: 'instant' });
+                    completeProgress();
+                } catch (err) {
+                    console.error('PJAX Navigation Error:', err);
+                    window.location.href = url;
+                }
+            }
+
+            function updateSidebarActiveLinks(currentUrl) {
+                const urlObj = new URL(currentUrl, window.location.origin);
+                const path = urlObj.pathname;
+
+                const navLinks = document.querySelectorAll('aside nav a[href]');
+                navLinks.forEach(link => {
+                    const linkUrl = new URL(link.getAttribute('href'), window.location.origin);
+                    const linkPath = linkUrl.pathname;
+
+                    const isExactMatch = (path === linkPath) || (path === '/' && linkPath === '/dashboard');
+                    const isSubPathMatch = linkPath !== '/' && linkPath !== '/dashboard' && path.startsWith(linkPath);
+
+                    const isActive = isExactMatch || isSubPathMatch;
+
+                    if (isActive) {
+                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm";
+                        const parentGroupDiv = link.closest('.sidebar-group-box');
+                        if (parentGroupDiv) {
+                            const groupContent = parentGroupDiv.querySelector('.sidebar-accordion-wrapper');
+                            const chevron = parentGroupDiv.querySelector('.sidebar-chevron');
+                            if (groupContent && !groupContent.classList.contains('open')) {
+                                groupContent.classList.add('open');
+                            }
+                            if (chevron && chevron.classList.contains('-rotate-90')) {
+                                chevron.classList.remove('-rotate-90');
+                            }
+                        }
+                    } else {
+                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item text-slate-400 hover:text-slate-100 hover:bg-slate-850/50";
+                    }
+                });
+            }
+
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a');
+                if (!link) return;
+
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.getAttribute('target') === '_blank' || link.hasAttribute('download')) {
+                    return;
+                }
+
+                const targetUrl = new URL(href, window.location.origin);
+                if (targetUrl.origin !== window.location.origin) return;
+                if (targetUrl.pathname.includes('/logout')) return;
+
+                e.preventDefault();
+                if (targetUrl.href === window.location.href) return;
+
+                loadPage(targetUrl.href, true);
+            });
+
+            window.addEventListener('popstate', function() {
+                loadPage(window.location.href, false);
+            });
+
+            window.loadUrl = loadPage;
+        })();
     </script>
 
     @stack('modals')
