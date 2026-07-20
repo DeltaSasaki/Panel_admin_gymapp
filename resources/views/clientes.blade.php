@@ -38,7 +38,7 @@
         <!-- Search Bar -->
         <div class="relative w-full md:w-64">
             <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-            <input type="text" placeholder="Buscar cliente..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50">
+            <input type="text" id="client_search_input" oninput="applyClientFilters()" placeholder="Buscar por DNI, Nombre o Correo..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50">
         </div>
     </div>
 
@@ -58,7 +58,13 @@
 
         @forelse($clientes as $cliente)
             <!-- Client Card -->
-            <div data-client-card data-is-active="{{ $cliente->is_active }}" data-has-routine="{{ $cliente->activeRoutine ? 'true' : 'false' }}" class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 hover:border-slate-700 transition-all duration-300 flex flex-col justify-between">
+            <div data-client-card 
+                 data-is-active="{{ $cliente->is_active }}" 
+                 data-has-routine="{{ $cliente->activeRoutine ? 'true' : 'false' }}"
+                 data-name="{{ ($cliente->profile->first_name ?? '') . ' ' . ($cliente->profile->last_name ?? '') }}"
+                 data-dni="{{ $cliente->profile->dni ?? '' }}"
+                 data-email="{{ $cliente->email }}"
+                 class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 hover:border-slate-700 transition-all duration-300 flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between">
                         <div class="flex items-start gap-3">
@@ -84,7 +90,7 @@
                                         <span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-md uppercase tracking-wider">Inactivo</span>
                                     @endif
                                 </div>
-                                <span class="text-[10px] text-slate-500 mt-1">Registro: {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
+                                <span class="text-[10px] text-slate-500 mt-1">DNI: <strong class="text-slate-400">{{ $cliente->profile->dni ?? 'N/A' }}</strong> &bull; Registro: {{ \Carbon\Carbon::parse($cliente->createdAt)->format('M Y') }}</span>
                             </div>
                         </div>
                         <span class="w-2.5 h-2.5 shrink-0 rounded-full {{ $cliente->is_active ? 'bg-emerald-500 ring-4 ring-emerald-500/10' : 'bg-slate-500' }}"></span>
@@ -127,7 +133,7 @@
                     @if($cliente->activeRoutine)
                         @php
                             $start = \Carbon\Carbon::parse($cliente->activeRoutine->start_date);
-                            $weeksPassed = max(0, $start->diffInWeeks(\Carbon\Carbon::now()));
+                            $weeksPassed = max(0, round($start->diffInWeeks(\Carbon\Carbon::now()), 1));
                             $duration = $cliente->activeRoutine->routine->duration_weeks ?: 1;
                             $progressPct = min(100, round(($weeksPassed / $duration) * 100));
                         @endphp
@@ -175,38 +181,19 @@
             </div>
         @endforelse
 
+        <div id="no_search_results_msg" class="col-span-full py-12 text-center text-slate-500 hidden">
+            <i data-lucide="search-x" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
+            <p>No se encontraron clientes que coincidan con la búsqueda o filtro.</p>
+        </div>
+
     </div>
 </div>
 
 <script>
+    let currentTabFilter = 'all';
+
     function filterClients(filterType) {
-        const cards = document.querySelectorAll('[data-client-card]');
-        cards.forEach(card => {
-            const isActive = card.getAttribute('data-is-active') === '1';
-            const hasRoutine = card.getAttribute('data-has-routine') === 'true';
-            
-            if (filterType === 'all') {
-                card.classList.remove('hidden');
-            } else if (filterType === 'active') {
-                if (isActive) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            } else if (filterType === 'no-routine') {
-                if (!hasRoutine && isActive) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            } else if (filterType === 'inactive') {
-                if (!isActive) {
-                    card.classList.remove('hidden');
-                } else {
-                    card.classList.add('hidden');
-                }
-            }
-        });
+        currentTabFilter = filterType;
 
         // Update tab styles
         const tabs = document.querySelectorAll('.filter-tab-btn');
@@ -218,6 +205,56 @@
         if (activeTab) {
             activeTab.className = "filter-tab-btn px-4 py-2 rounded-lg text-xs font-bold bg-slate-900 text-lime-400 border border-slate-800";
         }
+
+        applyClientFilters();
+    }
+
+    function applyClientFilters() {
+        const query = (document.getElementById('client_search_input')?.value || '').toLowerCase().trim();
+        const cards = document.querySelectorAll('[data-client-card]');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const isActive = card.getAttribute('data-is-active') === '1';
+            const hasRoutine = card.getAttribute('data-has-routine') === 'true';
+            const name = (card.getAttribute('data-name') || '').toLowerCase();
+            const dni = (card.getAttribute('data-dni') || '').toLowerCase();
+            const email = (card.getAttribute('data-email') || '').toLowerCase();
+
+            let matchesTab = false;
+            if (currentTabFilter === 'all') {
+                matchesTab = true;
+            } else if (currentTabFilter === 'active') {
+                matchesTab = isActive;
+            } else if (currentTabFilter === 'no-routine') {
+                matchesTab = (!hasRoutine && isActive);
+            } else if (currentTabFilter === 'inactive') {
+                matchesTab = !isActive;
+            }
+
+            let matchesSearch = true;
+            if (query.length > 0) {
+                matchesSearch = name.includes(query) || dni.includes(query) || email.includes(query);
+            }
+
+            if (matchesTab && matchesSearch) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        const emptyMsg = document.getElementById('no_search_results_msg');
+        if (emptyMsg) {
+            if (visibleCount === 0 && cards.length > 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+            }
+        }
+        
+        if (window.lucide) window.lucide.createIcons();
     }
 </script>
 @endsection

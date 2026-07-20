@@ -71,22 +71,24 @@
     </div>
 
     <!-- Right Column: Shopping Cart (1/3 width) -->
-    <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 flex flex-col h-[calc(100vh-120px)] sticky top-24">
-        <h3 class="font-bold text-lg text-slate-100 mb-4 flex items-center gap-2 pb-3 border-b border-slate-800">
-            <i data-lucide="shopping-cart" class="w-5 h-5 text-lime-400"></i> Detalle de Venta
+    <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 flex flex-col min-h-[calc(100vh-120px)] sticky top-24">
+        <h3 class="font-bold text-lg text-slate-100 mb-3 flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+            <span class="flex items-center gap-2">
+                <i data-lucide="shopping-cart" class="w-5 h-5 text-lime-400"></i> Detalle de Venta
+            </span>
         </h3>
 
-        <!-- Cart Items List -->
-        <div class="flex-1 overflow-y-auto pr-1 space-y-3" id="cart-items-container">
+        <!-- Cart Items List (Guaranteed height so items are never cut off) -->
+        <div class="min-h-[150px] max-h-[260px] overflow-y-auto pr-1 space-y-2.5 my-2" id="cart-items-container">
             <!-- Empty Cart State -->
-            <div class="h-full flex flex-col items-center justify-center text-slate-500 text-xs py-8" id="empty-cart-state">
-                <i data-lucide="shopping-bag" class="w-10 h-10 text-slate-700 mb-2"></i>
+            <div class="h-full min-h-[130px] flex flex-col items-center justify-center text-slate-500 text-xs py-6" id="empty-cart-state">
+                <i data-lucide="shopping-bag" class="w-9 h-9 text-slate-700 mb-2"></i>
                 Haz clic en un producto para agregarlo al carrito.
             </div>
         </div>
 
         <!-- Checkout Form Details -->
-        <form action="{{ route('tienda.register_sale') }}" method="POST" class="pt-4 border-t border-slate-800 mt-4 space-y-4" onsubmit="prepareSubmit(event)">
+        <form action="{{ route('tienda.register_sale') }}" method="POST" class="pt-4 border-t border-slate-800 mt-2 space-y-3 shrink-0" onsubmit="prepareSubmit(event)">
             @csrf
             <input type="hidden" name="cart" id="cart-json-input">
 
@@ -186,7 +188,7 @@
             if (existing.quantity < maxStock) {
                 existing.quantity++;
             } else {
-                alert(`No puedes agregar más de este producto. Stock máximo disponible: ${maxStock}`);
+                showPosToast(`Stock máximo alcanzado (${maxStock} unidades disponibles).`, 'warning');
                 return;
             }
         } else {
@@ -211,7 +213,7 @@
             cart = cart.filter(item => item.product_id !== id);
         } else if (item.quantity > item.maxStock) {
             item.quantity = item.maxStock;
-            alert(`Stock máximo disponible: ${item.maxStock}`);
+            showPosToast(`Solo hay ${item.maxStock} unidades disponibles en inventario.`, 'warning');
         }
 
         renderCart();
@@ -225,7 +227,7 @@
         const feedback = document.getElementById('pos-promo-feedback');
 
         if (cart.length === 0) {
-            alert('Agrega productos al carrito antes de aplicar una promoción.');
+            showPosToast('Agrega productos al carrito antes de aplicar una promoción.', 'warning');
             return;
         }
 
@@ -363,6 +365,63 @@
         })));
         
         document.getElementById('cart-json-input').value = cartJson;
+    }
+
+    // Custom Toast Notification System for POS
+    function showPosToast(message, type = 'warning') {
+        let container = document.getElementById('pos-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pos-toast-container';
+            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        const isDanger = type === 'danger' || type === 'error';
+        const isSuccess = type === 'success';
+
+        let iconName = 'alert-triangle';
+        let borderColor = 'border-amber-500/30';
+        let iconColor = 'text-amber-400';
+        let glowColor = 'shadow-amber-500/10';
+
+        if (isDanger) {
+            iconName = 'alert-circle';
+            borderColor = 'border-rose-500/30';
+            iconColor = 'text-rose-400';
+            glowColor = 'shadow-rose-500/10';
+        } else if (isSuccess) {
+            iconName = 'check-circle';
+            borderColor = 'border-emerald-500/30';
+            iconColor = 'text-emerald-400';
+            glowColor = 'shadow-emerald-500/10';
+        }
+
+        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900/95 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-2xl ${glowColor} backdrop-blur-md transition-all duration-300 transform translate-x-10 opacity-0`;
+
+        toast.innerHTML = `
+            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
+                <i data-lucide="${iconName}" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 leading-tight">${message}</div>
+            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        `;
+
+        container.appendChild(toast);
+
+        if (window.lucide) window.lucide.createIcons();
+
+        setTimeout(() => {
+            toast.classList.remove('translate-x-10', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('translate-x-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
     }
 </script>
 @endsection

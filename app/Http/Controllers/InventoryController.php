@@ -9,6 +9,7 @@ use App\Models\ProductSale;
 use App\Models\SaleItem;
 use App\Models\InventoryMovement;
 use App\Models\User;
+use App\Models\AdminAuditLog;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -156,6 +157,8 @@ class InventoryController extends Controller
                 SaleItem::create($item);
             }
 
+            AdminAuditLog::record('INSERT', 'product_sales', $sale->id, null, $sale->toArray(), $gymId);
+
             DB::commit();
 
             $successMsg = 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2);
@@ -216,40 +219,98 @@ class InventoryController extends Controller
                 $q->where('gym_id', $gymId);
             });
         }
-        $movements = $movementsQuery->orderBy('createdAt', 'desc')->get();
+        $movements = $movementsQuery->get();
 
-        return view('tienda.movimientos', compact('movements'));
+        // Fetch audit log entries from admin_audit_logs table
+        $auditLogsQuery = \App\Models\AdminAuditLog::with(['admin.profile'])
+            ->whereIn('table_name', ['inventory_products', 'product_categories', 'inventory_movements', 'product_sales']);
+
+        if ($gymId !== 'all') {
+            $auditLogsQuery->where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $auditLogs = $auditLogsQuery->get();
+
+        // Combine movements and audit logs into a single unified list sorted DESCENDING by date
+        $combinedItems = collect();
+
+        foreach ($movements as $m) {
+            $combinedItems->push((object)[
+                'kind' => 'movement',
+                'date' => Carbon::parse($m->createdAt),
+                'data' => $m,
+            ]);
+        }
+
+        foreach ($auditLogs as $a) {
+            $combinedItems->push((object)[
+                'kind' => 'audit',
+                'date' => Carbon::parse($a->createdAt),
+                'data' => $a,
+            ]);
+        }
+
+        $records = $combinedItems->sortByDesc('date')->values();
+
+        return view('tienda.movimientos', compact('movements', 'auditLogs', 'records'));
     }
 
     /**
-     * Store a new category (restristed to Admins).
+     * Store a new category (restricted to Admins).
      */
     public function storeCategory(Request $request)
     {
         $this->checkAdmin();
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'description' => 'nullable|string',
         ]);
 
-        $gymId = $this->getActiveGymId();
-        if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder crear una categoría.']);
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        ProductCategory::create([
+        $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            $err = 'Debes seleccionar una sucursal específica para poder crear una categoría.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $err], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $err]);
+        }
+
+        $category = ProductCategory::create([
             'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
         ]);
 
-        return redirect()->back()->with('success', 'Categoría de producto creada exitosamente.');
+        AdminAuditLog::record('INSERT', 'product_categories', $category->id, null, $category->toArray(), $gymId);
+
+        $message = 'Categoría de producto creada exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'category' => $category,
+                'message' => $message
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     public function storeProduct(Request $request)
     {
         $this->checkAdmin();
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'category_id' => 'required|exists:product_categories,id',
             'name' => 'required|string|max:150',
             'description' => 'nullable|string',
@@ -260,9 +321,23 @@ class InventoryController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
         ]);
 
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para poder registrar un producto.']);
+            $err = 'Debes seleccionar una sucursal específica para poder registrar un producto.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $err], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $err]);
         }
 
         try {
@@ -304,10 +379,30 @@ class InventoryController extends Controller
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'Producto creado y agregado al inventario.');
+
+            $product->load('category');
+            // Re-fetch stock_quantity in case DB trigger updated it
+            $product->refresh();
+
+            AdminAuditLog::record('INSERT', 'inventory_products', $product->id, null, $product->toArray(), $gymId);
+
+            $message = 'Producto creado y agregado al inventario exitosamente.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'product' => $product,
+                    'message' => $message
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error al crear producto: ' . $e->getMessage()], 500);
+            }
             return redirect()->back()->withInput()->withErrors(['error' => 'Error al crear producto: ' . $e->getMessage()]);
         }
     }
@@ -318,7 +413,7 @@ class InventoryController extends Controller
     public function updateProduct(Request $request, $id)
     {
         $this->checkAdmin();
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'category_id' => 'required|exists:product_categories,id',
             'name' => 'required|string|max:150',
             'description' => 'nullable|string',
@@ -328,8 +423,19 @@ class InventoryController extends Controller
             'image' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
         ]);
 
+        if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
         $gymId = $this->getActiveGymId();
         $product = InventoryProduct::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $product->toArray();
 
         $data = [
             'category_id' => $request->category_id,
@@ -358,27 +464,54 @@ class InventoryController extends Controller
         }
 
         $product->update($data);
+        $product->load('category');
 
-        return redirect()->back()->with('success', 'Producto actualizado exitosamente.');
+        AdminAuditLog::record('UPDATE', 'inventory_products', $product->id, $oldData, $product->fresh()->toArray(), $gymId);
+
+        $message = 'Producto actualizado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'product' => $product,
+                'message' => $message
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
-     * Delete existing product.
+     * Disable/Enable product availability instead of deleting data physically.
      */
-    public function deleteProduct($id)
+    public function deleteProduct(Request $request, $id)
     {
         $this->checkAdmin();
         $gymId = $this->getActiveGymId();
         $product = InventoryProduct::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $product->toArray();
 
-        // Delete image file if exists
-        if ($product->image_url && file_exists(public_path($product->image_url))) {
-            @unlink(public_path($product->image_url));
+        $newStatus = $product->is_available ? 0 : 1;
+        $product->update([
+            'is_available' => $newStatus
+        ]);
+
+        AdminAuditLog::record('UPDATE', 'inventory_products', $product->id, $oldData, $product->fresh()->toArray(), $gymId);
+
+        $message = $newStatus 
+            ? 'Producto habilitado exitosamente.' 
+            : 'Producto inhabilitado exitosamente. Toda la información de inventario y ventas históricas se conserva intacta.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'is_available' => $newStatus,
+                'product_id' => $product->id,
+                'message' => $message
+            ]);
         }
 
-        $product->delete();
-
-        return redirect()->back()->with('success', 'Producto eliminado de inventario exitosamente.');
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -402,7 +535,7 @@ class InventoryController extends Controller
         // Note: We DO NOT manually increment stock_quantity here in PHP.
         // Creating the InventoryMovement of type 'in' will automatically increment the stock
         // of the product in the database via the trigger `trg_update_stock_after_movement`.
-        InventoryMovement::create([
+        $movement = InventoryMovement::create([
             'product_id' => $product->id,
             'movement_type' => 'in',
             'quantity' => $request->quantity,
@@ -410,7 +543,23 @@ class InventoryController extends Controller
             'performed_by' => auth()->user()->id,
         ]);
 
-        return redirect()->back()->with('success', 'Stock actualizado exitosamente.');
+        AdminAuditLog::record('INSERT', 'inventory_movements', $movement->id, null, $movement->toArray(), $gymId);
+
+        $product->refresh();
+        $message = 'Stock reabastecido exitosamente (+' . $request->quantity . ').';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'product' => $product,
+                'product_id' => $product->id,
+                'new_stock' => $product->stock_quantity,
+                'min_stock' => $product->min_stock,
+                'message' => $message
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

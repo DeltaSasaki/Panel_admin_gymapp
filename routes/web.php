@@ -149,6 +149,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/asistencia', [\App\Http\Controllers\AttendanceController::class, 'index'])->name('asistencia.index');
     Route::post('/asistencia/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn'])->name('asistencia.check_in');
     Route::post('/asistencia/{id}/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut'])->name('asistencia.check_out');
+    Route::get('/api/clientes/search-dni', [\App\Http\Controllers\AttendanceController::class, 'searchClientsByDni'])->name('api.clientes.search_dni');
+    Route::get('/api/asistencia/logs', [\App\Http\Controllers\AttendanceController::class, 'getLogsByDate'])->name('api.asistencia.logs');
 
     // Group Classes routes
     Route::get('/clases', [\App\Http\Controllers\ClassController::class, 'index'])->name('clases.index');

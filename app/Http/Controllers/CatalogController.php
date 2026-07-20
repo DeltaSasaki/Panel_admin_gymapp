@@ -9,6 +9,7 @@ use App\Models\Exercise;
 use App\Models\ExerciseCategory;
 use App\Models\Recipe;
 use App\Models\RecipeCategory;
+use App\Models\AdminAuditLog;
 
 class CatalogController extends Controller
 {
@@ -41,13 +42,16 @@ class CatalogController extends Controller
             $imageUrl = 'uploads/equipment/' . $filename;
         }
 
-        Equipment::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+        $eq = Equipment::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
             'image_url' => $imageUrl,
             'requires_gym' => $request->has('requires_gym') ? 1 : 0,
         ]);
+
+        AdminAuditLog::record('INSERT', 'equipment', $eq->id, null, $eq->toArray(), $gymId);
 
         return redirect()->back()->with('success', 'Equipo registrado con éxito.');
     }

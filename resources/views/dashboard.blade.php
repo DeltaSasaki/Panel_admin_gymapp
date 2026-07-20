@@ -366,8 +366,8 @@
             </a>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
+        <div class="overflow-x-auto pb-2">
+            <table class="w-full text-left border-collapse min-w-[650px] whitespace-nowrap">
                 <thead>
                     <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase font-bold">
                         <th class="py-3 px-4">Cliente</th>
@@ -393,7 +393,7 @@
                     @forelse($recentClients as $client)
                         <tr class="hover:bg-slate-800/20 transition-colors">
                             <td class="py-4 px-4 flex items-center gap-3">
-                                <img src="{{ $client->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-9 h-9 rounded-full object-cover ring-2 ring-slate-800">
+                                <img src="{{ $client->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-9 h-9 rounded-full object-cover ring-2 ring-slate-800 shrink-0">
                                 <div>
                                     <span class="block font-bold text-slate-200">
                                         {{ $client->profile->first_name ?? 'Cliente' }} {{ $client->profile->last_name ?? '' }}

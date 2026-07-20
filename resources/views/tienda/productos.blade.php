@@ -60,71 +60,109 @@
 
     <!-- Products Table -->
     <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-        <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-slate-100">Listado de Artículos</h3>
+        <div class="p-6 border-b border-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                <h3 class="font-bold text-lg text-slate-100">Listado de Artículos</h3>
+                
+                <!-- Status Filter Tabs (Todos | Activos | Inhabilitados) -->
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+                    <button type="button" onclick="setProductStatusFilter('all')" id="p-filter-btn-all" class="p-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-lime-400 border border-slate-800">
+                        Todos (<span id="count-all-products">{{ $products->count() }}</span>)
+                    </button>
+                    <button type="button" onclick="setProductStatusFilter('active')" id="p-filter-btn-active" class="p-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200">
+                        Activos (<span id="count-active-products">{{ $products->where('is_available', 1)->count() }}</span>)
+                    </button>
+                    <button type="button" onclick="setProductStatusFilter('disabled')" id="p-filter-btn-disabled" class="p-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200">
+                        Inhabilitados (<span id="count-disabled-products">{{ $products->where('is_available', 0)->count() }}</span>)
+                    </button>
+                </div>
+            </div>
+
+            <div class="relative w-full sm:w-64">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                <input type="text" id="product_search_input" oninput="onProductSearchInput()" placeholder="Buscar por producto o categoría..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+            </div>
         </div>
         
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
+            <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
                 <thead>
-                    <tr class="bg-slate-950/40 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
-                        <th class="p-4 pl-6">Producto</th>
-                        <th class="p-4">Categoría</th>
-                        <th class="p-4 text-right">Costo unitario</th>
-                        <th class="p-4 text-right">Precio venta</th>
-                        <th class="p-4 text-right">Margen ganancia</th>
-                        <th class="p-4 text-center">Stock actual</th>
-                        <th class="p-4 text-right pr-6 w-44">Acciones</th>
+                    <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
+                        <th class="p-4 pl-6 text-left">Producto</th>
+                        <th class="p-4 text-center">Categoría</th>
+                        <th class="p-4 text-center">Costo Unitario</th>
+                        <th class="p-4 text-center">Precio Venta</th>
+                        <th class="p-4 text-center">Margen Ganancia</th>
+                        <th class="p-4 text-center">Stock Actual</th>
+                        <th class="p-4 text-center pr-6">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-850/50">
+                <tbody id="products_table_body" class="divide-y divide-slate-850/50">
                     @forelse($products as $p)
                         @php
                             $profit = $p->price - $p->cost_price;
                             $marginPct = $p->price > 0 ? ($profit / $p->price) * 100 : 0;
                             $isLow = $p->stock_quantity <= $p->min_stock;
                         @endphp
-                        <tr class="hover:bg-slate-900/20 text-slate-200">
-                            <td class="p-4 pl-6 flex items-center gap-3">
-                                <img src="{{ $p->image_url ? asset($p->image_url) : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop' }}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
-                                <div>
-                                    <span class="block font-bold text-slate-100">{{ $p->name }}</span>
-                                    <span class="block text-[10px] text-slate-550 truncate max-w-xs">{{ $p->description ?? 'Sin descripción.' }}</span>
+                        <tr id="product_row_{{ $p->id }}"
+                            data-product-row 
+                            data-is-available="{{ $p->is_available ? '1' : '0' }}"
+                            data-name="{{ strtolower($p->name) }}" 
+                            data-category="{{ strtolower($p->category->name ?? '') }}"
+                            class="hover:bg-slate-900/20 text-slate-200 transition-colors">
+                            <td class="p-4 pl-6">
+                                <div class="flex items-center gap-3">
+                                    <img src="{{ $p->image_url ? asset($p->image_url) : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop' }}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
+                                    <div>
+                                        <div class="flex items-center gap-2" id="product_title_badge_{{ $p->id }}">
+                                            <span class="block font-bold text-slate-100">{{ $p->name }}</span>
+                                            @if(!$p->is_available)
+                                                <span class="px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold uppercase tracking-wider disabled-tag">x</span>
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="p-4">
-                                <span class="px-2 py-0.5 bg-slate-950/60 text-slate-400 border border-slate-850/50 rounded-md font-semibold text-[10px]">
+                            <td class="p-4 text-center">
+                                <span class="px-2.5 py-1 bg-slate-950/80 text-slate-300 border border-slate-850 rounded-lg font-semibold text-[10px]">
                                     {{ $p->category->name }}
                                 </span>
                             </td>
-                            <td class="p-4 text-right font-mono text-slate-300">${{ number_format($p->cost_price, 2) }}</td>
-                            <td class="p-4 text-right font-mono text-lime-400 font-bold">${{ number_format($p->price, 2) }}</td>
-                            <td class="p-4 text-right font-mono text-emerald-400 font-semibold">
-                                +${{ number_format($profit, 2) }} <span class="text-[10px] text-slate-550">({{ number_format($marginPct, 0) }}%)</span>
+                            <td class="p-4 text-center font-mono text-slate-300">${{ number_format($p->cost_price, 2) }}</td>
+                            <td class="p-4 text-center font-mono text-lime-400 font-bold">${{ number_format($p->price, 2) }}</td>
+                            <td class="p-4 text-center font-mono text-emerald-400 font-semibold">
+                                +${{ number_format($profit, 2) }} <span class="text-[10px] text-slate-500">({{ number_format($marginPct, 0) }}%)</span>
                             </td>
-                            <td class="p-4 text-center font-mono">
-                                <span class="px-2 py-0.5 rounded-md font-bold {{ $isLow ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-slate-950/50 text-slate-200' }}">
+                            <td class="p-4 text-center font-mono" id="product_stock_cell_{{ $p->id }}">
+                                <span class="px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block {{ $isLow ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-950/80 text-slate-200 border border-slate-850' }}">
                                     {{ $p->stock_quantity }}
                                 </span>
                             </td>
-                            <td class="p-4 text-right pr-6">
-                                <div class="flex items-center justify-end gap-2.5">
-                                    <button onclick="openRestockModal({{ $p->id }}, '{{ $p->name }}')" class="px-2 py-1 bg-slate-950 hover:bg-slate-850 border border-slate-800 rounded-lg text-[9px] font-bold text-slate-300 hover:text-slate-100 transition-colors uppercase">
-                                        + Stock
+                            <td class="p-4 text-center pr-6">
+                                <div class="flex items-center justify-center gap-2" id="product_actions_{{ $p->id }}">
+                                    <!-- Stock Button (Green) -->
+                                    <button onclick="openRestockModal({{ $p->id }}, '{{ addslashes($p->name) }}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                                        +Stock
                                     </button>
-                                    <button 
-                                        onclick="openEditModal({{ json_encode($p) }})" 
-                                        class="p-1 text-lime-450 hover:text-lime-350 transition-colors"
-                                        title="Editar">
-                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+
+                                    <!-- Edit Button (Yellow/Amber) -->
+                                    <button onclick="openEditModal({{ json_encode($p) }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
-                                    <form action="{{ route('tienda.delete_product', $p->id) }}" method="POST" class="inline m-0" onsubmit="return confirm('¿Estás seguro de eliminar este producto?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="p-1.5 text-rose-450 hover:text-rose-350 transition-colors" title="Eliminar">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
+
+                                    <!-- Toggle Availability (Inhabilitar / Habilitar) -->
+                                    <div id="product_toggle_btn_container_{{ $p->id }}" class="inline-block">
+                                        @if($p->is_available)
+                                            <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
+                                                <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        @else
+                                            <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', false)" class="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm" title="Habilitar Producto">
+                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -135,14 +173,35 @@
                             </td>
                         </tr>
                     @endforelse
+
+                    <tr id="no_products_search_row" class="hidden">
+                        <td colspan="7" class="p-10 text-center text-slate-500">
+                            <i data-lucide="package-search" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+                            No se encontraron productos que coincidan con la búsqueda.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination Controls Footer -->
+        <div id="product_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+            <span id="product_pagination_info">Mostrando productos...</span>
+            <div class="flex items-center gap-2">
+                <button type="button" id="prev_page_btn" onclick="changeProductPage(-1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                    Anterior
+                </button>
+                <span id="page_number_display" class="font-bold text-slate-200 px-2">Página 1</span>
+                <button type="button" id="next_page_btn" onclick="changeProductPage(1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                    Siguiente
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- ================= MODAL: REGISTRAR CATEGORÍA ================= -->
-<div id="category-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
+<div id="category-modal" class="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Crear Categoría de Producto</h3>
@@ -150,7 +209,7 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form action="{{ route('tienda.store_category') }}" method="POST" class="space-y-4 text-xs font-semibold">
+        <form id="create-category-form" action="{{ route('tienda.store_category') }}" method="POST" onsubmit="submitCreateCategory(event)" class="space-y-4 text-xs font-semibold">
             @csrf
             <div>
                 <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Categoría</label>
@@ -164,7 +223,7 @@
                 <button type="button" onclick="toggleModal('category-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" id="create-category-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
                     Guardar Categoría
                 </button>
             </div>
@@ -173,7 +232,7 @@
 </div>
 
 <!-- ================= MODAL: REGISTRAR PRODUCTO ================= -->
-<div id="product-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
+<div id="product-modal" class="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Registrar Producto de Venta</h3>
@@ -181,7 +240,7 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form action="{{ route('tienda.store_product') }}" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs font-semibold">
+        <form id="create-product-form" action="{{ route('tienda.store_product') }}" method="POST" enctype="multipart/form-data" onsubmit="submitCreateProduct(event)" class="space-y-4 text-xs font-semibold">
             @csrf
             <div>
                 <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Categoría</label>
@@ -228,7 +287,7 @@
                 <button type="button" onclick="toggleModal('product-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" id="create-product-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
                     Registrar Producto
                 </button>
             </div>
@@ -237,7 +296,7 @@
 </div>
 
 <!-- ================= MODAL: EDITAR PRODUCTO ================= -->
-<div id="edit-product-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
+<div id="edit-product-modal" class="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6 animate-scale-up">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Editar Producto</h3>
@@ -245,7 +304,7 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form id="edit-form" action="" method="POST" enctype="multipart/form-data" class="space-y-4 text-xs font-semibold">
+        <form id="edit-form" action="" method="POST" enctype="multipart/form-data" onsubmit="submitEditProduct(event)" class="space-y-4 text-xs font-semibold">
             @csrf
             @method('PUT')
             <div>
@@ -290,7 +349,7 @@
                 <button type="button" onclick="toggleModal('edit-product-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" id="edit-product-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
                     Guardar Cambios
                 </button>
             </div>
@@ -299,7 +358,7 @@
 </div>
 
 <!-- ================= MODAL: AÑADIR STOCK (REABASTECER) ================= -->
-<div id="restock-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
+<div id="restock-modal" class="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Reabastecer Producto</h3>
@@ -307,7 +366,7 @@
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form id="restock-form" method="POST" class="space-y-4 text-xs font-semibold">
+        <form id="restock-form" method="POST" onsubmit="submitRestockProduct(event)" class="space-y-4 text-xs font-semibold">
             @csrf
             <div>
                 <label class="block text-slate-400 uppercase tracking-wider mb-1">Producto</label>
@@ -325,8 +384,44 @@
                 <button type="button" onclick="toggleModal('restock-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" id="restock-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
                     Registrar Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= MODAL: CONFIRMAR CAMBIO DE ESTADO (HABILITAR / INHABILITAR) ================= -->
+<div id="toggle-status-modal" class="fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 space-y-5 animate-scale-up">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2.5" id="toggle-status-modal-title">
+                <i id="toggle-status-modal-icon" data-lucide="power" class="w-5 h-5 text-rose-400"></i>
+                <span id="toggle-status-title-text">Confirmar Acción</span>
+            </h3>
+            <button type="button" onclick="toggleModal('toggle-status-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="space-y-3">
+            <p class="text-xs text-slate-300 leading-relaxed" id="toggle-status-modal-desc">
+                ¿Estás seguro de que deseas cambiar el estado de este producto?
+            </p>
+            <div class="p-3 bg-slate-950/60 border border-slate-850 rounded-xl flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full bg-lime-400" id="toggle-status-indicator"></div>
+                <span class="text-xs font-bold text-slate-200" id="toggle-status-product-name"></span>
+            </div>
+        </div>
+        <form id="toggle-status-form" action="" method="POST" onsubmit="submitToggleProductStatus(event)" class="pt-2">
+            @csrf
+            @method('DELETE')
+            <div class="flex gap-3">
+                <button type="button" onclick="toggleModal('toggle-status-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" id="toggle-status-submit-btn" class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg transition-all">
+                    Confirmar
                 </button>
             </div>
         </form>
@@ -370,5 +465,660 @@
         
         toggleModal('edit-product-modal');
     }
+
+    function confirmToggleProductStatus(productId, productName, isAvailable) {
+        const form = document.getElementById('toggle-status-form');
+        const titleText = document.getElementById('toggle-status-title-text');
+        const modalIcon = document.getElementById('toggle-status-modal-icon');
+        const desc = document.getElementById('toggle-status-modal-desc');
+        const prodNameSpan = document.getElementById('toggle-status-product-name');
+        const submitBtn = document.getElementById('toggle-status-submit-btn');
+        const indicator = document.getElementById('toggle-status-indicator');
+
+        form.action = `/tienda/productos/${productId}`;
+        prodNameSpan.textContent = productName;
+
+        if (isAvailable) {
+            titleText.textContent = 'Inhabilitar Producto';
+            modalIcon.setAttribute('data-lucide', 'power');
+            modalIcon.className = 'w-5 h-5 text-rose-400';
+            desc.textContent = '¿Estás seguro de que deseas inhabilitar este producto? Dejará de aparecer en la terminal de ventas (POS), pero toda su información e historial de ventas se conservarán intactos.';
+            submitBtn.textContent = 'Sí, Inhabilitar';
+            submitBtn.className = 'flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg transition-all';
+            indicator.className = 'w-2 h-2 rounded-full bg-rose-400';
+        } else {
+            titleText.textContent = 'Habilitar Producto';
+            modalIcon.setAttribute('data-lucide', 'check-circle');
+            modalIcon.className = 'w-5 h-5 text-emerald-400';
+            desc.textContent = '¿Estás seguro de que deseas habilitar este producto? Volverá a estar disponible para la venta en la terminal POS.';
+            submitBtn.textContent = 'Sí, Habilitar';
+            submitBtn.className = 'flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all';
+            indicator.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+        toggleModal('toggle-status-modal');
+    }
+
+    function setBtnLoading(btn, isLoading, text = 'Procesando...') {
+        if (!btn) return;
+        if (isLoading) {
+            btn.disabled = true;
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.classList.add('opacity-80', 'cursor-wait');
+            btn.innerHTML = `
+                <span class="inline-flex items-center justify-center gap-2 animate-pulse">
+                    <svg class="animate-spin h-3.5 w-3.5 text-current shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>${text}</span>
+                </span>
+            `;
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('opacity-80', 'cursor-wait');
+            if (btn.dataset.originalHtml) {
+                btn.innerHTML = btn.dataset.originalHtml;
+            }
+        }
+    }
+
+    async function submitCreateCategory(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('create-category-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Guardando categoría...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Dynamically append new option to category select dropdowns
+                const categorySelects = document.querySelectorAll('select[name="category_id"]');
+                categorySelects.forEach(select => {
+                    const option = document.createElement('option');
+                    option.value = data.category.id;
+                    option.textContent = data.category.name;
+                    option.selected = true;
+                    select.appendChild(option);
+                });
+
+                // Reset form
+                form.reset();
+
+                // Close modal
+                toggleModal('category-modal');
+
+                // Show auto-dismissing toast notification
+                showProductToast(data.message, 'success');
+            } else {
+                const errMsg = data.message || 'Error al validar los datos de la categoría.';
+                showProductToast(errMsg, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showProductToast('Ocurrió un error al intentar crear la categoría.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    async function submitCreateProduct(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('create-product-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Registrando producto...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const p = data.product;
+                const profit = p.price - p.cost_price;
+                const marginPct = p.price > 0 ? (profit / p.price) * 100 : 0;
+                const isLow = p.stock_quantity <= p.min_stock;
+                const imgUrl = p.image_url ? `/${p.image_url}` : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop';
+                const catName = p.category ? p.category.name : '';
+
+                // Prepend new row to table
+                const tbody = document.getElementById('products_table_body');
+                if (tbody) {
+                    const tr = document.createElement('tr');
+                    tr.id = `product_row_${p.id}`;
+                    tr.setAttribute('data-product-row', '');
+                    tr.setAttribute('data-is-available', p.is_available ? '1' : '0');
+                    tr.setAttribute('data-name', (p.name || '').toLowerCase());
+                    tr.setAttribute('data-category', (catName || '').toLowerCase());
+                    tr.className = 'hover:bg-slate-900/20 text-slate-200 transition-colors';
+
+                    const safeName = (p.name || '').replace(/'/g, "\\'");
+
+                    tr.innerHTML = `
+                        <td class="p-4 pl-6">
+                            <div class="flex items-center gap-3">
+                                <img src="${imgUrl}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
+                                <div>
+                                    <div class="flex items-center gap-2" id="product_title_badge_${p.id}">
+                                        <span class="block font-bold text-slate-100">${p.name}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-1 bg-slate-950/80 text-slate-300 border border-slate-850 rounded-lg font-semibold text-[10px]">
+                                ${catName}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center font-mono text-slate-300">$${parseFloat(p.cost_price).toFixed(2)}</td>
+                        <td class="p-4 text-center font-mono text-lime-400 font-bold">$${parseFloat(p.price).toFixed(2)}</td>
+                        <td class="p-4 text-center font-mono text-emerald-400 font-semibold">
+                            +$${profit.toFixed(2)} <span class="text-[10px] text-slate-500">(${marginPct.toFixed(0)}%)</span>
+                        </td>
+                        <td class="p-4 text-center font-mono">
+                            <span class="px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block ${isLow ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-950/80 text-slate-200 border border-slate-850'}">
+                                ${p.stock_quantity}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center pr-6">
+                            <div class="flex items-center justify-center gap-2" id="product_actions_${p.id}">
+                                <button onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                    <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                                    +Stock
+                                </button>
+                                <button onclick='openEditModal(${JSON.stringify(p)})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <div id="product_toggle_btn_container_${p.id}" class="inline-block">
+                                    <button type="button" onclick="confirmToggleProductStatus(${p.id}, '${safeName}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
+                                        <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+
+                    tbody.prepend(tr);
+                }
+
+                // Reset form
+                form.reset();
+
+                // Close modal
+                toggleModal('product-modal');
+
+                // Update counters and page
+                updateTabCounters();
+                renderProductPage();
+
+                // Toast notification
+                showProductToast(data.message, 'success');
+            } else {
+                const errMsg = data.message || 'Error al registrar el producto.';
+                showProductToast(errMsg, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showProductToast('Ocurrió un error al intentar registrar el producto.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    async function submitRestockProduct(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('restock-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Reabasteciendo...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const productId = data.product_id;
+                const newStock = data.new_stock;
+                const minStock = data.min_stock;
+                const isLow = newStock <= minStock;
+
+                // Update stock cell in table dynamically
+                const stockCell = document.getElementById(`product_stock_cell_${productId}`);
+                if (stockCell) {
+                    const badgeClass = isLow 
+                        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' 
+                        : 'bg-slate-950/80 text-slate-200 border border-slate-850';
+
+                    stockCell.innerHTML = `
+                        <span class="px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block ${badgeClass}">
+                            ${newStock}
+                        </span>
+                    `;
+                }
+
+                // Reset form
+                form.reset();
+
+                // Close modal
+                toggleModal('restock-modal');
+
+                // Toast notification
+                showProductToast(data.message, 'success');
+            } else {
+                const errMsg = data.message || 'Error al reabastecer stock.';
+                showProductToast(errMsg, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showProductToast('Ocurrió un error al intentar reabastecer stock.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    async function submitEditProduct(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('edit-product-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Guardando cambios...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const p = data.product;
+                const profit = p.price - p.cost_price;
+                const marginPct = p.price > 0 ? (profit / p.price) * 100 : 0;
+                const isLow = p.stock_quantity <= p.min_stock;
+                const imgUrl = p.image_url ? `/${p.image_url}` : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop';
+                const catName = p.category ? p.category.name : '';
+                const safeName = (p.name || '').replace(/'/g, "\\'");
+
+                // Update existing row HTML in DOM
+                const tr = document.getElementById(`product_row_${p.id}`);
+                if (tr) {
+                    tr.setAttribute('data-name', (p.name || '').toLowerCase());
+                    tr.setAttribute('data-category', (catName || '').toLowerCase());
+
+                    tr.innerHTML = `
+                        <td class="p-4 pl-6">
+                            <div class="flex items-center gap-3">
+                                <img src="${imgUrl}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
+                                <div>
+                                    <div class="flex items-center gap-2" id="product_title_badge_${p.id}">
+                                        <span class="block font-bold text-slate-100">${p.name}</span>
+                                        ${!p.is_available ? '<span class="px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold uppercase tracking-wider disabled-tag">Inhabilitado</span>' : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-4 text-center">
+                            <span class="px-2.5 py-1 bg-slate-950/80 text-slate-300 border border-slate-850 rounded-lg font-semibold text-[10px]">
+                                ${catName}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center font-mono text-slate-300">$${parseFloat(p.cost_price).toFixed(2)}</td>
+                        <td class="p-4 text-center font-mono text-lime-400 font-bold">$${parseFloat(p.price).toFixed(2)}</td>
+                        <td class="p-4 text-center font-mono text-emerald-400 font-semibold">
+                            +$${profit.toFixed(2)} <span class="text-[10px] text-slate-500">(${marginPct.toFixed(0)}%)</span>
+                        </td>
+                        <td class="p-4 text-center font-mono" id="product_stock_cell_${p.id}">
+                            <span class="px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block ${isLow ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-950/80 text-slate-200 border border-slate-850'}">
+                                ${p.stock_quantity}
+                            </span>
+                        </td>
+                        <td class="p-4 text-center pr-6">
+                            <div class="flex items-center justify-center gap-2" id="product_actions_${p.id}">
+                                <button onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                    <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                                    +Stock
+                                </button>
+                                <button onclick='openEditModal(${JSON.stringify(p)})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <div id="product_toggle_btn_container_${p.id}" class="inline-block">
+                                    ${p.is_available ? `
+                                        <button type="button" onclick="confirmToggleProductStatus(${p.id}, '${safeName}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
+                                            <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    ` : `
+                                        <button type="button" onclick="confirmToggleProductStatus(${p.id}, '${safeName}', false)" class="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm" title="Habilitar Producto">
+                                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    `}
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                }
+
+                // Reset form
+                form.reset();
+
+                // Close modal
+                toggleModal('edit-product-modal');
+
+                // Update counters & page
+                updateTabCounters();
+                renderProductPage();
+
+                // Toast notification
+                showProductToast(data.message, 'success');
+            } else {
+                const errMsg = data.message || 'Error al actualizar el producto.';
+                showProductToast(errMsg, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showProductToast('Ocurrió un error al intentar actualizar el producto.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    async function submitToggleProductStatus(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('toggle-status-submit-btn');
+        const isDisabling = submitBtn ? submitBtn.textContent.includes('Inhabilitar') : false;
+
+        setBtnLoading(submitBtn, true, isDisabling ? 'Inhabilitando...' : 'Habilitando...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const productId = data.product_id;
+                const isAvailable = data.is_available === 1;
+
+                // Update Row data attribute
+                const row = document.getElementById(`product_row_${productId}`);
+                if (row) {
+                    row.setAttribute('data-is-available', isAvailable ? '1' : '0');
+                }
+
+                // Update Badge next to title
+                const badgeContainer = document.getElementById(`product_title_badge_${productId}`);
+                if (badgeContainer) {
+                    const existingBadge = badgeContainer.querySelector('.disabled-tag');
+                    if (!isAvailable && !existingBadge) {
+                        const badge = document.createElement('span');
+                        badge.className = 'px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold uppercase tracking-wider disabled-tag';
+                        badge.textContent = 'Inhabilitado';
+                        badgeContainer.appendChild(badge);
+                    } else if (isAvailable && existingBadge) {
+                        existingBadge.remove();
+                    }
+                }
+
+                // Update Toggle Button Container Only (Preserving Edit & +Stock buttons!)
+                const toggleContainer = document.getElementById(`product_toggle_btn_container_${productId}`);
+                if (toggleContainer) {
+                    const productName = row ? (row.getAttribute('data-name') || 'Producto') : 'Producto';
+                    
+                    if (isAvailable) {
+                        toggleContainer.innerHTML = `
+                            <button type="button" onclick="confirmToggleProductStatus(${productId}, '${productName}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
+                                <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                            </button>
+                        `;
+                    } else {
+                        toggleContainer.innerHTML = `
+                            <button type="button" onclick="confirmToggleProductStatus(${productId}, '${productName}', false)" class="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm" title="Habilitar Producto">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                            </button>
+                        `;
+                    }
+                }
+
+                updateTabCounters();
+                renderProductPage();
+                showProductToast(data.message, isAvailable ? 'success' : 'warning');
+                toggleModal('toggle-status-modal');
+            } else {
+                showProductToast('Error al procesar la solicitud', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showProductToast('Ocurrió un error al intentar cambiar el estado.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    function updateTabCounters() {
+        const allRows = document.querySelectorAll('[data-product-row]');
+        let activeCount = 0;
+        let disabledCount = 0;
+
+        allRows.forEach(row => {
+            if (row.getAttribute('data-is-available') === '1') {
+                activeCount++;
+            } else {
+                disabledCount++;
+            }
+        });
+
+        const cAll = document.getElementById('count-all-products');
+        const cActive = document.getElementById('count-active-products');
+        const cDisabled = document.getElementById('count-disabled-products');
+
+        if (cAll) cAll.textContent = allRows.length;
+        if (cActive) cActive.textContent = activeCount;
+        if (cDisabled) cDisabled.textContent = disabledCount;
+    }
+
+    function showProductToast(message, type = 'success') {
+        let container = document.getElementById('product-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'product-toast-container';
+            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
+            document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        const isDanger = type === 'danger' || type === 'error';
+
+        let iconName = 'check-circle';
+        let borderColor = 'border-emerald-500/30';
+        let iconColor = 'text-emerald-400';
+        let glowColor = 'shadow-emerald-500/10';
+
+        if (isDanger) {
+            iconName = 'alert-circle';
+            borderColor = 'border-rose-500/30';
+            iconColor = 'text-rose-400';
+            glowColor = 'shadow-rose-500/10';
+        } else if (type === 'warning') {
+            iconName = 'alert-triangle';
+            borderColor = 'border-amber-500/30';
+            iconColor = 'text-amber-400';
+            glowColor = 'shadow-amber-500/10';
+        }
+
+        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
+
+        toast.innerHTML = `
+            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
+                <i data-lucide="${iconName}" class="w-4 h-4"></i>
+            </div>
+            <div class="flex-1 leading-tight">${message}</div>
+            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        `;
+
+        container.appendChild(toast);
+        if (window.lucide) window.lucide.createIcons();
+
+        setTimeout(() => {
+            toast.classList.remove('translate-x-10', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('translate-x-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3500);
+    }
+
+    // Pagination, Status Filtering & Live Search Logic (Max 10 products per page)
+    let currentProductPage = 1;
+    let currentProductStatusFilter = 'all';
+    const itemsPerPage = 10;
+
+    function setProductStatusFilter(status) {
+        currentProductStatusFilter = status;
+
+        const tabs = document.querySelectorAll('.p-status-tab-btn');
+        tabs.forEach(tab => {
+            tab.className = "p-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200";
+        });
+
+        const activeTab = document.getElementById('p-filter-btn-' + status);
+        if (activeTab) {
+            activeTab.className = "p-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-lime-400 border border-slate-800";
+        }
+
+        currentProductPage = 1;
+        renderProductPage();
+    }
+
+    function getMatchingProductRows() {
+        const query = (document.getElementById('product_search_input')?.value || '').toLowerCase().trim();
+        const rows = Array.from(document.querySelectorAll('[data-product-row]'));
+
+        return rows.filter(row => {
+            const isAvailable = row.getAttribute('data-is-available') === '1';
+            const name = row.getAttribute('data-name') || '';
+            const cat = row.getAttribute('data-category') || '';
+
+            let matchesStatus = true;
+            if (currentProductStatusFilter === 'active') {
+                matchesStatus = isAvailable;
+            } else if (currentProductStatusFilter === 'disabled') {
+                matchesStatus = !isAvailable;
+            }
+
+            let matchesSearch = true;
+            if (query) {
+                matchesSearch = name.includes(query) || cat.includes(query);
+            }
+
+            return matchesStatus && matchesSearch;
+        });
+    }
+
+    function renderProductPage() {
+        const allRows = Array.from(document.querySelectorAll('[data-product-row]'));
+        const matchingRows = getMatchingProductRows();
+        const totalMatching = matchingRows.length;
+        const totalPages = Math.ceil(totalMatching / itemsPerPage) || 1;
+
+        if (currentProductPage > totalPages) currentProductPage = totalPages;
+        if (currentProductPage < 1) currentProductPage = 1;
+
+        // Hide all product rows
+        allRows.forEach(row => row.classList.add('hidden'));
+
+        // Show slice for current page
+        const startIndex = (currentProductPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        const pageRows = matchingRows.slice(startIndex, endIndex);
+
+        pageRows.forEach(row => row.classList.remove('hidden'));
+
+        // Show/hide empty search state row
+        const emptySearchRow = document.getElementById('no_products_search_row');
+        if (emptySearchRow) {
+            if (totalMatching === 0 && allRows.length > 0) {
+                emptySearchRow.classList.remove('hidden');
+            } else {
+                emptySearchRow.classList.add('hidden');
+            }
+        }
+
+        // Update info & buttons
+        const infoSpan = document.getElementById('product_pagination_info');
+        if (infoSpan) {
+            const from = totalMatching === 0 ? 0 : startIndex + 1;
+            const to = Math.min(endIndex, totalMatching);
+            infoSpan.textContent = `Mostrando ${from} a ${to} de ${totalMatching} productos`;
+        }
+
+        const pageDisplay = document.getElementById('page_number_display');
+        if (pageDisplay) {
+            pageDisplay.textContent = `Página ${currentProductPage} de ${totalPages}`;
+        }
+
+        const prevBtn = document.getElementById('prev_page_btn');
+        if (prevBtn) prevBtn.disabled = (currentProductPage <= 1);
+
+        const nextBtn = document.getElementById('next_page_btn');
+        if (nextBtn) nextBtn.disabled = (currentProductPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function onProductSearchInput() {
+        currentProductPage = 1;
+        renderProductPage();
+    }
+
+    function changeProductPage(delta) {
+        currentProductPage += delta;
+        renderProductPage();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        renderProductPage();
+    });
 </script>
 @endsection
