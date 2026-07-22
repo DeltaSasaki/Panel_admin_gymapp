@@ -139,11 +139,11 @@
 </div>
 
 <!-- ================= MODAL: RECLUTAR ENTRENADOR ================= -->
-<div id="trainer-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto space-y-6">
+<div id="trainer-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-auto my-auto max-h-[90vh] overflow-y-auto space-y-6 animate-scale-up shadow-2xl">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Reclutar Nuevo Entrenador</h3>
-            <button onclick="toggleModal('trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+            <button type="button" onclick="toggleModal('trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -228,7 +228,7 @@
                 <textarea name="bio" rows="3" placeholder="Describe brevemente la trayectoria, perfil y enfoque del entrenador..." class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 resize-none"></textarea>
             </div>
 
-            <div class="pt-4 flex gap-3">
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
                 <button type="button" onclick="toggleModal('trainer-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors cursor-pointer">
                     Cancelar
                 </button>
@@ -241,11 +241,11 @@
 </div>
 
 <!-- ================= MODAL: EDITAR ENTRENADOR ================= -->
-<div id="edit-trainer-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto space-y-6">
+<div id="edit-trainer-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-auto my-auto max-h-[90vh] overflow-y-auto space-y-6 animate-scale-up shadow-2xl">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Editar Entrenador</h3>
-            <button onclick="toggleModal('edit-trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+            <button type="button" onclick="toggleModal('edit-trainer-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -331,7 +331,7 @@
                 <textarea name="bio" id="edit-bio" rows="3" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 resize-none"></textarea>
             </div>
 
-            <div class="pt-4 flex gap-3">
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
                 <button type="button" onclick="toggleModal('edit-trainer-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors cursor-pointer">
                     Cancelar
                 </button>
@@ -344,7 +344,7 @@
 </div>
 
 <!-- ================= MODAL: DETALLES DE ENTRENADOR ================= -->
-<div id="details-trainer-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden animate-fade-in">
+<div id="details-trainer-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden animate-fade-in">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto space-y-6">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
@@ -423,7 +423,20 @@
 <script>
     function toggleModal(modalId) {
         const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        const isOpening = modal.classList.contains('hidden');
         modal.classList.toggle('hidden');
+
+        if (isOpening) {
+            document.body.classList.add('overflow-hidden');
+        } else {
+            document.body.classList.remove('overflow-hidden');
+        }
     }
 
     function openCreateModal() {

@@ -18,7 +18,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/', function () {
         return redirect()->route('dashboard');
     });
-    
+
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
 
     // Clientes routes
@@ -34,6 +34,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/rutinas', [AdminController::class, 'rutinas'])->name('rutinas.index');
     Route::get('/rutinas/crear', [AdminController::class, 'crearRutina'])->name('rutinas.crear');
     Route::post('/rutinas', [AdminController::class, 'storeRutina'])->name('rutinas.store');
+    Route::put('/rutinas/{id}', [AdminController::class, 'updateRutina'])->name('rutinas.update_info');
     Route::get('/rutinas/{id}/ejercicios', [AdminController::class, 'editEjercicios'])->name('rutinas.ejercicios');
     Route::post('/rutinas/{id}/ejercicios', [AdminController::class, 'addEjercicio'])->name('rutinas.add_ejercicio');
     Route::post('/rutinas/{id}/ejercicios/{routine_exercise_id}/update', [AdminController::class, 'updateEjercicio'])->name('rutinas.update_ejercicio');
@@ -53,6 +54,8 @@ Route::middleware(['auth'])->group(function () {
     // Finanzas & Membresías routes (restricted to admin/superadmin in controller constructor)
     Route::get('/finanzas', [FinanceController::class, 'index'])->name('finanzas.index');
     Route::post('/finanzas/planes', [FinanceController::class, 'storePlan'])->name('finanzas.store_plan');
+    Route::put('/finanzas/planes/{id}', [FinanceController::class, 'updatePlan'])->name('finanzas.update_plan');
+    Route::post('/finanzas/planes/{id}/toggle', [FinanceController::class, 'togglePlan'])->name('finanzas.toggle_plan');
     Route::post('/finanzas/pagos', [FinanceController::class, 'recordPayment'])->name('finanzas.record_payment');
     Route::post('/finanzas/renovar', [FinanceController::class, 'renewMembership'])->name('finanzas.renew_membership');
     Route::post('/finanzas/promos', [FinanceController::class, 'storePromoCode'])->name('finanzas.store_promo');
@@ -78,7 +81,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/equipamiento/{id}', [CatalogController::class, 'deleteEquipment'])->name('catalogos.delete_equipment');
     Route::get('/ingredientes', [CatalogController::class, 'ingredients'])->name('catalogos.ingredients');
     Route::post('/ingredientes', [CatalogController::class, 'storeIngredient'])->name('catalogos.store_ingredient');
-    
+
     Route::get('/ejercicios', [CatalogController::class, 'exercises'])->name('catalogos.exercises');
     Route::post('/ejercicios', [CatalogController::class, 'storeExercise'])->name('catalogos.store_exercise');
     Route::put('/ejercicios/{id}', [CatalogController::class, 'updateExercise'])->name('catalogos.update_exercise');
@@ -99,15 +102,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notificaciones/read-all', [AdminController::class, 'markAllAsRead'])->name('notificaciones.read_all');
 
     // Ruta de prueba temporal para generar notificaciones
-    Route::get('/generar-notificacion-prueba', function() {
+    Route::get('/generar-notificacion-prueba', function () {
         $user = auth()->user();
         if (!$user) {
             return "Debes iniciar sesión primero.";
         }
-        
+
         $roleLabel = ($user->role === 'superadmin') ? 'SuperAdmin' : (($user->role === 'admin') ? 'Administrador' : 'Entrenador');
-        $title = ($user->role === 'superadmin') 
-            ? 'Nueva Sucursal Registrada' 
+        $title = ($user->role === 'superadmin')
+            ? 'Nueva Sucursal Registrada'
             : (($user->role === 'admin') ? 'Recordatorio: Membresía por vencer' : 'Nueva Rutina Asignada');
         $body = ($user->role === 'superadmin')
             ? 'El gimnasio "Iron Muscle S.A." ha registrado una nueva sucursal en Barcelona y espera aprobación.'
@@ -131,7 +134,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/staff/{id}', [StaffController::class, 'update'])->name('staff.update');
     Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->name('staff.destroy');
     Route::post('/staff/{id}/toggle', [StaffController::class, 'toggleStatus'])->name('staff.toggle_status');
-    
+
     // Superadmin context switcher route
     Route::post('/superadmin/switch-gym', [AuthController::class, 'switchGym'])->name('superadmin.switch_gym');
 

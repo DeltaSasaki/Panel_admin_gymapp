@@ -333,10 +333,22 @@ class AdminController extends Controller
         $request->validate([
             'routine_id' => 'required|exists:workout_routines,id',
             'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
+
+        $routine = WorkoutRoutine::findOrFail($request->routine_id);
 
         $trainer = Trainer::where('user_id', auth()->user()->id)->first();
         $trainerId = $trainer ? $trainer->id : null;
+
+        $startDate = Carbon::parse($request->start_date);
+        if ($request->filled('end_date')) {
+            $endDate = Carbon::parse($request->end_date);
+        } elseif ($routine->duration_weeks) {
+            $endDate = $startDate->copy()->addWeeks((int)$routine->duration_weeks);
+        } else {
+            $endDate = null;
+        }
 
         // Deactivate existing assignments
         UserAssignedRoutine::where('user_id', $id)->update(['is_active' => 0]);
@@ -346,7 +358,8 @@ class AdminController extends Controller
             'user_id' => $id,
             'routine_id' => $request->routine_id,
             'assigned_by' => $trainerId,
-            'start_date' => $request->start_date,
+            'start_date' => $startDate->toDateString(),
+            'end_date' => $endDate ? $endDate->toDateString() : null,
             'is_active' => 1,
         ]);
 
@@ -455,6 +468,65 @@ class AdminController extends Controller
         ]);
 
         return redirect()->route('rutinas.index')->with('success', 'Plan de rutina creado con éxito.');
+    }
+
+    /**
+     * Update a workout routine template information.
+     */
+    public function updateRutina(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'goal_type' => 'required|in:lose_weight,gain_muscle,gain_weight,maintain,improve_endurance,improve_flexibility',
+            'bmi_category' => 'required|in:all,underweight,normal,overweight,obese',
+            'difficulty' => 'required|in:beginner,intermediate,advanced',
+            'duration_weeks' => 'required|integer|min:1',
+            'days_per_week' => 'required|integer|min:1|max:7',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $routine = WorkoutRoutine::where('gym_id', $gymId)->findOrFail($id);
+
+        $routine->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'bmi_category' => $request->bmi_category,
+            'difficulty' => $request->difficulty,
+            'duration_weeks' => $request->duration_weeks,
+            'days_per_week' => $request->days_per_week,
+            'requires_gym' => $request->has('requires_gym') ? 1 : 0,
+            'is_active' => $request->has('is_active') ? 1 : 0,
+        ]);
+
+        // Sync days if days_per_week increased or decreased
+        $currentDaysCount = $routine->days()->count();
+        if ($routine->days_per_week > $currentDaysCount) {
+            for ($i = $currentDaysCount + 1; $i <= $routine->days_per_week; $i++) {
+                RoutineDay::create([
+                    'routine_id' => $routine->id,
+                    'day_number' => $i,
+                    'day_name' => "Día $i: Entrenamiento",
+                    'focus_area' => 'Fuerza General'
+                ]);
+            }
+        } elseif ($routine->days_per_week < $currentDaysCount) {
+            $routine->days()->where('day_number', '>', $routine->days_per_week)->delete();
+        }
+
+        $message = 'Información de la rutina actualizada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $routine->load('days.exercises.exercise');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'routine' => $routine
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -584,7 +656,7 @@ class AdminController extends Controller
 
         $maxOrder = RoutineExercise::where('routine_day_id', $day->id)->max('order_index') ?? 0;
 
-        RoutineExercise::create([
+        $routineExercise = RoutineExercise::create([
             'routine_day_id' => $day->id,
             'exercise_id' => $request->exercise_id,
             'sets' => $request->sets,
@@ -594,7 +666,18 @@ class AdminController extends Controller
             'notes' => $request->notes,
         ]);
 
-        return redirect()->back()->with('success', 'Ejercicio añadido exitosamente.');
+        $message = 'Ejercicio añadido exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $routineExercise->load('exercise');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'routine_exercise' => $routineExercise
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -617,7 +700,18 @@ class AdminController extends Controller
             'notes' => $request->notes,
         ]);
 
-        return redirect()->back()->with('success', 'Ejercicio actualizado exitosamente.');
+        $message = 'Ejercicio actualizado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $ex->load('exercise');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'routine_exercise' => $ex
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -628,7 +722,16 @@ class AdminController extends Controller
         $ex = RoutineExercise::findOrFail($routine_exercise_id);
         $ex->delete();
 
-        return redirect()->back()->with('success', 'Ejercicio removido del día.');
+        $message = 'Ejercicio removido del día.';
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -639,10 +742,22 @@ class AdminController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'start_date' => 'required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
+
+        $routine = WorkoutRoutine::findOrFail($routine_id);
 
         $trainer = Trainer::where('user_id', auth()->user()->id)->first();
         $trainerId = $trainer ? $trainer->id : null;
+
+        $startDate = Carbon::parse($request->start_date);
+        if ($request->filled('end_date')) {
+            $endDate = Carbon::parse($request->end_date);
+        } elseif ($routine->duration_weeks) {
+            $endDate = $startDate->copy()->addWeeks((int)$routine->duration_weeks);
+        } else {
+            $endDate = null;
+        }
 
         UserAssignedRoutine::where('user_id', $request->user_id)->update(['is_active' => 0]);
 
@@ -650,11 +765,22 @@ class AdminController extends Controller
             'user_id' => $request->user_id,
             'routine_id' => $routine_id,
             'assigned_by' => $trainerId,
-            'start_date' => $request->start_date,
+            'start_date' => $startDate->toDateString(),
+            'end_date' => $endDate ? $endDate->toDateString() : null,
             'is_active' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Rutina asignada exitosamente.');
+        $message = 'Rutina asignada exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'routine_id' => $routine_id,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -680,7 +806,19 @@ class AdminController extends Controller
             'is_active' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Plan de nutrición asignado exitosamente.');
+        $message = 'Plan de nutrición asignado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $activeAssignmentsCount = UserMealPlan::where('meal_plan_id', $meal_plan_id)->where('is_active', 1)->count();
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'meal_plan_id' => $meal_plan_id,
+                'active_assignments_count' => $activeAssignmentsCount
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

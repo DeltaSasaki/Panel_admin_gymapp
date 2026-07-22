@@ -41,4 +41,57 @@ class MealPlan extends Model
     {
         return $this->belongsTo(Gym::class, 'gym_id');
     }
+
+    /**
+     * Calculate total macros (protein, carbs, fat) and percentage distribution
+     * across all meals in all days of this meal plan.
+     */
+    public function getMacroTotals()
+    {
+        $protein = 0;
+        $carbs = 0;
+        $fat = 0;
+
+        foreach ($this->days as $day) {
+            foreach (['breakfast', 'snack1', 'lunch', 'snack2', 'dinner'] as $slot) {
+                $recipe = $day->$slot;
+                if ($recipe) {
+                    $protein += (float) ($recipe->protein_g ?? 0);
+                    $carbs += (float) ($recipe->carbs_g ?? 0);
+                    $fat += (float) ($recipe->fat_g ?? 0);
+                }
+            }
+        }
+
+        $proteinKcal = $protein * 4;
+        $carbKcal = $carbs * 4;
+        $fatKcal = $fat * 9;
+        $totalKcal = $proteinKcal + $carbKcal + $fatKcal;
+
+        if ($totalKcal > 0) {
+            $pPct = (int) round(($proteinKcal / $totalKcal) * 100);
+            $cPct = (int) round(($carbKcal / $totalKcal) * 100);
+            $fPct = (int) round(($fatKcal / $totalKcal) * 100);
+
+            // Ensure percentages sum to 100%
+            $sumPct = $pPct + $cPct + $fPct;
+            if ($sumPct !== 100 && $sumPct > 0) {
+                $fPct = 100 - ($pPct + $cPct);
+            }
+        } else {
+            $pPct = 0;
+            $cPct = 0;
+            $fPct = 0;
+        }
+
+        return [
+            'protein' => (int) round($protein),
+            'carbs'   => (int) round($carbs),
+            'fat'     => (int) round($fat),
+            'pPct'    => $pPct,
+            'cPct'    => $cPct,
+            'fPct'    => $fPct,
+            'totalKcal' => (int) round($totalKcal),
+        ];
+    }
 }

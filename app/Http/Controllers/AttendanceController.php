@@ -142,7 +142,6 @@ class AttendanceController extends Controller
         $gymId = $this->getActiveGymId();
 
         $clientsQuery = User::where('role', 'member')
-            ->where('is_active', 1)
             ->with('profile');
 
         if ($gymId !== 'all') {

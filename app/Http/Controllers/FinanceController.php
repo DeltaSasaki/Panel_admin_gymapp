@@ -124,6 +124,98 @@ class FinanceController extends Controller
     }
 
     /**
+     * Update existing membership plan.
+     */
+    public function updatePlan(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string',
+            'duration_days' => 'required|integer|min:1',
+            'price' => 'required|numeric|min:0',
+            'currency' => 'required|string|max:5',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $query = MembershipPlan::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+        $plan = $query->findOrFail($id);
+        $oldData = $plan->toArray();
+
+        $plan->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'duration_days' => $request->duration_days,
+            'price' => $request->price,
+            'currency' => $request->currency,
+            'includes_trainer' => $request->has('includes_trainer') ? 1 : 0,
+        ]);
+
+        AdminAuditLog::logAction(
+            'ACTUALIZACION',
+            'Plan de Membresía',
+            "Plan '{$plan->name}' actualizado exitosamente.",
+            $oldData,
+            $plan->toArray(),
+            $plan->gym_id
+        );
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'message' => "Plan de membresía '{$plan->name}' actualizado exitosamente.",
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Plan de membresía actualizado exitosamente.');
+    }
+
+    /**
+     * Toggle active status of a membership plan.
+     */
+    public function togglePlan(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $query = MembershipPlan::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+
+        $plan = $query->findOrFail($id);
+        $oldState = $plan->toArray();
+        $newStatus = $plan->is_active ? 0 : 1;
+        $plan->update(['is_active' => $newStatus]);
+
+        $actionLabel = $newStatus ? 'HABILITADO' : 'INHABILITADO';
+        $descLabel = $newStatus ? 'activado' : 'desactivado';
+
+        AdminAuditLog::logAction(
+            $actionLabel,
+            'Plan de Membresía',
+            "Plan '{$plan->name}' {$descLabel} por el administrador.",
+            $oldState,
+            $plan->toArray(),
+            $plan->gym_id
+        );
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'is_active' => $newStatus,
+                'message' => "Estado del plan '{$plan->name}' actualizado a " . ($newStatus ? 'Activo' : 'Inactivo') . "."
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Estado del plan de membresía actualizado.');
+    }
+
+    /**
      * Record payment for user membership.
      */
     public function recordPayment(Request $request)

@@ -93,8 +93,8 @@
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
-        /* Smooth transitions for light mode toggle */
-        *, *::before, *::after {
+        /* Scoped transitions for theme toggle & interactive elements */
+        body, button, a, input, select, textarea, .sidebar-link, .sidebar-group-box {
             transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
         /* Custom Scrollbars for Premium Aesthetic */
@@ -119,7 +119,7 @@
             scrollbar-color: #1e293b rgba(7, 10, 19, 0.7);
         }
 
-        /* GPU-Accelerated Fluid Micro-Animations */
+        /* Optimized Micro-Animations for Low-Spec Hardware */
         @keyframes fadeInSlide {
             from {
                 opacity: 0;
@@ -133,12 +133,10 @@
 
         .animate-fade-in {
             animation: fadeInSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            will-change: transform, opacity;
         }
 
         .card-hover-effect {
             transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
-            will-change: transform;
         }
         .card-hover-effect:hover {
             transform: translateY(-2px);
@@ -165,14 +163,13 @@
             transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
 
-        /* Ultra-Smooth Sidebar Link Hover & Active States */
+        /* Sidebar Link Hover & Active States */
         .sidebar-link {
             transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
                         color 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
                         transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
                         border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
                         box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: transform;
         }
         .sidebar-link:hover:not(.active-nav-link) {
             transform: translateX(4px);
@@ -189,7 +186,6 @@
             transform: translateY(-8px) scale(0.96);
             pointer-events: none;
             transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            will-change: opacity, transform;
         }
         .dropdown-animate.open {
             opacity: 1;

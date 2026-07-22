@@ -210,7 +210,8 @@
     }
 
     function applyClientFilters() {
-        const query = (document.getElementById('client_search_input')?.value || '').toLowerCase().trim();
+        const rawQuery = (document.getElementById('client_search_input')?.value || '').toLowerCase().trim();
+        const cleanQuery = rawQuery.replace(/[^a-z0-9]/gi, '');
         const cards = document.querySelectorAll('[data-client-card]');
         let visibleCount = 0;
 
@@ -218,7 +219,8 @@
             const isActive = card.getAttribute('data-is-active') === '1';
             const hasRoutine = card.getAttribute('data-has-routine') === 'true';
             const name = (card.getAttribute('data-name') || '').toLowerCase();
-            const dni = (card.getAttribute('data-dni') || '').toLowerCase();
+            const rawDni = (card.getAttribute('data-dni') || '').toLowerCase();
+            const cleanDni = rawDni.replace(/[^a-z0-9]/gi, '');
             const email = (card.getAttribute('data-email') || '').toLowerCase();
 
             let matchesTab = false;
@@ -233,8 +235,11 @@
             }
 
             let matchesSearch = true;
-            if (query.length > 0) {
-                matchesSearch = name.includes(query) || dni.includes(query) || email.includes(query);
+            if (rawQuery.length > 0) {
+                matchesSearch = name.includes(rawQuery) || 
+                                rawDni.includes(rawQuery) || 
+                                (cleanQuery.length > 0 && cleanDni.includes(cleanQuery)) || 
+                                email.includes(rawQuery);
             }
 
             if (matchesTab && matchesSearch) {
@@ -252,9 +257,13 @@
             } else {
                 emptyMsg.classList.add('hidden');
             }
-        }
-        
         if (window.lucide) window.lucide.createIcons();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applyClientFilters);
+    } else {
+        applyClientFilters();
     }
 </script>
 @endsection
