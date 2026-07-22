@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\AdminAuditLog;
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -34,6 +36,7 @@ class AuthController extends Controller
             // Check if the user is a trainer, admin, or superadmin
             if (in_array($user->role, ['trainer', 'admin', 'superadmin'])) {
                 if (!$user->is_active) {
+                    AdminAuditLog::logAction('LOGIN_FAILED', 'users', $user->id, null, ['reason' => 'Cuenta desactivada', 'email' => $credentials['email']], $user->gym_id, $user->id);
                     Auth::logout();
                     return back()->withErrors([
                         'email' => 'Tu cuenta ha sido desactivada. Comunícate con soporte.',
@@ -45,11 +48,24 @@ class AuthController extends Controller
             }
 
             // Reject members/clients from accessing the trainer admin panel
+            AdminAuditLog::logAction('LOGIN_FAILED', 'users', $user->id, null, ['reason' => 'Intento de acceso por rol cliente', 'email' => $credentials['email']], $user->gym_id, $user->id);
             Auth::logout();
             return back()->withErrors([
                 'email' => 'Acceso restringido. Este panel es exclusivo para entrenadores y administradores.',
             ]);
         }
+
+        // Failed credentials
+        $targetUser = User::where('email', $credentials['email'])->first();
+        AdminAuditLog::logAction(
+            'LOGIN_FAILED', 
+            'users', 
+            $targetUser ? $targetUser->id : null, 
+            null, 
+            ['reason' => 'Contraseña incorrecta o usuario no encontrado', 'email' => $credentials['email']], 
+            $targetUser ? $targetUser->gym_id : null, 
+            $targetUser ? $targetUser->id : null
+        );
 
         return back()->withErrors([
             'email' => 'Las credenciales no coinciden con nuestros registros.',

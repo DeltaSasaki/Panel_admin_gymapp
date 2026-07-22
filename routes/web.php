@@ -93,6 +93,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Notificaciones routes
     Route::get('/api/notifications/unread', [AdminController::class, 'getUnreadNotifications'])->name('api.notifications.unread');
+    Route::get('/api/aforo', [AdminController::class, 'getAforoApi'])->name('api.aforo');
     Route::get('/notificaciones', [AdminController::class, 'notificationsHistory'])->name('notificaciones.index');
     Route::get('/notificaciones/{id}/read', [AdminController::class, 'readAndRedirect'])->name('notificaciones.read_and_redirect');
     Route::post('/notificaciones/read-all', [AdminController::class, 'markAllAsRead'])->name('notificaciones.read_all');
@@ -140,6 +141,16 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/superadmin/gyms/{id}', [\App\Http\Controllers\GymController::class, 'update'])->name('superadmin.gyms.update');
     Route::post('/superadmin/gyms/{id}/toggle', [\App\Http\Controllers\GymController::class, 'toggleStatus'])->name('superadmin.gyms.toggle');
     Route::delete('/superadmin/gyms/{id}', [\App\Http\Controllers\GymController::class, 'destroy'])->name('superadmin.gyms.destroy');
+
+    // Superadmin SaaS subscription plans routes
+    Route::get('/superadmin/planes', [\App\Http\Controllers\GymController::class, 'plansIndex'])->name('superadmin.plans.index');
+    Route::post('/superadmin/planes', [\App\Http\Controllers\GymController::class, 'plansStore'])->name('superadmin.plans.store');
+    Route::put('/superadmin/planes/{id}', [\App\Http\Controllers\GymController::class, 'plansUpdate'])->name('superadmin.plans.update');
+    Route::post('/superadmin/planes/{id}/toggle', [\App\Http\Controllers\GymController::class, 'plansToggle'])->name('superadmin.plans.toggle');
+    Route::delete('/superadmin/planes/{id}', [\App\Http\Controllers\GymController::class, 'plansDestroy'])->name('superadmin.plans.destroy');
+
+    // Superadmin audit logs route
+    Route::get('/superadmin/auditoria', [\App\Http\Controllers\GymController::class, 'auditLogsIndex'])->name('superadmin.audit.index');
 
     // Global search route
     Route::get('/search', [AdminController::class, 'globalSearch'])->name('global.search');

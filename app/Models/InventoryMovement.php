@@ -31,4 +31,9 @@ class InventoryMovement extends Model
     {
         return $this->belongsTo(User::class, 'performed_by');
     }
+
+    public function sale()
+    {
+        return $this->belongsTo(ProductSale::class, 'reference_id');
+    }
 }

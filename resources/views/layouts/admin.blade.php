@@ -13,6 +13,23 @@
             $activeGymLogo = $gymRecord->logo_url ?? null;
         }
     }
+
+    // Calculate real Aforo / Gym Capacity based on SaaS Plan max_users
+    if ($activeGymId === 'all') {
+        $aforoCurrentUsers = \App\Models\User::where('role', 'member')->count();
+        $allGymsList = \App\Models\Gym::with('plan')->get();
+        $aforoMaxUsers = 0;
+        foreach ($allGymsList as $g) {
+            $aforoMaxUsers += ($g->plan?->max_users ?? 50);
+        }
+    } else {
+        $aforoCurrentUsers = \App\Models\User::where('gym_id', $activeGymId)->where('role', 'member')->count();
+        $selectedGymForAforo = \App\Models\Gym::with('plan')->find($activeGymId);
+        $aforoMaxUsers = $selectedGymForAforo ? ($selectedGymForAforo->plan?->max_users ?? 50) : 50;
+    }
+
+    $aforoPercentage = $aforoMaxUsers > 0 ? round(($aforoCurrentUsers / $aforoMaxUsers) * 100, 1) : 0;
+    $aforoPctFormatted = (floor($aforoPercentage) == $aforoPercentage) ? (int)$aforoPercentage : $aforoPercentage;
 @endphp
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-950 text-slate-100">
@@ -450,6 +467,16 @@
                                         <i data-lucide="globe" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Gestionar Sucursales</span>
                                     </a>
+                                    <a href="{{ url('/superadmin/planes') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('superadmin/planes*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Planes de Suscripción</span>
+                                    </a>
+                                    <a href="{{ url('/superadmin/auditoria') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('superadmin/auditoria*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="shield-check" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Auditoría & Bitácora</span>
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -459,16 +486,42 @@
 
             <!-- Sidebar Footer (Pinned at Bottom) -->
             <div class="pt-6 border-t border-slate-800/60 space-y-4 shrink-0">
-                <!-- Gym Status Summary -->
-                <div class="bg-slate-950/40 rounded-xl p-3 text-xs border border-slate-800/50">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-slate-500 font-medium">Aforo del Gym</span>
-                        <span class="text-lime-400 font-bold">42%</span>
+                <!-- Gym Status Summary (Dynamic Capacity - Responsive & AJAX Enabled) -->
+                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                    @php
+                        $barGradient = 'from-lime-500 to-emerald-400';
+                        $textColor = 'text-lime-400';
+                        $badgeBg = 'bg-lime-500/10';
+                        $badgeBorder = 'border-lime-500/20';
+                        if ($aforoPercentage >= 90) {
+                            $barGradient = 'from-rose-500 to-red-500';
+                            $textColor = 'text-rose-400';
+                            $badgeBg = 'bg-rose-500/10';
+                            $badgeBorder = 'border-rose-500/20';
+                        } elseif ($aforoPercentage >= 75) {
+                            $barGradient = 'from-amber-500 to-yellow-400';
+                            $textColor = 'text-amber-400';
+                            $badgeBg = 'bg-amber-500/10';
+                            $badgeBorder = 'border-amber-500/20';
+                        }
+                    @endphp
+                    <div class="bg-slate-950/50 rounded-xl p-3 text-xs border border-slate-800/60 shadow-sm transition-all duration-300">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap sm:flex-nowrap">
+                            <span class="text-slate-400 font-medium text-[11px] flex items-center gap-1.5">
+                                <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-500"></i> Aforo del Gym
+                            </span>
+                            <span class="flex items-center gap-1.5 ml-auto">
+                                <span class="aforo-count-val text-slate-300 font-extrabold text-[11px] whitespace-nowrap tracking-tight">{{ $aforoCurrentUsers }}/{{ $aforoMaxUsers }}</span>
+                                <span class="aforo-pct-badge-val {{ $badgeBg }} {{ $textColor }} px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wide border {{ $badgeBorder }} whitespace-nowrap">
+                                    {{ $aforoPctFormatted }}%
+                                </span>
+                            </span>
+                        </div>
+                        <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-850">
+                            <div id="aforo-bar" class="aforo-bar-fill bg-gradient-to-r {{ $barGradient }} h-full rounded-full transition-all duration-700 ease-out" style="width: {{ min(100, max(2, $aforoPercentage)) }}%"></div>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                        <div class="bg-gradient-to-r from-lime-500 to-emerald-400 h-full rounded-full" style="width: 42%"></div>
-                    </div>
-                </div>
+                @endif
 
                 <!-- Action Links -->
                 <div class="flex flex-col gap-1">
@@ -786,6 +839,11 @@
             if (selectDesktop) selectDesktop.value = gymId;
             if (selectMobile) selectMobile.value = gymId;
 
+            // 1. Immediately update Aforo UI via AJAX with explicit gymId
+            if (typeof fetchAforoData === 'function') {
+                fetchAforoData(gymId);
+            }
+
             fetch('/superadmin/switch-gym', {
                 method: 'POST',
                 headers: {
@@ -798,11 +856,10 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    if (typeof window.loadUrl === 'function') {
-                        window.loadUrl(window.location.href, false);
-                    } else {
-                        window.location.reload();
+                    if (typeof fetchAforoData === 'function') {
+                        fetchAforoData(gymId);
                     }
+                    window.location.reload();
                 }
             })
             .catch(err => console.error('Error al cambiar sucursal:', err));
@@ -977,6 +1034,8 @@
                     const doc = parser.parseFromString(htmlText, 'text/html');
 
                     const newMain = doc.querySelector('main');
+                    const newModals = doc.querySelector('#pjax-modals-container');
+                    const modalsContainer = document.getElementById('pjax-modals-container');
                     const newTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : document.title;
 
                     if (!newMain || !mainContainer) {
@@ -990,6 +1049,9 @@
                     }
 
                     mainContainer.innerHTML = newMain.innerHTML;
+                    if (modalsContainer) {
+                        modalsContainer.innerHTML = newModals ? newModals.innerHTML : '';
+                    }
                     mainContainer.style.opacity = '1';
                     mainContainer.classList.remove('animate-fade-in');
                     void mainContainer.offsetWidth;
@@ -1087,7 +1149,58 @@
         })();
     </script>
 
-    @stack('modals')
+    <!-- Aforo Live AJAX Updater Script -->
+    <script>
+        async function fetchAforoData(overrideGymId = null) {
+            try {
+                let url = '/api/aforo';
+                if (overrideGymId) {
+                    url += '?gym_id=' + encodeURIComponent(overrideGymId);
+                } else {
+                    const selectDesktop = document.getElementById('gym_id');
+                    const selectMobile = document.getElementById('gym_id_mobile');
+                    const activeVal = selectDesktop ? selectDesktop.value : (selectMobile ? selectMobile.value : null);
+                    if (activeVal) {
+                        url += '?gym_id=' + encodeURIComponent(activeVal);
+                    }
+                }
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                
+                const countElements = document.querySelectorAll('.aforo-count-val');
+                const badgeElements = document.querySelectorAll('.aforo-pct-badge-val');
+                const barElements = document.querySelectorAll('.aforo-bar-fill');
+                
+                countElements.forEach(el => {
+                    el.textContent = data.count_text;
+                });
+
+                badgeElements.forEach(el => {
+                    el.textContent = data.pct_text;
+                    el.className = `aforo-pct-badge-val ${data.badge_bg_class} ${data.color_class} px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wide border ${data.badge_border_class} whitespace-nowrap`;
+                });
+                
+                barElements.forEach(el => {
+                    el.style.width = Math.min(100, Math.max(2, data.percentage)) + '%';
+                    el.className = `aforo-bar-fill bg-gradient-to-r ${data.gradient_class} h-full rounded-full transition-all duration-700 ease-out`;
+                });
+            } catch (err) {
+                console.error('Error actualizando aforo en vivo:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAforoData();
+            setInterval(fetchAforoData, 30000);
+        });
+    </script>
+
+    <div id="pjax-modals-container">
+        @stack('modals')
+    </div>
     @stack('scripts')
 </body>
 </html>

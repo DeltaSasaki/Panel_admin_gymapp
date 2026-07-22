@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Trainer;
+use App\Models\Gym;
 use App\Models\WorkoutRoutine;
 use App\Models\MealPlan;
 use App\Models\WorkoutSession;
@@ -996,6 +997,83 @@ class AdminController extends Controller
                 $errorText = 'Error al asignar entrenador: ' . $errorMessage;
             }
             return redirect()->back()->withErrors(['error' => $errorText]);
+        }
+    }
+
+    /**
+     * Get real-time gym capacity (Aforo) data for AJAX updates.
+     */
+    public function getAforoApi(Request $request)
+    {
+        try {
+            if ($request->has('gym_id') && !empty($request->input('gym_id'))) {
+                $activeGymId = $request->input('gym_id');
+            } else {
+                $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+            }
+
+            if ($activeGymId === 'all') {
+                $currentUsers = User::where('role', 'member')->count();
+                $allGyms = Gym::with('plan')->get();
+                $maxUsers = 0;
+                foreach ($allGyms as $g) {
+                    $maxUsers += ($g->plan?->max_users ?? 50);
+                }
+            } else {
+                $currentUsers = User::where('gym_id', $activeGymId)->where('role', 'member')->count();
+                $gym = Gym::with('plan')->find($activeGymId);
+                $maxUsers = ($gym && $gym->plan) ? ($gym->plan->max_users ?? 50) : 50;
+            }
+
+            $percentage = $maxUsers > 0 ? round(($currentUsers / $maxUsers) * 100, 1) : 0;
+            $pctFormatted = (floor($percentage) == $percentage) ? (int)$percentage : $percentage;
+
+            $colorClass = 'text-lime-400';
+            $badgeBgClass = 'bg-lime-500/10';
+            $badgeBorderClass = 'border-lime-500/20';
+            $gradientClass = 'from-lime-500 to-emerald-400';
+
+            if ($percentage >= 90) {
+                $colorClass = 'text-rose-400';
+                $badgeBgClass = 'bg-rose-500/10';
+                $badgeBorderClass = 'border-rose-500/20';
+                $gradientClass = 'from-rose-500 to-red-500';
+            } elseif ($percentage >= 75) {
+                $colorClass = 'text-amber-400';
+                $badgeBgClass = 'bg-amber-500/10';
+                $badgeBorderClass = 'border-amber-500/20';
+                $gradientClass = 'from-amber-500 to-yellow-400';
+            }
+
+            return response()->json([
+                'current' => $currentUsers,
+                'max' => $maxUsers,
+                'percentage' => $percentage,
+                'percentage_formatted' => $pctFormatted,
+                'count_text' => "{$currentUsers}/{$maxUsers}",
+                'pct_text' => "{$pctFormatted}%",
+                'text' => "{$currentUsers}/{$maxUsers} ({$pctFormatted}%)",
+                'color_class' => $colorClass,
+                'badge_bg_class' => $badgeBgClass,
+                'badge_border_class' => $badgeBorderClass,
+                'gradient_class' => $gradientClass,
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Aforo API error: ' . $e->getMessage());
+            return response()->json([
+                'error' => $e->getMessage(),
+                'current' => 0,
+                'max' => 50,
+                'percentage' => 0,
+                'percentage_formatted' => 0,
+                'count_text' => "0/50",
+                'pct_text' => "0%",
+                'text' => "0/50 (0%)",
+                'color_class' => 'text-lime-400',
+                'badge_bg_class' => 'bg-lime-500/10',
+                'badge_border_class' => 'border-lime-500/20',
+                'gradient_class' => 'from-lime-500 to-emerald-400',
+            ], 200);
         }
     }
 }

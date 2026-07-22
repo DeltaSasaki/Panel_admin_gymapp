@@ -98,17 +98,17 @@
                                         </span>
                                     @elseif($mov->movement_type === 'out')
                                         <span class="px-2.5 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-lg font-black text-[9px] uppercase tracking-wide">
-                                            Salida
+                                            {{ str_contains(strtolower($mov->reason ?? ''), 'venta') ? 'Venta POS' : 'Salida' }}
                                         </span>
                                     @else
-                                        <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg font-black text-[9px] uppercase tracking-wide">
+                                        <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-black text-[9px] uppercase tracking-wide">
                                             Ajuste
                                         </span>
                                     @endif
                                 </td>
                                 <td class="p-4 text-center font-mono font-bold text-slate-100">
-                                    <span class="px-2.5 py-1 bg-slate-950/80 border border-slate-850 rounded-lg font-mono font-bold">
-                                        +{{ $mov->quantity }}
+                                    <span class="px-2.5 py-1 bg-slate-950/80 border rounded-lg font-mono font-bold {{ $mov->movement_type === 'out' ? 'text-rose-400 border-rose-500/20 bg-rose-500/5' : 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' }}">
+                                        {{ $mov->movement_type === 'out' ? '-' : '+' }}{{ $mov->quantity }}
                                     </span>
                                 </td>
                                 <td class="p-4 text-slate-300 font-medium">

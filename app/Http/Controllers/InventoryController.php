@@ -221,9 +221,9 @@ class InventoryController extends Controller
         }
         $movements = $movementsQuery->get();
 
-        // Fetch audit log entries from admin_audit_logs table
+        // Fetch audit log entries from admin_audit_logs table (excluding raw sales to avoid duplicate movement entries)
         $auditLogsQuery = \App\Models\AdminAuditLog::with(['admin.profile'])
-            ->whereIn('table_name', ['inventory_products', 'product_categories', 'inventory_movements', 'product_sales']);
+            ->whereIn('table_name', ['inventory_products', 'product_categories']);
 
         if ($gymId !== 'all') {
             $auditLogsQuery->where(function($q) use ($gymId) {

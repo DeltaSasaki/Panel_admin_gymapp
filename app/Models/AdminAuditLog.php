@@ -11,7 +11,7 @@ class AdminAuditLog extends Model
 
     protected $table = 'admin_audit_logs';
 
-    public $timestamps = false;
+    public $timestamps = false; // Using custom createdAt column
 
     protected $fillable = [
         'gym_id',
@@ -27,8 +27,6 @@ class AdminAuditLog extends Model
     ];
 
     protected $casts = [
-        'old_data' => 'array',
-        'new_data' => 'array',
         'createdAt' => 'datetime',
     ];
 
@@ -43,30 +41,38 @@ class AdminAuditLog extends Model
     }
 
     /**
-     * Helper centralizado para registrar eventos de auditoría.
+     * Static helper to cleanly record audit log entries.
      */
-    public static function record(string $actionType, string $tableName, $recordId = null, $oldData = null, $newData = null, $gymId = null)
+    public static function logAction($actionType, $tableName, $recordId = null, $oldData = null, $newData = null, $gymId = null, $adminId = null)
     {
         try {
-            $user = auth()->user();
-            $adminId = $user ? $user->id : 1; // Fallback admin_id 1 si no hay sesión activa
-            $effectiveGymId = $gymId ?? ($user ? $user->gym_id : null);
+            $currentAdminId = $adminId ?: (auth()->check() ? auth()->id() : null);
+            if (!$currentAdminId) return;
 
-            return self::create([
-                'gym_id' => $effectiveGymId,
-                'admin_id' => $adminId,
-                'action_type' => strtoupper($actionType),
+            $currentGymId = $gymId !== null ? $gymId : (auth()->check() ? auth()->user()->gym_id : null);
+
+            self::create([
+                'gym_id' => $currentGymId,
+                'admin_id' => $currentAdminId,
+                'action_type' => $actionType,
                 'table_name' => $tableName,
                 'record_id' => $recordId ? (string) $recordId : null,
-                'old_data' => $oldData ? json_encode($oldData, JSON_UNESCAPED_UNICODE) : null,
-                'new_data' => $newData ? json_encode($newData, JSON_UNESCAPED_UNICODE) : null,
+                'old_data' => is_array($oldData) || is_object($oldData) ? json_encode($oldData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $oldData,
+                'new_data' => is_array($newData) || is_object($newData) ? json_encode($newData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $newData,
                 'ip_address' => request()->ip(),
-                'user_agent' => request()->header('User-Agent'),
+                'user_agent' => request()->userAgent(),
                 'createdAt' => now(),
             ]);
         } catch (\Throwable $e) {
-            \Log::error('Error registrando audit log: ' . $e->getMessage());
-            return null;
+            \Illuminate\Support\Facades\Log::error('Failed recording audit log: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Alias method for record / logAction.
+     */
+    public static function record($actionType, $tableName, $recordId = null, $oldData = null, $newData = null, $gymId = null, $adminId = null)
+    {
+        self::logAction($actionType, $tableName, $recordId, $oldData, $newData, $gymId, $adminId);
     }
 }
