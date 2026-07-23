@@ -45,10 +45,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/nutricion', [AdminController::class, 'nutricion'])->name('nutricion.index');
     Route::get('/nutricion/crear', [AdminController::class, 'crearNutricion'])->name('nutricion.crear');
     Route::post('/nutricion', [AdminController::class, 'storeNutricion'])->name('nutricion.store');
+    Route::put('/nutricion/{id}', [AdminController::class, 'updateNutricion'])->name('nutricion.update_info');
     Route::get('/nutricion/{id}/comidas', [AdminController::class, 'showComidas'])->name('nutricion.comidas');
     Route::post('/nutricion/{id}/comidas/add-day', [AdminController::class, 'addMealPlanDay'])->name('nutricion.add_meal_plan_day');
     Route::post('/nutricion/{id}/comidas/save', [AdminController::class, 'saveComidasDay'])->name('nutricion.save_comidas_day');
     Route::delete('/nutricion/{id}/comidas/{day_id}', [AdminController::class, 'deleteMealPlanDay'])->name('nutricion.delete_meal_plan_day');
+    Route::post('/nutricion/{id}/comidas/{day_id}/remove-meal', [AdminController::class, 'removeMealFromDay'])->name('nutricion.remove_meal');
     Route::post('/nutricion/{id}/assign', [AdminController::class, 'assignMealPlanToUser'])->name('nutricion.assign');
 
     // Finanzas & Membresías routes (restricted to admin/superadmin in controller constructor)

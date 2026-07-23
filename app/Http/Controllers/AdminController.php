@@ -606,6 +606,196 @@ class AdminController extends Controller
     }
 
     /**
+     * Update a nutrition meal plan template information.
+     */
+    public function updateNutricion(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'goal_type' => 'required|in:lose_weight,gain_muscle,gain_weight,maintain,improve_endurance,general',
+            'bmi_category' => 'required|in:all,underweight,normal,overweight,obese',
+            'duration_weeks' => 'required|integer|min:1',
+            'daily_calories' => 'required|numeric|min:500|max:10000',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $plan->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'bmi_category' => $request->bmi_category,
+            'duration_weeks' => $request->duration_weeks,
+            'daily_calories' => $request->daily_calories,
+            'is_active' => $request->has('is_active') ? 1 : 0,
+        ]);
+
+        $message = 'Información del plan de nutrición actualizada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $plan->load(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner']);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Add a new day to a meal plan.
+     */
+    public function addMealPlanDay(Request $request, $id)
+    {
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $maxDay = MealPlanDay::where('meal_plan_id', $plan->id)->max('day_number') ?? 0;
+        $newDayNumber = $maxDay + 1;
+
+        $newDay = MealPlanDay::create([
+            'meal_plan_id' => $plan->id,
+            'day_number' => $newDayNumber,
+        ]);
+
+        $message = "Día {$newDayNumber} añadido exitosamente al plan.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $plan->load(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner']);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'new_day' => $newDay,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Save/Update meals for a specific day in a meal plan.
+     */
+    public function saveComidasDay(Request $request, $id)
+    {
+        $request->validate([
+            'day_number' => 'required|integer|min:1',
+            'breakfast_recipe_id' => 'nullable|exists:recipes,id',
+            'snack1_recipe_id' => 'nullable|exists:recipes,id',
+            'lunch_recipe_id' => 'nullable|exists:recipes,id',
+            'snack2_recipe_id' => 'nullable|exists:recipes,id',
+            'dinner_recipe_id' => 'nullable|exists:recipes,id',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $day = MealPlanDay::where('meal_plan_id', $plan->id)
+            ->where('day_number', $request->day_number)
+            ->firstOrFail();
+
+        $day->update([
+            'breakfast_recipe_id' => $request->breakfast_recipe_id ?: null,
+            'snack1_recipe_id' => $request->snack1_recipe_id ?: null,
+            'lunch_recipe_id' => $request->lunch_recipe_id ?: null,
+            'snack2_recipe_id' => $request->snack2_recipe_id ?: null,
+            'dinner_recipe_id' => $request->dinner_recipe_id ?: null,
+        ]);
+
+        $message = "Menú del Día {$day->day_number} actualizado con éxito.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $day->load(['breakfast', 'snack1', 'lunch', 'snack2', 'dinner']);
+            $plan->load(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner']);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'day' => $day,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Delete a day from a meal plan.
+     */
+    public function deleteMealPlanDay($id, $day_id)
+    {
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $day = MealPlanDay::where('meal_plan_id', $plan->id)->findOrFail($day_id);
+        $deletedDayNumber = $day->day_number;
+        $day->delete();
+
+        // Re-index remaining days
+        $remainingDays = MealPlanDay::where('meal_plan_id', $plan->id)->orderBy('day_number', 'asc')->get();
+        foreach ($remainingDays as $idx => $d) {
+            $d->update(['day_number' => $idx + 1]);
+        }
+
+        $message = "Día {$deletedDayNumber} eliminado del plan.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            $plan->load(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner']);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Remove a single recipe slot from a day.
+     */
+    public function removeMealFromDay(Request $request, $id, $day_id)
+    {
+        $request->validate([
+            'meal_type' => 'required|in:breakfast,snack1,lunch,snack2,dinner',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
+
+        $day = MealPlanDay::where('meal_plan_id', $plan->id)->findOrFail($day_id);
+        $mealField = $request->meal_type . '_recipe_id';
+        $day->{$mealField} = null;
+        $day->save();
+
+        $mealLabels = [
+            'breakfast' => 'Desayuno',
+            'snack1' => 'Media Mañana',
+            'lunch' => 'Almuerzo / Comida',
+            'snack2' => 'Media Tarde',
+            'dinner' => 'Cena'
+        ];
+        $mealLabel = $mealLabels[$request->meal_type] ?? $request->meal_type;
+        $message = "Comida de '{$mealLabel}' quitada del Día {$day->day_number}.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $day->load(['breakfast', 'snack1', 'lunch', 'snack2', 'dinner']);
+            $plan->load(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner']);
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'day' => $day,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
      * Edit exercises inside a workout routine template.
      */
     public function editEjercicios($id)
@@ -929,77 +1119,6 @@ class AdminController extends Controller
         });
 
         return response()->json($results);
-    }
-
-    /**
-     * Add a new day to the meal plan.
-     */
-    public function addMealPlanDay($id)
-    {
-        $gymId = $this->getActiveGymId();
-        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
-
-        $nextDayNumber = (MealPlanDay::where('meal_plan_id', $plan->id)->max('day_number') ?? 0) + 1;
-
-        MealPlanDay::create([
-            'meal_plan_id' => $plan->id,
-            'day_number' => $nextDayNumber,
-        ]);
-
-        return redirect()->back()->with('success', "Día $nextDayNumber añadido al plan de nutrición.");
-    }
-
-    /**
-     * Save/update recipe assignments for a diet day.
-     */
-    public function saveComidasDay(Request $request, $id)
-    {
-        $request->validate([
-            'day_number' => 'required|integer',
-            'breakfast_recipe_id' => 'nullable|integer',
-            'snack1_recipe_id' => 'nullable|integer',
-            'lunch_recipe_id' => 'nullable|integer',
-            'snack2_recipe_id' => 'nullable|integer',
-            'dinner_recipe_id' => 'nullable|integer',
-        ]);
-
-        $gymId = $this->getActiveGymId();
-        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
-
-        $day = MealPlanDay::where('meal_plan_id', $plan->id)
-            ->where('day_number', $request->day_number)
-            ->firstOrFail();
-
-        $day->update([
-            'breakfast_recipe_id' => $request->breakfast_recipe_id,
-            'snack1_recipe_id' => $request->snack1_recipe_id,
-            'lunch_recipe_id' => $request->lunch_recipe_id,
-            'snack2_recipe_id' => $request->snack2_recipe_id,
-            'dinner_recipe_id' => $request->dinner_recipe_id,
-        ]);
-
-        return redirect()->back()->with('success', "Distribución de comidas del Día {$request->day_number} guardada con éxito.");
-    }
-
-    /**
-     * Delete a day from the meal plan.
-     */
-    public function deleteMealPlanDay(Request $request, $id, $day_id)
-    {
-        $gymId = $this->getActiveGymId();
-        $plan = MealPlan::where('gym_id', $gymId)->findOrFail($id);
-
-        $day = MealPlanDay::where('meal_plan_id', $plan->id)->findOrFail($day_id);
-        $deletedDayNumber = $day->day_number;
-        $day->delete();
-
-        // Re-sequence day numbers so they are contiguous starting from 1
-        $days = MealPlanDay::where('meal_plan_id', $plan->id)->orderBy('day_number')->get();
-        foreach ($days as $index => $d) {
-            $d->update(['day_number' => $index + 1]);
-        }
-
-        return redirect()->back()->with('success', "Día $deletedDayNumber eliminado y días reordenados con éxito.");
     }
 
     /**

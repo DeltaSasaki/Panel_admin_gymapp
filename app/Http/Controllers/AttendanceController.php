@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\AdminAuditLog;
+use App\Models\Gym;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -59,11 +60,15 @@ class AttendanceController extends Controller
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para registrar una asistencia.']);
+            $msg = 'Debes seleccionar una sucursal específica para poder registrar una asistencia.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
         // Get targeted user
-        $user = User::findOrFail($request->user_id);
+        $user = User::with('profile')->findOrFail($request->user_id);
 
         // Prevent checking in if already checked in and not checked out today
         $alreadyCheckedIn = AttendanceLog::where('user_id', $user->id)
@@ -73,7 +78,12 @@ class AttendanceController extends Controller
             ->exists();
 
         if ($alreadyCheckedIn) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'El cliente ya se encuentra dentro de las instalaciones (marcó entrada y no salida).']);
+            $userName = ($user->profile->first_name ?? 'El cliente') . ' ' . ($user->profile->last_name ?? '');
+            $msg = "{$userName} ya se encuentra dentro del gimnasio (marcó entrada y aún no registra salida).";
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
         try {
@@ -87,7 +97,18 @@ class AttendanceController extends Controller
 
             AdminAuditLog::record('INSERT', 'attendance_logs', $log->id, null, $log->toArray(), $gymId);
 
-            return redirect()->route('asistencia.index')->with('success', '¡Check-in exitoso para ' . ($user->profile->first_name ?? 'Cliente') . '!');
+            $userName = trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? ''));
+            $msg = "¡Check-in exitoso para {$userName}!";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'log_id' => $log->id,
+                ]);
+            }
+
+            return redirect()->route('asistencia.index')->with('success', $msg);
 
         } catch (\Illuminate\Database\QueryException $e) {
             $errorMessage = $e->getMessage();
@@ -98,9 +119,18 @@ class AttendanceController extends Controller
             } else {
                 $errorText = 'Error de base de datos al realizar check-in: ' . $errorMessage;
             }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorText], 422);
+            }
+
             return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+            $errorText = 'Error inesperado: ' . $e->getMessage();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorText], 500);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         }
     }
 
@@ -111,7 +141,7 @@ class AttendanceController extends Controller
     {
         $gymId = $this->getActiveGymId();
 
-        $query = AttendanceLog::query();
+        $query = AttendanceLog::with('user.profile');
         if ($gymId !== 'all') {
             $query->where('gym_id', $gymId);
         }
@@ -119,7 +149,11 @@ class AttendanceController extends Controller
         $log = $query->findOrFail($id);
 
         if ($log->check_out) {
-            return redirect()->back()->withErrors(['error' => 'Esta asistencia ya cuenta con registro de salida.']);
+            $msg = 'Esta asistencia ya cuenta con registro de salida.';
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         $oldData = $log->toArray();
@@ -130,7 +164,17 @@ class AttendanceController extends Controller
 
         AdminAuditLog::record('UPDATE', 'attendance_logs', $log->id, $oldData, $log->fresh()->toArray(), $gymId);
 
-        return redirect()->back()->with('success', '¡Salida registrada con éxito!');
+        $userName = trim(($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? ''));
+        $msg = "¡Salida registrada con éxito para {$userName}!";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $msg);
     }
 
     /**
@@ -138,30 +182,37 @@ class AttendanceController extends Controller
      */
     public function searchClientsByDni(Request $request)
     {
-        $query = trim($request->input('q', ''));
+        $rawQuery = trim($request->input('q', ''));
         $gymId = $this->getActiveGymId();
 
         $clientsQuery = User::where('role', 'member')
+            ->where('is_active', 1)
             ->with('profile');
 
         if ($gymId !== 'all') {
             $clientsQuery->where('gym_id', $gymId);
         }
 
-        if (!empty($query)) {
-            $clientsQuery->where(function($q) use ($query) {
-                $q->whereHas('profile', function($pq) use ($query) {
-                    $pq->where('dni', 'LIKE', "%{$query}%")
-                       ->orWhere('first_name', 'LIKE', "%{$query}%")
-                       ->orWhere('last_name', 'LIKE', "%{$query}%");
-                })->orWhere('email', 'LIKE', "%{$query}%");
+        if (!empty($rawQuery)) {
+            $cleanDniQuery = preg_replace('/[^a-zA-Z0-9]/', '', $rawQuery);
+
+            $clientsQuery->where(function($q) use ($rawQuery, $cleanDniQuery) {
+                $q->whereHas('profile', function($pq) use ($rawQuery, $cleanDniQuery) {
+                    $pq->where('dni', 'LIKE', "%{$rawQuery}%")
+                       ->orWhere('first_name', 'LIKE', "%{$rawQuery}%")
+                       ->orWhere('last_name', 'LIKE', "%{$rawQuery}%");
+
+                    if (!empty($cleanDniQuery)) {
+                        $pq->orWhere('dni', 'LIKE', "%{$cleanDniQuery}%");
+                    }
+                })->orWhere('email', 'LIKE', "%{$rawQuery}%");
             });
         }
 
         $clients = $clientsQuery->take(15)->get()->map(function($user) {
             return [
                 'id' => $user->id,
-                'name' => ($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? ''),
+                'name' => trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? '')),
                 'dni' => $user->profile->dni ?? 'Sin DNI',
                 'email' => $user->email,
                 'photo' => $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
@@ -203,7 +254,7 @@ class AttendanceController extends Controller
         $logs = $logsQuery->get()->map(function($log) use ($methodMap, $methodBadge) {
             return [
                 'id' => $log->id,
-                'user_name' => ($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? ''),
+                'user_name' => trim(($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? '')),
                 'user_email' => $log->user->email ?? '',
                 'user_photo' => $log->user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
                 'check_in_time' => Carbon::parse($log->check_in)->format('H:i'),
@@ -218,9 +269,37 @@ class AttendanceController extends Controller
             ];
         });
 
+        // Compute today's active metrics
+        $todayLogsQuery = AttendanceLog::whereDate('check_in', Carbon::today());
+        if ($gymId !== 'all') {
+            $todayLogsQuery->where('gym_id', $gymId);
+        }
+        $todayLogs = $todayLogsQuery->get();
+        $todayEntriesCount = $todayLogs->count();
+        $currentlyInGymCount = $todayLogs->whereNull('check_out')->count();
+
+        // Calculate real capacity stats
+        if ($gymId === 'all') {
+            $aforoCurrentUsers = User::where('role', 'member')->count();
+            $allGymsList = Gym::with('plan')->get();
+            $aforoMaxUsers = 0;
+            foreach ($allGymsList as $g) {
+                $aforoMaxUsers += ($g->plan?->max_users ?? 50);
+            }
+        } else {
+            $aforoCurrentUsers = User::where('gym_id', $gymId)->where('role', 'member')->count();
+            $selectedGymForAforo = Gym::with('plan')->find($gymId);
+            $aforoMaxUsers = $selectedGymForAforo ? ($selectedGymForAforo->plan?->max_users ?? 50) : 50;
+        }
+
         return response()->json([
             'selected_date' => $selectedDate,
+            'today_entries_count' => $todayEntriesCount,
+            'currently_in_gym_count' => $currentlyInGymCount,
+            'aforo_current_users' => $aforoCurrentUsers,
+            'aforo_max_users' => $aforoMaxUsers,
             'logs' => $logs
         ]);
     }
 }
+

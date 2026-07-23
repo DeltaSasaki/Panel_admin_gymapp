@@ -257,8 +257,13 @@
             } else {
                 emptyMsg.classList.add('hidden');
             }
+        }
+
         if (window.lucide) window.lucide.createIcons();
     }
+
+    window.filterClients = filterClients;
+    window.applyClientFilters = applyClientFilters;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', applyClientFilters);
