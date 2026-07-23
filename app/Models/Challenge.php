@@ -19,6 +19,7 @@ class Challenge extends Model
         'end_date',
         'xp_reward',
         'token_reward',
+        'is_active',
     ];
 
     public function gym()

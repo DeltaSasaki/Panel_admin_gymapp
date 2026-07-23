@@ -23,6 +23,7 @@ class Exercise extends Model
         'video_url',
         'image_url',
         'calories_per_min',
+        'is_active',
     ];
 
     public function category()

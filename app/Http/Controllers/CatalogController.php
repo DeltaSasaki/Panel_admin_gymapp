@@ -49,11 +49,22 @@ class CatalogController extends Controller
             'description' => $request->description,
             'image_url' => $imageUrl,
             'requires_gym' => $request->has('requires_gym') ? 1 : 0,
+            'is_active' => 1,
         ]);
 
         AdminAuditLog::record('INSERT', 'equipment', $eq->id, null, $eq->toArray(), $gymId);
 
-        return redirect()->back()->with('success', 'Equipo registrado con éxito.');
+        $message = 'Equipo registrado con éxito en el catálogo.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'equipment' => $eq
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -70,6 +81,7 @@ class CatalogController extends Controller
 
         $gymId = $this->getActiveGymId();
         $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $equipment->toArray();
 
         $data = [
             'name' => $request->name,
@@ -78,7 +90,6 @@ class CatalogController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            // Delete old image file if it exists and is local
             if ($equipment->image_url && file_exists(public_path($equipment->image_url))) {
                 @unlink(public_path($equipment->image_url));
             }
@@ -96,25 +107,49 @@ class CatalogController extends Controller
 
         $equipment->update($data);
 
-        return redirect()->back()->with('success', 'Equipo actualizado con éxito.');
+        AdminAuditLog::record('UPDATE', 'equipment', $equipment->id, $oldData, $equipment->fresh()->toArray(), $gymId);
+
+        $message = 'Equipo actualizado con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'equipment' => $equipment
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
-     * Delete existing equipment.
+     * Disable/Toggle active status of existing equipment.
      */
     public function deleteEquipment($id)
     {
         $gymId = $this->getActiveGymId();
         $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $equipment->toArray();
 
-        // Delete image file if exists
-        if ($equipment->image_url && file_exists(public_path($equipment->image_url))) {
-            @unlink(public_path($equipment->image_url));
+        $newStatus = $equipment->is_active ? 0 : 1;
+        $equipment->update(['is_active' => $newStatus]);
+
+        AdminAuditLog::record('UPDATE', 'equipment', $id, $oldData, $equipment->fresh()->toArray(), $gymId);
+
+        $message = $newStatus 
+            ? "Equipo '{$equipment->name}' activado con éxito."
+            : "Equipo '{$equipment->name}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'equipment_id' => $id,
+                'is_active' => $newStatus
+            ]);
         }
 
-        $equipment->delete();
-
-        return redirect()->back()->with('success', 'Equipo eliminado con éxito.');
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -287,8 +322,10 @@ class CatalogController extends Controller
             $imageUrl = 'uploads/exercises/' . $filename;
         }
 
-        Exercise::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+
+        $exercise = Exercise::create([
+            'gym_id' => $gymId,
             'category_id' => $request->category_id,
             'name' => $request->name,
             'description' => $request->description,
@@ -299,9 +336,23 @@ class CatalogController extends Controller
             'video_url' => $request->video_url,
             'image_url' => $imageUrl,
             'is_global' => 0,
+            'is_active' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Ejercicio añadido al catálogo con éxito.');
+        AdminAuditLog::record('INSERT', 'exercises', $exercise->id, null, $exercise->toArray(), $gymId);
+
+        $message = 'Ejercicio añadido al catálogo con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $exercise->load('category');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'exercise' => $exercise
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -322,8 +373,8 @@ class CatalogController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-        // Allow updating only gym-specific exercises
         $exercise = Exercise::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $exercise->toArray();
 
         $data = [
             'category_id' => $request->category_id,
@@ -337,7 +388,6 @@ class CatalogController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            // Delete old image file if it exists and is local
             if ($exercise->image_url && file_exists(public_path($exercise->image_url))) {
                 @unlink(public_path($exercise->image_url));
             }
@@ -355,25 +405,50 @@ class CatalogController extends Controller
 
         $exercise->update($data);
 
-        return redirect()->back()->with('success', 'Ejercicio actualizado con éxito.');
+        AdminAuditLog::record('UPDATE', 'exercises', $exercise->id, $oldData, $exercise->fresh()->toArray(), $gymId);
+
+        $message = 'Ejercicio actualizado con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $exercise->load('category');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'exercise' => $exercise
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
-     * Delete existing exercise.
+     * Disable/Toggle active status of existing exercise.
      */
     public function deleteExercise($id)
     {
         $gymId = $this->getActiveGymId();
         $exercise = Exercise::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $exercise->toArray();
 
-        // Delete image file if exists
-        if ($exercise->image_url && file_exists(public_path($exercise->image_url))) {
-            @unlink(public_path($exercise->image_url));
+        $newStatus = $exercise->is_active ? 0 : 1;
+        $exercise->update(['is_active' => $newStatus]);
+
+        AdminAuditLog::record('UPDATE', 'exercises', $id, $oldData, $exercise->fresh()->toArray(), $gymId);
+
+        $message = $newStatus 
+            ? "Ejercicio '{$exercise->name}' activado con éxito."
+            : "Ejercicio '{$exercise->name}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'exercise_id' => $id,
+                'is_active' => $newStatus
+            ]);
         }
 
-        $exercise->delete();
-
-        return redirect()->back()->with('success', 'Ejercicio eliminado con éxito.');
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -386,13 +461,25 @@ class CatalogController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        ExerciseCategory::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+
+        $category = ExerciseCategory::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
         ]);
 
-        return redirect()->back()->with('success', 'Categoría de ejercicio creada con éxito.');
+        $message = 'Categoría de ejercicio creada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'category' => $category
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -435,8 +522,10 @@ class CatalogController extends Controller
             $imageUrl = 'uploads/recipes/' . $filename;
         }
 
-        Recipe::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+
+        $recipe = Recipe::create([
+            'gym_id' => $gymId,
             'category_id' => $request->category_id,
             'name' => $request->name,
             'description' => $request->description,
@@ -452,7 +541,20 @@ class CatalogController extends Controller
             'is_active' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Receta guardada con éxito en el recetario.');
+        AdminAuditLog::record('INSERT', 'recipes', $recipe->id, null, $recipe->toArray(), $gymId);
+
+        $message = 'Receta guardada con éxito en el recetario.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $recipe->load('category');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'recipe' => $recipe
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -477,6 +579,7 @@ class CatalogController extends Controller
 
         $gymId = $this->getActiveGymId();
         $recipe = Recipe::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $recipe->toArray();
 
         $data = [
             'category_id' => $request->category_id,
@@ -510,24 +613,50 @@ class CatalogController extends Controller
 
         $recipe->update($data);
 
-        return redirect()->back()->with('success', 'Receta actualizada con éxito.');
+        AdminAuditLog::record('UPDATE', 'recipes', $recipe->id, $oldData, $recipe->fresh()->toArray(), $gymId);
+
+        $message = 'Receta actualizada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $recipe->load('category');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'recipe' => $recipe
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
-     * Delete existing recipe.
+     * Disable/Toggle active status of existing recipe.
      */
     public function deleteRecipe($id)
     {
         $gymId = $this->getActiveGymId();
         $recipe = Recipe::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $recipe->toArray();
 
-        if ($recipe->image_url && file_exists(public_path($recipe->image_url))) {
-            @unlink(public_path($recipe->image_url));
+        $newStatus = $recipe->is_active ? 0 : 1;
+        $recipe->update(['is_active' => $newStatus]);
+
+        AdminAuditLog::record('UPDATE', 'recipes', $id, $oldData, $recipe->fresh()->toArray(), $gymId);
+
+        $message = $newStatus 
+            ? "Receta '{$recipe->name}' activada con éxito."
+            : "Receta '{$recipe->name}' inhabilitada con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'recipe_id' => $id,
+                'is_active' => $newStatus
+            ]);
         }
 
-        $recipe->delete();
-
-        return redirect()->back()->with('success', 'Receta eliminada con éxito.');
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -540,12 +669,24 @@ class CatalogController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        RecipeCategory::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+
+        $category = RecipeCategory::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'description' => $request->description,
         ]);
 
-        return redirect()->back()->with('success', 'Categoría de recetas creada con éxito.');
+        $message = 'Categoría de recetas creada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'category' => $category
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 }

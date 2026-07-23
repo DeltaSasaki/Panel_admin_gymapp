@@ -108,7 +108,18 @@ class StaffController extends Controller
             ]);
 
             DB::commit();
-            return redirect()->back()->with('success', 'Entrenador registrado exitosamente.');
+            $message = 'Entrenador registrado exitosamente.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                $trainer->load('user.profile');
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'trainer' => $trainer
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
             $errorMessage = $e->getMessage();
@@ -118,6 +129,11 @@ class StaffController extends Controller
             } else {
                 $errorText = 'Error al registrar entrenador: ' . $errorMessage;
             }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorText], 422);
+            }
+
             return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         }
     }
@@ -140,7 +156,20 @@ class StaffController extends Controller
         $trainer->update(['is_active' => $newStatus]);
         $user->update(['is_active' => $newStatus]);
 
-        return redirect()->back()->with('success', 'Estado del entrenador actualizado.');
+        $message = $newStatus 
+            ? "Entrenador '{$trainer->first_name} {$trainer->last_name}' reactivado con éxito."
+            : "Entrenador '{$trainer->first_name} {$trainer->last_name}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'trainer_id' => $id,
+                'is_active' => $newStatus
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -225,10 +254,27 @@ class StaffController extends Controller
             ]);
 
             DB::commit();
-            return redirect()->back()->with('success', 'Datos del entrenador actualizados exitosamente.');
+            $message = 'Datos del entrenador actualizados exitosamente.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                $trainer->load('user.profile');
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'trainer' => $trainer
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withInput()->withErrors(['error' => 'Error al actualizar entrenador: ' . $e->getMessage()]);
+            $errorMsg = 'Error al actualizar entrenador: ' . $e->getMessage();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 500);
+            }
+
+            return redirect()->back()->withInput()->withErrors(['error' => $errorMsg]);
         }
     }
 
@@ -257,10 +303,26 @@ class StaffController extends Controller
             $trainer->delete();
             $user->delete();
             DB::commit();
-            return redirect()->back()->with('success', 'Entrenador eliminado del staff correctamente.');
+            $message = 'Entrenador eliminado del staff correctamente.';
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'trainer_id' => $id
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Error al eliminar entrenador: ' . $e->getMessage()]);
+            $errorMsg = 'Error al eliminar entrenador: ' . $e->getMessage();
+
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 500);
+            }
+
+            return redirect()->back()->withErrors(['error' => $errorMsg]);
         }
     }
 

@@ -70,11 +70,59 @@ class GamificationController extends Controller
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para crear un reto.']);
+            $errorMsg = 'Debes seleccionar una sucursal específica para crear un reto.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorMsg]);
         }
 
-        Challenge::create([
+        $challenge = Challenge::create([
             'gym_id' => $gymId,
+            'title' => $request->title,
+            'description' => $request->description,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'xp_reward' => $request->xp_reward,
+            'token_reward' => $request->token_reward,
+            'is_active' => 1,
+        ]);
+
+        $message = 'Reto de gimnasio creado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'challenge' => $challenge
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Update an existing challenge.
+     */
+    public function updateChallenge(Request $request, $id)
+    {
+        $request->validate([
+            'title' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'xp_reward' => 'required|integer|min:0',
+            'token_reward' => 'required|numeric|min:0',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $challengeQuery = Challenge::query();
+        if ($gymId !== 'all') {
+            $challengeQuery->where('gym_id', $gymId);
+        }
+        $challenge = $challengeQuery->findOrFail($id);
+
+        $challenge->update([
             'title' => $request->title,
             'description' => $request->description,
             'start_date' => $request->start_date,
@@ -83,7 +131,48 @@ class GamificationController extends Controller
             'token_reward' => $request->token_reward,
         ]);
 
-        return redirect()->back()->with('success', 'Reto de gimnasio creado exitosamente.');
+        $message = 'Reto de gimnasio actualizado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'challenge' => $challenge
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Toggle active status of a challenge.
+     */
+    public function deleteChallenge($id)
+    {
+        $gymId = $this->getActiveGymId();
+        $challengeQuery = Challenge::query();
+        if ($gymId !== 'all') {
+            $challengeQuery->where('gym_id', $gymId);
+        }
+        $challenge = $challengeQuery->findOrFail($id);
+
+        $newStatus = $challenge->is_active ? 0 : 1;
+        $challenge->update(['is_active' => $newStatus]);
+
+        $message = $newStatus 
+            ? "Reto '{$challenge->title}' reactivado con éxito."
+            : "Reto '{$challenge->title}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'challenge_id' => $id,
+                'is_active' => $newStatus
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -107,11 +196,15 @@ class GamificationController extends Controller
             if (auth()->user()->role === 'superadmin') {
                 $targetGymId = null; // Global system badge
             } else {
-                return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica para crear una medalla.']);
+                $errorMsg = 'Debes seleccionar una sucursal específica para crear una medalla.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errorMsg], 422);
+                }
+                return redirect()->back()->withInput()->withErrors(['error' => $errorMsg]);
             }
         }
 
-        AchievementDefinition::create([
+        $achievement = AchievementDefinition::create([
             'gym_id' => $targetGymId,
             'name' => $request->name,
             'description' => $request->description,
@@ -120,9 +213,85 @@ class GamificationController extends Controller
             'condition_type' => $request->condition_type,
             'target_value' => $request->target_value,
             'icon_url' => $request->icon_url ?? 'award',
+            'is_active' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Definición de logro creada exitosamente.');
+        $message = 'Definición de logro creada exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'achievement' => $achievement
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Update an achievement definition.
+     */
+    public function updateAchievement(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'xp_reward' => 'required|integer|min:0',
+            'token_reward' => 'required|numeric|min:0',
+            'condition_type' => 'required|string|max:100',
+            'target_value' => 'required|integer|min:1',
+        ]);
+
+        $achievement = AchievementDefinition::findOrFail($id);
+
+        $achievement->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'xp_reward' => $request->xp_reward,
+            'token_reward' => $request->token_reward,
+            'condition_type' => $request->condition_type,
+            'target_value' => $request->target_value,
+            'icon_url' => $request->icon_url ?? $achievement->icon_url ?? 'award',
+        ]);
+
+        $message = 'Definición de logro actualizada con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'achievement' => $achievement
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Toggle active status of an achievement definition.
+     */
+    public function deleteAchievement($id)
+    {
+        $achievement = AchievementDefinition::findOrFail($id);
+
+        $newStatus = $achievement->is_active ? 0 : 1;
+        $achievement->update(['is_active' => $newStatus]);
+
+        $message = $newStatus 
+            ? "Logro '{$achievement->name}' reactivado con éxito."
+            : "Logro '{$achievement->name}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'achievement_id' => $id,
+                'is_active' => $newStatus
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -167,17 +336,31 @@ class GamificationController extends Controller
             ->exists();
 
         if ($exists) {
-            return redirect()->back()->withErrors(['error' => 'El atleta ya está inscrito en este reto.']);
+            $errorMsg = 'El atleta ya está inscrito en este reto.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $errorMsg]);
         }
 
-        UserChallenge::create([
+        $participant = UserChallenge::create([
             'challenge_id' => $request->challenge_id,
             'user_id' => $request->user_id,
             'progress_value' => 0,
             'status' => 'active',
-        ]);
+        ])->load('user.profile');
 
-        return redirect()->back()->with('success', 'Atleta inscrito al reto exitosamente.');
+        $message = 'Atleta inscrito al reto exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'participant' => $participant
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -222,11 +405,27 @@ class GamificationController extends Controller
             $userChallenge->update($updateData);
 
             DB::commit();
-            return redirect()->back()->with('success', 'Progreso de reto actualizado y recompensas aplicadas si corresponde.');
+            $message = 'Progreso de reto actualizado y recompensas aplicadas si corresponde.';
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'participant' => $userChallenge->fresh('user.profile')
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Error al guardar el progreso: ' . $e->getMessage()]);
+            $errorMsg = 'Error al guardar el progreso: ' . $e->getMessage();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 500);
+            }
+
+            return redirect()->back()->withErrors(['error' => $errorMsg]);
         }
     }
 
@@ -266,11 +465,46 @@ class GamificationController extends Controller
             $stats->increment('token_balance', $def->token_reward);
 
             DB::commit();
-            return redirect()->back()->with('success', "¡Logro '{$def->name}' otorgado al atleta con éxito!");
+            $message = "¡Logro '{$def->name}' otorgado al atleta con éxito!";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                // Fetch updated leaderboard
+                $leaderboardQuery = UserGamificationStat::with('user.profile');
+                if ($gymId !== 'all') {
+                    $leaderboardQuery->where('gym_id', $gymId);
+                }
+                $leaderboard = $leaderboardQuery->orderBy('total_xp', 'desc')->take(10)->get()->map(function($st) {
+                    return [
+                        'id' => $st->id,
+                        'user_id' => $st->user_id,
+                        'name' => trim(($st->user->profile->first_name ?? 'Atleta') . ' ' . ($st->user->profile->last_name ?? '')),
+                        'email' => $st->user->email ?? '',
+                        'photo' => ($st->user->profile && $st->user->profile->profile_photo)
+                            ? asset($st->user->profile->profile_photo)
+                            : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                        'total_xp' => (int)$st->total_xp,
+                        'token_balance' => (float)$st->token_balance,
+                    ];
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'leaderboard' => $leaderboard
+                ]);
+            }
+
+            return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Error al otorgar medalla: ' . $e->getMessage()]);
+            $errorMsg = 'Error al otorgar medalla: ' . $e->getMessage();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 500);
+            }
+
+            return redirect()->back()->withErrors(['error' => $errorMsg]);
         }
     }
 }

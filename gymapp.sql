@@ -272,7 +272,8 @@ CREATE TABLE `equipment` (
   `name` varchar(150) NOT NULL,
   `description` text DEFAULT NULL,
   `image_url` varchar(500) DEFAULT NULL,
-  `requires_gym` tinyint(1) DEFAULT 1
+  `requires_gym` tinyint(1) DEFAULT 1,
+  `is_active` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -295,6 +296,7 @@ CREATE TABLE `exercises` (
   `video_url` varchar(500) DEFAULT NULL,
   `image_url` varchar(500) DEFAULT NULL,
   `calories_per_min` decimal(5,2) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

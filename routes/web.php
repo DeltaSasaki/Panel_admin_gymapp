@@ -173,7 +173,11 @@ Route::middleware(['auth'])->group(function () {
     // Group Classes routes
     Route::get('/clases', [\App\Http\Controllers\ClassController::class, 'index'])->name('clases.index');
     Route::post('/clases', [\App\Http\Controllers\ClassController::class, 'storeClass'])->name('clases.store');
+    Route::put('/clases/{id}', [\App\Http\Controllers\ClassController::class, 'updateClass'])->name('clases.update');
+    Route::delete('/clases/{id}', [\App\Http\Controllers\ClassController::class, 'deleteClass'])->name('clases.delete');
     Route::post('/clases/horarios', [\App\Http\Controllers\ClassController::class, 'storeSchedule'])->name('clases.store_schedule');
+    Route::put('/clases/horarios/{id}', [\App\Http\Controllers\ClassController::class, 'updateSchedule'])->name('clases.update_schedule');
+    Route::delete('/clases/horarios/{id}', [\App\Http\Controllers\ClassController::class, 'deleteSchedule'])->name('clases.delete_schedule');
     Route::get('/clases/horarios/{id}/reservas', [\App\Http\Controllers\ClassController::class, 'bookings'])->name('clases.bookings');
     Route::post('/clases/horarios/reservar', [\App\Http\Controllers\ClassController::class, 'bookClient'])->name('clases.book_client');
     Route::post('/clases/reservas/{id}/estado', [\App\Http\Controllers\ClassController::class, 'updateBookingStatus'])->name('clases.update_booking_status');
@@ -181,7 +185,11 @@ Route::middleware(['auth'])->group(function () {
     // Gamification routes
     Route::get('/retos', [\App\Http\Controllers\GamificationController::class, 'index'])->name('retos.index');
     Route::post('/retos', [\App\Http\Controllers\GamificationController::class, 'storeChallenge'])->name('retos.store_challenge');
+    Route::put('/retos/{id}', [\App\Http\Controllers\GamificationController::class, 'updateChallenge'])->name('retos.update_challenge');
+    Route::delete('/retos/{id}', [\App\Http\Controllers\GamificationController::class, 'deleteChallenge'])->name('retos.delete_challenge');
     Route::post('/retos/medallas', [\App\Http\Controllers\GamificationController::class, 'storeAchievement'])->name('retos.store_achievement');
+    Route::put('/retos/medallas/{id}', [\App\Http\Controllers\GamificationController::class, 'updateAchievement'])->name('retos.update_achievement');
+    Route::delete('/retos/medallas/{id}', [\App\Http\Controllers\GamificationController::class, 'deleteAchievement'])->name('retos.delete_achievement');
     Route::get('/retos/{id}/participantes', [\App\Http\Controllers\GamificationController::class, 'challengeParticipants'])->name('retos.participants');
     Route::post('/retos/inscribir', [\App\Http\Controllers\GamificationController::class, 'enrollParticipant'])->name('retos.enroll_participant');
     Route::post('/retos/participantes/{id}/actualizar', [\App\Http\Controllers\GamificationController::class, 'updateParticipant'])->name('retos.update_participant');

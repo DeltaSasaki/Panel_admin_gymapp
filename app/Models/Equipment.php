@@ -16,6 +16,7 @@ class Equipment extends Model
         'description',
         'image_url',
         'requires_gym',
+        'is_active',
     ];
 
     public function gym()

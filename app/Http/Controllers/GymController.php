@@ -106,7 +106,18 @@ class GymController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Sucursal de gimnasio creada exitosamente.');
+        $message = 'Sucursal de gimnasio creada exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $gym->load('plan');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'gym' => $gym
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -168,7 +179,18 @@ class GymController extends Controller
         $gym->update($data);
         AdminAuditLog::logAction('UPDATE', 'gyms', $gym->id, $oldGym, $gym->fresh()->toArray(), $gym->id);
 
-        return redirect()->back()->with('success', 'Sucursal de gimnasio actualizada exitosamente.');
+        $message = 'Sucursal de gimnasio actualizada exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $gym->load('plan');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'gym' => $gym
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -184,7 +206,20 @@ class GymController extends Controller
         $gym->update(['is_active' => $newStatus]);
         AdminAuditLog::logAction('UPDATE', 'gyms', $gym->id, $oldGym, ['is_active' => $newStatus], $gym->id);
 
-        return redirect()->back()->with('success', 'Estado de la sucursal actualizado.');
+        $message = $newStatus 
+            ? "Sucursal '{$gym->name}' reactivada con éxito."
+            : "Sucursal '{$gym->name}' suspendida / inhabilitada con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'gym_id' => $id,
+                'is_active' => $newStatus
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -197,7 +232,11 @@ class GymController extends Controller
         
         // Prevent deleting the main gym you are currently logged in under
         if ($gym->id == auth()->user()->gym_id) {
-            return redirect()->back()->withErrors(['gym' => 'No puedes eliminar la sucursal actual de tu sesión.']);
+            $errorMsg = 'No puedes eliminar la sucursal actual de tu sesión.';
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+            return redirect()->back()->withErrors(['gym' => $errorMsg]);
         }
 
         $oldGym = $gym->toArray();
@@ -210,7 +249,17 @@ class GymController extends Controller
         $gym->delete();
         AdminAuditLog::logAction('DELETE', 'gyms', $gym->id, $oldGym, null, $gym->id);
 
-        return redirect()->back()->with('success', 'Sucursal eliminada exitosamente.');
+        $message = 'Sucursal eliminada exitosamente.';
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'gym_id' => $id
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /* =========================================================================
@@ -255,7 +304,18 @@ class GymController extends Controller
 
         AdminAuditLog::logAction('INSERT', 'saas_subscription_plans', $newPlan->id, null, $newPlan->toArray());
 
-        return redirect()->back()->with('success', 'Plan de suscripción SaaS creado exitosamente.');
+        $message = 'Plan de suscripción SaaS creado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $newPlan->loadCount('gyms');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'plan' => $newPlan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -288,7 +348,18 @@ class GymController extends Controller
 
         AdminAuditLog::logAction('UPDATE', 'saas_subscription_plans', $plan->id, $oldPlan, $plan->fresh()->toArray());
 
-        return redirect()->back()->with('success', 'Plan de suscripción SaaS actualizado exitosamente.');
+        $message = 'Plan de suscripción SaaS actualizado exitosamente.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $plan->loadCount('gyms');
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'plan' => $plan
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**
@@ -306,7 +377,18 @@ class GymController extends Controller
         AdminAuditLog::logAction('UPDATE', 'saas_subscription_plans', $plan->id, $oldStatus, ['is_active' => $plan->is_active]);
 
         $statusLabel = $plan->is_active ? 'activado' : 'desactivado';
-        return redirect()->back()->with('success', "El plan '{$plan->name}' ha sido {$statusLabel} exitosamente.");
+        $message = "El plan '{$plan->name}' ha sido {$statusLabel} exitosamente.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'plan_id' => $id,
+                'is_active' => $plan->is_active
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

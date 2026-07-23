@@ -270,7 +270,7 @@
                     @php
                         $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*') || Request::is('asistencia*');
                         $isCajaActive = Request::is('tienda*') || Request::is('finanzas*');
-                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*');
+                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('recetas*') || Request::is('ejercicios*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*');
                         $isSaaSActive = Request::is('staff*');
                         $isSuperadminActive = Request::is('superadmin*');
                     @endphp

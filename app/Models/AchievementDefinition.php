@@ -20,6 +20,7 @@ class AchievementDefinition extends Model
         'icon_url',
         'condition_type',
         'target_value',
+        'is_active',
     ];
 
     public function gym()
