@@ -83,6 +83,8 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/equipamiento/{id}', [CatalogController::class, 'deleteEquipment'])->name('catalogos.delete_equipment');
     Route::get('/ingredientes', [CatalogController::class, 'ingredients'])->name('catalogos.ingredients');
     Route::post('/ingredientes', [CatalogController::class, 'storeIngredient'])->name('catalogos.store_ingredient');
+    Route::put('/ingredientes/{id}', [CatalogController::class, 'updateIngredient'])->name('catalogos.update_ingredient');
+    Route::delete('/ingredientes/{id}', [CatalogController::class, 'deleteIngredient'])->name('catalogos.delete_ingredient');
 
     Route::get('/ejercicios', [CatalogController::class, 'exercises'])->name('catalogos.exercises');
     Route::post('/ejercicios', [CatalogController::class, 'storeExercise'])->name('catalogos.store_exercise');

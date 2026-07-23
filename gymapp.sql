@@ -438,6 +438,7 @@ CREATE TABLE `ingredients` (
   `carbs_g` decimal(6,2) DEFAULT NULL,
   `fat_g` decimal(6,2) DEFAULT NULL,
   `fiber_g` decimal(6,2) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

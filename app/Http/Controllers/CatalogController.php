@@ -142,8 +142,10 @@ class CatalogController extends Controller
             'unit' => 'required|string|max:30',
         ]);
 
-        Ingredient::create([
-            'gym_id' => $this->getActiveGymId(),
+        $gymId = $this->getActiveGymId();
+
+        $ingredient = Ingredient::create([
+            'gym_id' => $gymId,
             'name' => $request->name,
             'protein_g' => $request->protein_g,
             'carbs_g' => $request->carbs_g,
@@ -153,7 +155,91 @@ class CatalogController extends Controller
             'is_global' => 1,
         ]);
 
-        return redirect()->back()->with('success', 'Ingrediente alimenticio añadido al catálogo.');
+        AdminAuditLog::record('INSERT', 'ingredients', $ingredient->id, null, $ingredient->toArray(), $gymId);
+
+        $message = 'Ingrediente alimenticio añadido al catálogo con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'ingredient' => $ingredient
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Update existing ingredient.
+     */
+    public function updateIngredient(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:150',
+            'protein_g' => 'required|numeric|min:0',
+            'carbs_g' => 'required|numeric|min:0',
+            'fat_g' => 'required|numeric|min:0',
+            'calories_per_100g' => 'required|numeric|min:0',
+            'unit' => 'required|string|max:30',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        $ingredient = Ingredient::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $ingredient->toArray();
+
+        $ingredient->update([
+            'name' => $request->name,
+            'protein_g' => $request->protein_g,
+            'carbs_g' => $request->carbs_g,
+            'fat_g' => $request->fat_g,
+            'calories_per_100g' => $request->calories_per_100g,
+            'unit' => $request->unit,
+        ]);
+
+        AdminAuditLog::record('UPDATE', 'ingredients', $ingredient->id, $oldData, $ingredient->fresh()->toArray(), $gymId);
+
+        $message = 'Ingrediente alimenticio actualizado con éxito.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'ingredient' => $ingredient
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Disable or toggle active status of existing ingredient (soft delete / disable).
+     */
+    public function deleteIngredient($id)
+    {
+        $gymId = $this->getActiveGymId();
+        $ingredient = Ingredient::where('gym_id', $gymId)->findOrFail($id);
+        $oldData = $ingredient->toArray();
+
+        $newStatus = $ingredient->is_active ? 0 : 1;
+        $ingredient->update(['is_active' => $newStatus]);
+
+        AdminAuditLog::record('UPDATE', 'ingredients', $id, $oldData, $ingredient->fresh()->toArray(), $gymId);
+
+        $message = $newStatus 
+            ? "Ingrediente '{$ingredient->name}' activado con éxito."
+            : "Ingrediente '{$ingredient->name}' inhabilitado con éxito.";
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'ingredient_id' => $id,
+                'is_active' => $newStatus
+            ]);
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 
     /**

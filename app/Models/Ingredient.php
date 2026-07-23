@@ -21,6 +21,7 @@ class Ingredient extends Model
         'carbs_g',
         'fat_g',
         'fiber_g',
+        'is_active',
     ];
 
     public function gym()
