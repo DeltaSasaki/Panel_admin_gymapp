@@ -135,6 +135,26 @@
                                             <div>
                                                 <span class="block text-[10px] uppercase font-bold tracking-wider text-slate-500">{{ $meal['label'] }}</span>
                                                 <h4 class="font-bold text-slate-100 text-base">{{ $meal['recipe']->name }}</h4>
+                                                
+                                                <!-- Extra Recipe Details Badges -->
+                                                <div class="flex items-center gap-2 mt-1 flex-wrap text-[10px]">
+                                                    <span class="px-2 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded-md font-semibold flex items-center gap-1">
+                                                        <i data-lucide="users" class="w-3 h-3 text-slate-500"></i> {{ $meal['recipe']->servings }} {{ $meal['recipe']->servings == 1 ? 'Porción' : 'Porciones' }}
+                                                    </span>
+                                                    <span class="px-2 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded-md font-semibold flex items-center gap-1">
+                                                        <i data-lucide="clock" class="w-3 h-3 text-slate-500"></i> {{ $meal['recipe']->preparation_min }} mins prep
+                                                    </span>
+                                                    @if($meal['recipe']->category)
+                                                        <span class="px-2 py-0.5 bg-slate-950 text-slate-400 border border-slate-850 rounded-md font-semibold">
+                                                            {{ $meal['recipe']->category->name }}
+                                                        </span>
+                                                    @endif
+                                                    @if($meal['recipe']->ingredients && $meal['recipe']->ingredients->contains('is_active', 0))
+                                                        <span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md font-extrabold flex items-center gap-1">
+                                                            ⚠️ Ingrediente Inactivo en Catálogo
+                                                        </span>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3">
@@ -156,8 +176,25 @@
                                         <p class="text-xs text-slate-400 mb-3 italic">"{{ $meal['recipe']->description }}"</p>
                                     @endif
 
-                                    <div class="space-y-2">
-                                        <span class="block text-[10px] uppercase font-extrabold tracking-wider text-slate-500">Preparación</span>
+                                    <!-- Ingredients breakdown section -->
+                                    @if($meal['recipe']->ingredients && $meal['recipe']->ingredients->count() > 0)
+                                        <div class="mb-3 space-y-1.5 border-t border-slate-850/80 pt-3">
+                                            <span class="block text-[10px] uppercase font-extrabold tracking-wider text-slate-500 flex items-center gap-1">
+                                                <i data-lucide="apple" class="w-3.5 h-3.5 text-lime-400"></i> Ingredientes del Platillo:
+                                            </span>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                @foreach($meal['recipe']->ingredients as $ing)
+                                                    <span class="px-2.5 py-1 bg-slate-950 border border-slate-850 text-slate-200 text-[11px] font-medium rounded-xl flex items-center gap-1.5 {{ $ing->is_active ? '' : 'line-through text-rose-400 border-rose-500/20' }}">
+                                                        <span>{{ $ing->name }}</span>
+                                                        <span class="text-lime-400 font-mono font-bold text-[10px]">({{ floatval($ing->pivot->quantity) }}{{ $ing->pivot->unit ?? 'g' }})</span>
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <div class="space-y-1.5 border-t border-slate-850/80 pt-3">
+                                        <span class="block text-[10px] uppercase font-extrabold tracking-wider text-slate-500">Instrucciones de Preparación</span>
                                         <p class="text-xs text-slate-300 leading-relaxed">{{ $meal['recipe']->instructions ?? 'No se detallan instrucciones de preparación.' }}</p>
                                     </div>
                                 </div>

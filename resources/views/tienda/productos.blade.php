@@ -1023,9 +1023,9 @@
     }
 
     // Pagination, Status Filtering & Live Search Logic (Max 10 products per page)
-    let currentProductPage = 1;
-    let currentProductStatusFilter = 'all';
-    const itemsPerPage = 10;
+    var currentProductPage = 1;
+    var currentProductStatusFilter = 'all';
+    var itemsPerPage = 10;
 
     function setProductStatusFilter(status) {
         currentProductStatusFilter = status;

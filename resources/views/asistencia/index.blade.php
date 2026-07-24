@@ -228,7 +228,7 @@
 </div>
 
 <script>
-    let searchDebounceTimeout = null;
+    var searchDebounceTimeout = null;
 
     // Show temporary toast alerts (matches productos.blade.php style)
     function showToast(message, type = 'success') {

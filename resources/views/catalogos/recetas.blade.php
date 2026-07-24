@@ -100,7 +100,7 @@
                     <img id="recipe_img_{{ $recipe->id }}" src="{{ $recipe->image_url ? asset($recipe->image_url) : 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=350&auto=format&fit=crop' }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
                     <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                     
-                    <div class="absolute top-4 left-4 flex items-center gap-2">
+                    <div class="absolute top-4 left-4 flex items-center gap-2 flex-wrap">
                         <span id="recipe_cat_badge_{{ $recipe->id }}" class="px-2.5 py-1 bg-slate-900/90 backdrop-blur-xs border border-slate-800 text-[10px] font-bold text-slate-300 rounded-lg uppercase tracking-wider">
                             {{ $recipe->category->name ?? 'Sin Categoría' }}
                         </span>
@@ -111,6 +111,11 @@
                                 <span class="px-2 py-0.5 bg-rose-500/90 text-white text-[9px] font-extrabold uppercase rounded-md shadow-sm">Inactiva</span>
                             @endif
                         </span>
+                        @if($recipe->ingredients && $recipe->ingredients->contains('is_active', 0))
+                            <span class="px-2 py-0.5 bg-amber-500/90 text-slate-950 text-[9px] font-extrabold uppercase rounded-md shadow-sm" title="Un ingrediente de esta receta ha sido inhabilitado en el catálogo">
+                                ⚠️ Ingrediente Inactivo
+                            </span>
+                        @endif
                     </div>
                     
                     <span id="recipe_calories_badge_{{ $recipe->id }}" class="absolute bottom-4 right-4 text-sm font-black text-amber-400 bg-slate-950/80 px-2.5 py-1 border border-slate-800 rounded-lg shadow-md">
@@ -147,6 +152,20 @@
                         </div>
                     </div>
 
+                    @if($recipe->ingredients && $recipe->ingredients->count() > 0)
+                        <div class="space-y-1">
+                            <span class="block uppercase font-extrabold text-[9px] text-slate-500">Ingredientes del Platillo:</span>
+                            <div class="flex flex-wrap gap-1">
+                                @foreach($recipe->ingredients as $ing)
+                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-semibold rounded-lg flex items-center gap-1 {{ $ing->is_active ? '' : 'line-through text-rose-400 border-rose-500/20' }}">
+                                        {{ $ing->name }}
+                                        <span class="text-lime-400 font-mono text-[9px]">({{ floatval($ing->pivot->quantity) }}{{ $ing->pivot->unit ?? 'g' }})</span>
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
                     <div id="recipe_instructions_container_{{ $recipe->id }}" class="text-[10px] text-slate-350 bg-slate-900/30 p-3 rounded-xl border border-slate-800/40 {{ $recipe->instructions ? '' : 'hidden' }}">
                         <span class="block uppercase font-extrabold text-[9px] text-slate-500 mb-1">Instrucciones:</span>
                         <p id="recipe_instructions_{{ $recipe->id }}" class="line-clamp-2">{{ $recipe->instructions }}</p>
@@ -157,7 +176,7 @@
                         <button type="button" onclick='openEditRecipeModal({{ json_encode($recipe) }})' class="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 border border-amber-500/25 text-amber-400 hover:text-slate-950 transition-all rounded-xl flex items-center gap-1.5 text-xs font-bold shadow-sm">
                             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Editar
                         </button>
-                        <button type="button" onclick="openDeleteRecipeModal({{ $recipe->id }}, '{{ addslashes($recipe->name) }}', {{ $recipe->is_active ? 1 : 0 }})" 
+                        <button type="button" onclick="openDeleteRecipeModal({{ $recipe->id }}, '{{ addslashes($recipe->name) }}', {{ $recipe->is_active ? 1 : 0 }}, {{ $recipe->meal_plans_count ?? 0 }})" 
                                 id="recipe_toggle_btn_{{ $recipe->id }}"
                                 class="px-3 py-1.5 {{ $recipe->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold shadow-sm"
                                 title="{{ $recipe->is_active ? 'Inhabilitar Receta' : 'Reactivar Receta' }}">
@@ -315,6 +334,21 @@
                 <textarea name="instructions" placeholder="1. Calentar sartén. 2. Añadir verduras..." rows="3" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
             </div>
 
+            <!-- Ingredientes de la Receta -->
+            <div class="space-y-3 pt-3 border-t border-slate-800">
+                <div class="flex items-center justify-between">
+                    <label class="block text-slate-300 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
+                        <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
+                    </label>
+                    <button type="button" onclick="addIngredientRow('create-ingredients-container')" class="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-850 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                        <i data-lucide="plus" class="w-3 h-3"></i> Añadir Ingrediente
+                    </button>
+                </div>
+                <div id="create-ingredients-container" class="space-y-2">
+                    <!-- Dynamic rows inserted by JS -->
+                </div>
+            </div>
+
             <div class="pt-4 flex gap-3 border-t border-slate-800">
                 <button type="button" onclick="toggleModal('recipe-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
                     Cancelar
@@ -415,6 +449,21 @@
             <div>
                 <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Instrucciones de Cocción</label>
                 <textarea name="instructions" id="edit-instructions" rows="3" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+            </div>
+
+            <!-- Ingredientes de la Receta -->
+            <div class="space-y-3 pt-3 border-t border-slate-800">
+                <div class="flex items-center justify-between">
+                    <label class="block text-slate-300 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
+                        <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
+                    </label>
+                    <button type="button" onclick="addIngredientRow('edit-ingredients-container')" class="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-850 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                        <i data-lucide="plus" class="w-3 h-3"></i> Añadir Ingrediente
+                    </button>
+                </div>
+                <div id="edit-ingredients-container" class="space-y-2">
+                    <!-- Dynamic rows inserted by JS -->
+                </div>
             </div>
 
             <div class="pt-4 flex gap-3 border-t border-slate-800">
@@ -576,6 +625,46 @@
         }
     }
 
+    var AVAILABLE_INGREDIENTS = @json($ingredients);
+
+    function addIngredientRow(containerId, selectedIngId = '', quantity = 100, unit = 'g') {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const index = container.children.length;
+        const rowId = 'ing_row_' + Date.now() + '_' + index;
+
+        let optionsHtml = '<option value="">-- Seleccionar Ingrediente --</option>';
+        AVAILABLE_INGREDIENTS.forEach(ing => {
+            const selected = ing.id == selectedIngId ? 'selected' : '';
+            optionsHtml += `<option value="${ing.id}" ${selected}>${ing.name} (${ing.calories_per_100g} kcal/100g)</option>`;
+        });
+
+        const row = document.createElement('div');
+        row.id = rowId;
+        row.className = 'flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-850 text-xs';
+        row.innerHTML = `
+            <select name="ingredients[${index}][ingredient_id]" required class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                ${optionsHtml}
+            </select>
+            <input type="number" step="0.1" min="0.1" name="ingredients[${index}][quantity]" value="${quantity}" placeholder="Cant." required class="w-20 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 text-xs focus:outline-none font-mono text-center">
+            <select name="ingredients[${index}][unit]" class="w-20 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-300 text-xs focus:outline-none cursor-pointer font-mono">
+                <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
+                <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
+                <option value="unidad" ${unit === 'unidad' || unit === 'unit' ? 'selected' : ''}>unidad</option>
+            </select>
+            <button type="button" onclick="document.getElementById('${rowId}').remove()" class="p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer" title="Eliminar Ingrediente">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        `;
+
+        container.appendChild(row);
+
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+            lucide.createIcons();
+        }
+    }
+
     function openCategoryModal() {
         document.getElementById('create-category-form').reset();
         toggleModal('category-modal');
@@ -583,6 +672,11 @@
 
     function openCreateRecipeModal() {
         document.getElementById('create-recipe-form').reset();
+        const container = document.getElementById('create-ingredients-container');
+        if (container) {
+            container.innerHTML = '';
+            addIngredientRow('create-ingredients-container');
+        }
         toggleModal('recipe-modal');
     }
 
@@ -609,10 +703,22 @@
         }
         removeImgCheck.checked = false;
 
+        const editContainer = document.getElementById('edit-ingredients-container');
+        if (editContainer) {
+            editContainer.innerHTML = '';
+            if (recipe.ingredients && recipe.ingredients.length > 0) {
+                recipe.ingredients.forEach(ing => {
+                    addIngredientRow('edit-ingredients-container', ing.id, ing.pivot.quantity, ing.pivot.unit);
+                });
+            } else {
+                addIngredientRow('edit-ingredients-container');
+            }
+        }
+
         toggleModal('edit-recipe-modal');
     }
 
-    function openDeleteRecipeModal(recipeId, recipeName, isActive) {
+    function openDeleteRecipeModal(recipeId, recipeName, isActive, mealPlansCount = 0) {
         document.getElementById('delete-recipe-form').action = `/recetas/${recipeId}`;
         const titleEl = document.getElementById('modal-recipe-status-title');
         const descEl = document.getElementById('modal-recipe-status-desc');
@@ -621,7 +727,23 @@
 
         if (isActive) {
             titleEl.textContent = 'Inhabilitar Receta';
-            descEl.innerHTML = `¿Estás seguro de que deseas marcar como <strong>inactiva</strong> la receta (<strong class="text-slate-100">${escapeHtml(recipeName)}</strong>)? Ya no podrá ser seleccionada en los nuevos menús de dieta.`;
+            let warningAlert = '';
+            if (mealPlansCount > 0) {
+                warningAlert = `
+                    <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-semibold space-y-1 mt-2">
+                        <div class="flex items-center gap-1.5 font-extrabold text-amber-400">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i> ⚠️ ¡ADVERTENCIA DE DEPENDENCIA!
+                        </div>
+                        <p class="leading-relaxed">Esta receta forma parte de <strong class="text-amber-200 underline">${mealPlansCount} plan(es) de nutrición activo(s)</strong>. Al inhabilitarla, permanecerá en los planes existentes pero no podrá seleccionarse en nuevos menús.</p>
+                    </div>
+                `;
+            }
+            descEl.innerHTML = `
+                <div class="space-y-2">
+                    <p>¿Estás seguro de que deseas marcar como <strong>inactiva</strong> la receta (<strong class="text-slate-100">${escapeHtml(recipeName)}</strong>)?</p>
+                    ${warningAlert}
+                </div>
+            `;
             btnTextEl.textContent = 'Sí, Inhabilitar';
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         } else {
@@ -631,6 +753,7 @@
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-400 hover:to-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         }
 
+        if (window.lucide) window.lucide.createIcons();
         toggleModal('delete-recipe-modal');
     }
 
@@ -976,9 +1099,9 @@
     }
 
     // Pagination & Filter Logic (6 cards per page)
-    let currentRecipePage = 1;
-    let currentRecipeStatusFilter = 'all';
-    const itemsPerPage = 6;
+    var currentRecipePage = 1;
+    var currentRecipeStatusFilter = 'all';
+    var itemsPerPage = 6;
 
     function setStatusFilter(status) {
         currentRecipeStatusFilter = status;

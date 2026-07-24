@@ -131,9 +131,42 @@
                                                 <span class="px-2 py-0.5 bg-slate-950/60 text-slate-400 border border-slate-850 rounded-md font-bold uppercase tracking-wider">
                                                     {{ __($ex->exercise->difficulty) }}
                                                 </span>
+                                                @if($ex->exercise->is_active == 0)
+                                                    <span class="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-md font-bold uppercase tracking-wider">
+                                                        ⚠️ Ejercicio Inactivo
+                                                    </span>
+                                                @endif
+                                                @if($ex->exercise->equipment && $ex->exercise->equipment->contains('is_active', 0))
+                                                    <span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md font-bold uppercase tracking-wider">
+                                                        ⚠️ Maquinaria Inhabilitada
+                                                    </span>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Equipment & Video Details -->
+                                    @if(($ex->exercise->equipment && $ex->exercise->equipment->count() > 0) || $ex->exercise->video_url)
+                                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-850/60 pt-2 text-xs">
+                                            @if($ex->exercise->equipment && $ex->exercise->equipment->count() > 0)
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Equipo:</span>
+                                                    <div class="flex flex-wrap gap-1">
+                                                        @foreach($ex->exercise->equipment as $eq)
+                                                            <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-semibold rounded-lg flex items-center gap-1 {{ $eq->is_active ? '' : 'line-through text-rose-400 border-rose-500/20' }}">
+                                                                <i data-lucide="wrench" class="w-3 h-3 text-slate-500"></i> {{ $eq->name }}
+                                                            </span>
+                                                        @endforeach
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            @if($ex->exercise->video_url)
+                                                <a href="{{ $ex->exercise->video_url }}" target="_blank" class="inline-flex items-center gap-1 text-xs text-lime-400 hover:text-lime-300 font-bold transition-colors shrink-0">
+                                                    <i data-lucide="play-circle" class="w-3.5 h-3.5"></i> Ver Video
+                                                </a>
+                                            @endif
+                                        </div>
+                                    @endif
 
                                     <!-- Sets, Reps, Rest Pills Grid -->
                                     <div class="grid grid-cols-3 gap-3 max-w-md bg-slate-950/50 p-3 rounded-2xl border border-slate-850/80 text-xs">

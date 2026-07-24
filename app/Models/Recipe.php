@@ -33,6 +33,12 @@ class Recipe extends Model
     {
         return $this->belongsTo(RecipeCategory::class, 'category_id');
     }
+
+    public function ingredients()
+    {
+        return $this->belongsToMany(Ingredient::class, 'recipe_ingredients', 'recipe_id', 'ingredient_id')
+                    ->withPivot('quantity', 'unit', 'notes');
+    }
 }
 
 class RecipeCategory extends Model

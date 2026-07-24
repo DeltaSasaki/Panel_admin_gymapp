@@ -1507,9 +1507,9 @@
     }
 
     // MEMBRESIAS FILTER & PAGINATION
-    let currentMembershipPage = 1;
-    let currentMembershipStatusFilter = 'all';
-    const itemsPerPage = 10;
+    var currentMembershipPage = 1;
+    var currentMembershipStatusFilter = 'all';
+    var itemsPerPage = 10;
 
     function setMembershipStatusFilter(status) {
         currentMembershipStatusFilter = status;

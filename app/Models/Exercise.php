@@ -30,6 +30,11 @@ class Exercise extends Model
     {
         return $this->belongsTo(ExerciseCategory::class, 'category_id');
     }
+
+    public function equipment()
+    {
+        return $this->belongsToMany(Equipment::class, 'exercise_equipment', 'exercise_id', 'equipment_id');
+    }
 }
 class ExerciseCategory extends Model
 {

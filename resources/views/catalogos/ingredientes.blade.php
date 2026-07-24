@@ -112,7 +112,7 @@
                                     <button onclick='openEditModal({{ json_encode($i) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ingrediente">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
-                                    <button onclick="openDeleteModal({{ $i->id }}, '{{ addslashes($i->name) }}', {{ $i->is_active ? 1 : 0 }})" 
+                                    <button onclick="openDeleteModal({{ $i->id }}, '{{ addslashes($i->name) }}', {{ $i->is_active ? 1 : 0 }}, {{ $i->recipes_count ?? 0 }})" 
                                             id="ing_toggle_btn_{{ $i->id }}"
                                             class="p-1.5 {{ $i->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
                                             title="{{ $i->is_active ? 'Inhabilitar Alimento' : 'Reactivar Alimento' }}">
@@ -430,7 +430,7 @@
         toggleModal('edit-ingredient-modal');
     }
 
-    function openDeleteModal(ingId, ingName, isActive) {
+    function openDeleteModal(ingId, ingName, isActive, recipesCount = 0) {
         document.getElementById('delete-ingredient-form').action = `/ingredientes/${ingId}`;
         const titleEl = document.getElementById('modal-status-title');
         const descEl = document.getElementById('modal-status-description');
@@ -439,7 +439,23 @@
 
         if (isActive) {
             titleEl.textContent = 'Inhabilitar Alimento';
-            descEl.innerHTML = `¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el alimento (<strong class="text-slate-100">${escapeHtml(ingName)}</strong>)? Ya no aparecerá en la creación de nuevas dietas.`;
+            let warningAlert = '';
+            if (recipesCount > 0) {
+                warningAlert = `
+                    <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-semibold space-y-1 mt-2">
+                        <div class="flex items-center gap-1.5 font-extrabold text-amber-400">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i> ⚠️ ¡ADVERTENCIA DE DEPENDENCIA!
+                        </div>
+                        <p class="leading-relaxed">Este ingrediente está incluido en <strong class="text-amber-200 underline">${recipesCount} receta(s) activa(s)</strong>. Al inhabilitarlo, permanecerá en recetas existentes pero las recetas mostrarán la alerta de ingrediente inactivo.</p>
+                    </div>
+                `;
+            }
+            descEl.innerHTML = `
+                <div class="space-y-2">
+                    <p>¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el alimento (<strong class="text-slate-100">${escapeHtml(ingName)}</strong>)?</p>
+                    ${warningAlert}
+                </div>
+            `;
             btnTextEl.textContent = 'Sí, Inhabilitar';
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         } else {
@@ -449,6 +465,7 @@
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-400 hover:to-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         }
 
+        if (window.lucide) window.lucide.createIcons();
         toggleModal('delete-ingredient-modal');
     }
 
@@ -673,10 +690,10 @@
     }
 
     // Pagination & Filter Logic
-    let currentIngredientPage = 1;
-    let currentStatusFilter = 'all';
-    let currentUnitFilter = 'all';
-    const itemsPerPage = 10;
+    var currentIngredientPage = 1;
+    var currentStatusFilter = 'all';
+    var currentUnitFilter = 'all';
+    var itemsPerPage = 10;
 
     function setStatusFilter(status) {
         currentStatusFilter = status;

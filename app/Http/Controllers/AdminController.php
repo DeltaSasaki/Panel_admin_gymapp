@@ -594,11 +594,18 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $plan = MealPlan::where('gym_id', $gymId)
-            ->with(['days.breakfast', 'days.snack1', 'days.lunch', 'days.snack2', 'days.dinner'])
+            ->with([
+                'days.breakfast.ingredients', 'days.breakfast.category',
+                'days.snack1.ingredients', 'days.snack1.category',
+                'days.lunch.ingredients', 'days.lunch.category',
+                'days.snack2.ingredients', 'days.snack2.category',
+                'days.dinner.ingredients', 'days.dinner.category',
+            ])
             ->findOrFail($id);
 
         $recipes = Recipe::where('gym_id', $gymId)
             ->orWhereNull('gym_id')
+            ->with(['category', 'ingredients'])
             ->orderBy('name')
             ->get();
 
@@ -803,7 +810,7 @@ class AdminController extends Controller
         $gymId = $this->getActiveGymId();
 
         $routine = WorkoutRoutine::where('gym_id', $gymId)
-            ->with('days.exercises.exercise')
+            ->with(['days.exercises.exercise.equipment', 'days.exercises.exercise.category'])
             ->findOrFail($id);
 
         // Auto-initialize days if not created yet
@@ -817,11 +824,15 @@ class AdminController extends Controller
                 ]);
             }
             $routine = WorkoutRoutine::where('gym_id', $gymId)
-                ->with('days.exercises.exercise')
+                ->with(['days.exercises.exercise.equipment', 'days.exercises.exercise.category'])
                 ->findOrFail($id);
         }
 
-        $exercises = Exercise::where('gym_id', $gymId)->orderBy('name')->get();
+        $exercises = Exercise::where('gym_id', $gymId)
+            ->orWhereNull('gym_id')
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get();
 
         return view('rutinas.ejercicios', compact('routine', 'exercises'));
     }

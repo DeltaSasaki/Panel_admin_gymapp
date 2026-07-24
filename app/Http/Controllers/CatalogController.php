@@ -19,7 +19,12 @@ class CatalogController extends Controller
     public function equipment()
     {
         $gymId = $this->getActiveGymId();
-        $equipment = Equipment::where('gym_id', $gymId)->orderBy('name')->get();
+        $equipment = Equipment::where('gym_id', $gymId)
+            ->withCount(['exercises' => function($q) {
+                $q->where('is_active', 1);
+            }])
+            ->orderBy('name')
+            ->get();
         $totalMachines = $equipment->count();
 
         return view('catalogos.equipamiento', compact('equipment', 'totalMachines'));
@@ -136,16 +141,27 @@ class CatalogController extends Controller
 
         AdminAuditLog::record('UPDATE', 'equipment', $id, $oldData, $equipment->fresh()->toArray(), $gymId);
 
-        $message = $newStatus 
-            ? "Equipo '{$equipment->name}' activado con éxito."
-            : "Equipo '{$equipment->name}' inhabilitado con éxito.";
+        $exercisesCount = \Illuminate\Support\Facades\DB::table('exercise_equipment')
+            ->join('exercises', 'exercise_equipment.exercise_id', '=', 'exercises.id')
+            ->where('exercise_equipment.equipment_id', $equipment->id)
+            ->where('exercises.is_active', 1)
+            ->count();
+
+        if ($newStatus == 0 && $exercisesCount > 0) {
+            $message = "Equipo '{$equipment->name}' inhabilitado. Nota: Asociado a {$exercisesCount} ejercicio(s) activo(s).";
+        } else {
+            $message = $newStatus 
+                ? "Equipo '{$equipment->name}' activado con éxito."
+                : "Equipo '{$equipment->name}' inhabilitado con éxito.";
+        }
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'equipment_id' => $id,
-                'is_active' => $newStatus
+                'is_active' => $newStatus,
+                'exercises_count' => $exercisesCount
             ]);
         }
 
@@ -158,7 +174,12 @@ class CatalogController extends Controller
     public function ingredients()
     {
         $gymId = $this->getActiveGymId();
-        $ingredients = Ingredient::where('gym_id', $gymId)->orderBy('name')->get();
+        $ingredients = Ingredient::where('gym_id', $gymId)
+            ->withCount(['recipes' => function($q) {
+                $q->where('is_active', 1);
+            }])
+            ->orderBy('name')
+            ->get();
 
         return view('catalogos.ingredientes', compact('ingredients'));
     }
@@ -261,16 +282,27 @@ class CatalogController extends Controller
 
         AdminAuditLog::record('UPDATE', 'ingredients', $id, $oldData, $ingredient->fresh()->toArray(), $gymId);
 
-        $message = $newStatus 
-            ? "Ingrediente '{$ingredient->name}' activado con éxito."
-            : "Ingrediente '{$ingredient->name}' inhabilitado con éxito.";
+        $recipesCount = \Illuminate\Support\Facades\DB::table('recipe_ingredients')
+            ->join('recipes', 'recipe_ingredients.recipe_id', '=', 'recipes.id')
+            ->where('recipe_ingredients.ingredient_id', $ingredient->id)
+            ->where('recipes.is_active', 1)
+            ->count();
+
+        if ($newStatus == 0 && $recipesCount > 0) {
+            $message = "Ingrediente '{$ingredient->name}' inhabilitado. Nota: Se encuentra incluido en {$recipesCount} receta(s) activa(s).";
+        } else {
+            $message = $newStatus 
+                ? "Ingrediente '{$ingredient->name}' activado con éxito."
+                : "Ingrediente '{$ingredient->name}' inhabilitado con éxito.";
+        }
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'ingredient_id' => $id,
-                'is_active' => $newStatus
+                'is_active' => $newStatus,
+                'recipes_count' => $recipesCount
             ]);
         }
 
@@ -284,17 +316,28 @@ class CatalogController extends Controller
     {
         $gymId = $this->getActiveGymId();
         $exercises = Exercise::where('gym_id', $gymId)
-            ->orWhereNull('gym_id') // Allow global exercises too
-            ->with('category')
+            ->orWhereNull('gym_id')
+            ->with(['category', 'equipment'])
             ->orderBy('name')
             ->get();
+
+        foreach ($exercises as $ex) {
+            $ex->routines_count = \Illuminate\Support\Facades\DB::table('routine_exercises')
+                ->join('routine_days', 'routine_exercises.routine_day_id', '=', 'routine_days.id')
+                ->join('workout_routines', 'routine_days.routine_id', '=', 'workout_routines.id')
+                ->where('routine_exercises.exercise_id', $ex->id)
+                ->where('workout_routines.is_active', 1)
+                ->count();
+        }
 
         $categories = ExerciseCategory::where('gym_id', $gymId)
             ->orWhereNull('gym_id')
             ->orderBy('name')
             ->get();
 
-        return view('catalogos.ejercicios', compact('exercises', 'categories'));
+        $equipment = Equipment::where('gym_id', $gymId)->where('is_active', 1)->orderBy('name')->get();
+
+        return view('catalogos.ejercicios', compact('exercises', 'categories', 'equipment'));
     }
 
     /**
@@ -323,6 +366,7 @@ class CatalogController extends Controller
         }
 
         $gymId = $this->getActiveGymId();
+        $hasEquip = ($request->has('equipment_ids') && is_array($request->equipment_ids) && count($request->equipment_ids) > 0) || $request->has('requires_equipment');
 
         $exercise = Exercise::create([
             'gym_id' => $gymId,
@@ -332,19 +376,23 @@ class CatalogController extends Controller
             'instructions' => $request->instructions,
             'muscle_group' => $request->muscle_group,
             'difficulty' => $request->difficulty,
-            'requires_equipment' => $request->has('requires_equipment') ? 1 : 0,
+            'requires_equipment' => $hasEquip ? 1 : 0,
             'video_url' => $request->video_url,
             'image_url' => $imageUrl,
             'is_global' => 0,
             'is_active' => 1,
         ]);
 
+        if ($request->has('equipment_ids') && is_array($request->equipment_ids)) {
+            $exercise->equipment()->sync($request->equipment_ids);
+        }
+
         AdminAuditLog::record('INSERT', 'exercises', $exercise->id, null, $exercise->toArray(), $gymId);
 
         $message = 'Ejercicio añadido al catálogo con éxito.';
 
         if ($request->ajax() || $request->wantsJson()) {
-            $exercise->load('category');
+            $exercise->load(['category', 'equipment']);
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -387,6 +435,15 @@ class CatalogController extends Controller
             'video_url' => $request->video_url,
         ];
 
+        if ($request->has('equipment_ids') && is_array($request->equipment_ids)) {
+            $exercise->equipment()->sync($request->equipment_ids);
+            if (count($request->equipment_ids) > 0) {
+                $data['requires_equipment'] = 1;
+            }
+        } else {
+            $exercise->equipment()->detach();
+        }
+
         if ($request->hasFile('image')) {
             if ($exercise->image_url && file_exists(public_path($exercise->image_url))) {
                 @unlink(public_path($exercise->image_url));
@@ -410,7 +467,7 @@ class CatalogController extends Controller
         $message = 'Ejercicio actualizado con éxito.';
 
         if ($request->ajax() || $request->wantsJson()) {
-            $exercise->load('category');
+            $exercise->load(['category', 'equipment']);
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -435,16 +492,28 @@ class CatalogController extends Controller
 
         AdminAuditLog::record('UPDATE', 'exercises', $id, $oldData, $exercise->fresh()->toArray(), $gymId);
 
-        $message = $newStatus 
-            ? "Ejercicio '{$exercise->name}' activado con éxito."
-            : "Ejercicio '{$exercise->name}' inhabilitado con éxito.";
+        $routinesCount = \Illuminate\Support\Facades\DB::table('routine_exercises')
+            ->join('routine_days', 'routine_exercises.routine_day_id', '=', 'routine_days.id')
+            ->join('workout_routines', 'routine_days.routine_id', '=', 'workout_routines.id')
+            ->where('routine_exercises.exercise_id', $exercise->id)
+            ->where('workout_routines.is_active', 1)
+            ->count();
+
+        if ($newStatus == 0 && $routinesCount > 0) {
+            $message = "Ejercicio '{$exercise->name}' inhabilitado. Nota: Incluido en {$routinesCount} rutina(s) activa(s).";
+        } else {
+            $message = $newStatus 
+                ? "Ejercicio '{$exercise->name}' activado con éxito."
+                : "Ejercicio '{$exercise->name}' inhabilitado con éxito.";
+        }
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'exercise_id' => $id,
-                'is_active' => $newStatus
+                'is_active' => $newStatus,
+                'routines_count' => $routinesCount
             ]);
         }
 
@@ -488,10 +557,26 @@ class CatalogController extends Controller
     public function recipes()
     {
         $gymId = $this->getActiveGymId();
-        $recipes = Recipe::where('gym_id', $gymId)->with('category')->orderBy('name')->get();
-        $categories = RecipeCategory::where('gym_id', $gymId)->orderBy('name')->get();
+        $recipes = Recipe::where('gym_id', $gymId)->with(['category', 'ingredients'])->orderBy('name')->get();
 
-        return view('catalogos.recetas', compact('recipes', 'categories'));
+        foreach ($recipes as $rc) {
+            $rc->meal_plans_count = \Illuminate\Support\Facades\DB::table('meal_plan_days')
+                ->join('meal_plans', 'meal_plan_days.meal_plan_id', '=', 'meal_plans.id')
+                ->where(function($q) use ($rc) {
+                    $q->where('breakfast_recipe_id', $rc->id)
+                      ->orWhere('snack1_recipe_id', $rc->id)
+                      ->orWhere('lunch_recipe_id', $rc->id)
+                      ->orWhere('snack2_recipe_id', $rc->id)
+                      ->orWhere('dinner_recipe_id', $rc->id);
+                })
+                ->where('meal_plans.is_active', 1)
+                ->count();
+        }
+
+        $categories = RecipeCategory::where('gym_id', $gymId)->orderBy('name')->get();
+        $ingredients = Ingredient::where('gym_id', $gymId)->where('is_active', 1)->orderBy('name')->get();
+
+        return view('catalogos.recetas', compact('recipes', 'categories', 'ingredients'));
     }
 
     /**
@@ -541,12 +626,26 @@ class CatalogController extends Controller
             'is_active' => 1,
         ]);
 
+        if ($request->has('ingredients') && is_array($request->ingredients)) {
+            $syncData = [];
+            foreach ($request->ingredients as $item) {
+                if (!empty($item['ingredient_id']) && !empty($item['quantity'])) {
+                    $syncData[$item['ingredient_id']] = [
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'] ?? 'g',
+                        'notes' => $item['notes'] ?? null,
+                    ];
+                }
+            }
+            $recipe->ingredients()->sync($syncData);
+        }
+
         AdminAuditLog::record('INSERT', 'recipes', $recipe->id, null, $recipe->toArray(), $gymId);
 
         $message = 'Receta guardada con éxito en el recetario.';
 
         if ($request->ajax() || $request->wantsJson()) {
-            $recipe->load('category');
+            $recipe->load(['category', 'ingredients']);
             return response()->json([
                 'success' => true,
                 'message' => $message,
@@ -613,6 +712,20 @@ class CatalogController extends Controller
 
         $recipe->update($data);
 
+        if ($request->has('ingredients') && is_array($request->ingredients)) {
+            $syncData = [];
+            foreach ($request->ingredients as $item) {
+                if (!empty($item['ingredient_id']) && !empty($item['quantity'])) {
+                    $syncData[$item['ingredient_id']] = [
+                        'quantity' => $item['quantity'],
+                        'unit' => $item['unit'] ?? 'g',
+                        'notes' => $item['notes'] ?? null,
+                    ];
+                }
+            }
+            $recipe->ingredients()->sync($syncData);
+        }
+
         AdminAuditLog::record('UPDATE', 'recipes', $recipe->id, $oldData, $recipe->fresh()->toArray(), $gymId);
 
         $message = 'Receta actualizada con éxito.';
@@ -643,16 +756,33 @@ class CatalogController extends Controller
 
         AdminAuditLog::record('UPDATE', 'recipes', $id, $oldData, $recipe->fresh()->toArray(), $gymId);
 
-        $message = $newStatus 
-            ? "Receta '{$recipe->name}' activada con éxito."
-            : "Receta '{$recipe->name}' inhabilitada con éxito.";
+        $mealPlansCount = \Illuminate\Support\Facades\DB::table('meal_plan_days')
+            ->join('meal_plans', 'meal_plan_days.meal_plan_id', '=', 'meal_plans.id')
+            ->where(function($q) use ($recipe) {
+                $q->where('breakfast_recipe_id', $recipe->id)
+                  ->orWhere('snack1_recipe_id', $recipe->id)
+                  ->orWhere('lunch_recipe_id', $recipe->id)
+                  ->orWhere('snack2_recipe_id', $recipe->id)
+                  ->orWhere('dinner_recipe_id', $recipe->id);
+            })
+            ->where('meal_plans.is_active', 1)
+            ->count();
+
+        if ($newStatus == 0 && $mealPlansCount > 0) {
+            $message = "Receta '{$recipe->name}' inhabilitada. Nota: Forma parte de {$mealPlansCount} plan(es) nutricional(es) activo(s).";
+        } else {
+            $message = $newStatus 
+                ? "Receta '{$recipe->name}' activada con éxito."
+                : "Receta '{$recipe->name}' inhabilitada con éxito.";
+        }
 
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'recipe_id' => $id,
-                'is_active' => $newStatus
+                'is_active' => $newStatus,
+                'meal_plans_count' => $mealPlansCount
             ]);
         }
 

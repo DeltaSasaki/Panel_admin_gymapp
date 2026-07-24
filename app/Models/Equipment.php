@@ -23,4 +23,9 @@ class Equipment extends Model
     {
         return $this->belongsTo(Gym::class, 'gym_id');
     }
+
+    public function exercises()
+    {
+        return $this->belongsToMany(Exercise::class, 'exercise_equipment', 'equipment_id', 'exercise_id');
+    }
 }

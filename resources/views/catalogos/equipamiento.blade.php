@@ -117,7 +117,7 @@
                                     <button onclick='openEditEquipmentModal({{ json_encode($item) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Equipo">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
-                                    <button onclick="openDeleteEquipmentModal({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->is_active ? 1 : 0 }})" 
+                                    <button onclick="openDeleteEquipmentModal({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->is_active ? 1 : 0 }}, {{ $item->exercises_count ?? 0 }})" 
                                             id="eq_toggle_btn_{{ $item->id }}"
                                             class="p-1.5 {{ $item->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
                                             title="{{ $item->is_active ? 'Inhabilitar Equipo' : 'Reactivar Equipo' }}">
@@ -413,7 +413,7 @@
         toggleModal('edit-equipment-modal');
     }
 
-    function openDeleteEquipmentModal(eqId, eqName, isActive) {
+    function openDeleteEquipmentModal(eqId, eqName, isActive, exercisesCount = 0) {
         document.getElementById('delete-equipment-form').action = `/equipamiento/${eqId}`;
         const titleEl = document.getElementById('modal-equipment-status-title');
         const descEl = document.getElementById('modal-equipment-status-desc');
@@ -422,7 +422,23 @@
 
         if (isActive) {
             titleEl.textContent = 'Inhabilitar Equipo';
-            descEl.innerHTML = `¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el equipo (<strong class="text-slate-100">${escapeHtml(eqName)}</strong>)? Ya no figurará disponible para asignación.`;
+            let warningAlert = '';
+            if (exercisesCount > 0) {
+                warningAlert = `
+                    <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-semibold space-y-1 mt-2">
+                        <div class="flex items-center gap-1.5 font-extrabold text-amber-400">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i> ⚠️ ¡ADVERTENCIA DE DEPENDENCIA!
+                        </div>
+                        <p class="leading-relaxed">Este equipo está siendo utilizado por <strong class="text-amber-200 underline">${exercisesCount} ejercicio(s) activo(s)</strong>. Al inhabilitarlo, permanecerá en el catálogo pero dichos ejercicios alertarán que requieren maquinaria inhabilitada.</p>
+                    </div>
+                `;
+            }
+            descEl.innerHTML = `
+                <div class="space-y-2">
+                    <p>¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el equipo (<strong class="text-slate-100">${escapeHtml(eqName)}</strong>)?</p>
+                    ${warningAlert}
+                </div>
+            `;
             btnTextEl.textContent = 'Sí, Inhabilitar';
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         } else {
@@ -432,6 +448,7 @@
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-400 hover:to-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         }
 
+        if (window.lucide) window.lucide.createIcons();
         toggleModal('delete-equipment-modal');
     }
 
@@ -655,9 +672,9 @@
     }
 
     // Pagination & Filter Logic (10 per page)
-    let currentEquipmentPage = 1;
-    let currentEquipmentStatusFilter = 'all';
-    const itemsPerPage = 10;
+    var currentEquipmentPage = 1;
+    var currentEquipmentStatusFilter = 'all';
+    var itemsPerPage = 10;
 
     function setStatusFilter(status) {
         currentEquipmentStatusFilter = status;

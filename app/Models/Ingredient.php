@@ -28,4 +28,9 @@ class Ingredient extends Model
     {
         return $this->belongsTo(Gym::class, 'gym_id');
     }
+
+    public function recipes()
+    {
+        return $this->belongsToMany(Recipe::class, 'recipe_ingredients', 'ingredient_id', 'recipe_id');
+    }
 }

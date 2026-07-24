@@ -141,20 +141,45 @@
                                     <span class="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/25 rounded-full text-[9px] font-bold uppercase">Avanzado</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-center font-bold text-slate-400 uppercase text-[10px]" id="ex_equip_{{ $exercise->id }}">
-                                {{ $exercise->requires_equipment ? 'Sí' : 'No' }}
+                            <td class="p-4 text-center text-[10px]" id="ex_equip_{{ $exercise->id }}">
+                                @if($exercise->equipment && $exercise->equipment->count() > 0)
+                                    <div class="flex flex-wrap items-center justify-center gap-1">
+                                        @foreach($exercise->equipment->take(2) as $eq)
+                                            <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-semibold rounded-lg inline-flex items-center gap-1 {{ $eq->is_active ? '' : 'line-through text-rose-400 border-rose-500/20' }}" title="{{ $eq->is_active ? 'Equipo Activo' : 'Equipo Inhabilitado en Catálogo' }}">
+                                                <i data-lucide="wrench" class="w-3 h-3 text-slate-500"></i> {{ $eq->name }}
+                                            </span>
+                                        @endforeach
+                                        @if($exercise->equipment->count() > 2)
+                                            <span onclick='openExerciseDetailModal({{ json_encode($exercise) }})' class="px-2 py-0.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 hover:bg-lime-500 hover:text-slate-950 text-[10px] font-bold rounded-lg cursor-pointer transition-colors" title="Ver todo el equipamiento">
+                                                +{{ $exercise->equipment->count() - 2 }} más
+                                            </span>
+                                        @endif
+                                    </div>
+                                @elseif($exercise->requires_equipment)
+                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 text-[10px] font-bold rounded-lg uppercase">
+                                        Sí (General)
+                                    </span>
+                                @else
+                                    <span class="text-slate-500 font-semibold text-[10px] italic">
+                                        Libre / Peso Corporal
+                                    </span>
+                                @endif
                             </td>
                             <td class="p-4 text-center pr-6">
                                 <div class="flex items-center justify-center gap-2">
+                                    <button type="button" id="ex_detail_btn_{{ $exercise->id }}" onclick='openExerciseDetailModal({{ json_encode($exercise) }})' class="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/25 rounded-xl transition-all shadow-sm" title="Ver Detalle Completo">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                                    </button>
+
                                     <a id="ex_video_link_{{ $exercise->id }}" href="{{ $exercise->video_url ?? '#' }}" target="_blank" class="p-1.5 text-lime-400 hover:text-lime-300 transition-colors {{ $exercise->video_url ? '' : 'hidden' }}" title="Ver video demostrativo">
                                         <i data-lucide="play-circle" class="w-4 h-4"></i>
                                     </a>
                                     
-                                    <button type="button" onclick='openEditExerciseModal({{ json_encode($exercise) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ejercicio">
+                                    <button type="button" id="ex_edit_btn_{{ $exercise->id }}" onclick='openEditExerciseModal({{ json_encode($exercise) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ejercicio">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
                                     
-                                    <button type="button" onclick="openDeleteExerciseModal({{ $exercise->id }}, '{{ addslashes($exercise->name) }}', {{ $exercise->is_active ? 1 : 0 }})" 
+                                    <button type="button" onclick="openDeleteExerciseModal({{ $exercise->id }}, '{{ addslashes($exercise->name) }}', {{ $exercise->is_active ? 1 : 0 }}, {{ $exercise->routines_count ?? 0 }})" 
                                             id="ex_toggle_btn_{{ $exercise->id }}"
                                             class="p-1.5 {{ $exercise->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
                                             title="{{ $exercise->is_active ? 'Inhabilitar Ejercicio' : 'Reactivar Ejercicio' }}">
@@ -286,6 +311,24 @@
                 <input type="file" name="image" accept="image/*" class="w-full px-4 py-2 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-450 focus:outline-none focus:border-lime-500/50 cursor-pointer">
             </div>
 
+            <div>
+                <label class="block text-slate-300 uppercase tracking-wider mb-1.5 font-bold flex items-center gap-1.5">
+                    <i data-lucide="wrench" class="w-4 h-4 text-lime-400"></i> Equipamiento / Maquinaria Requerida (Opcional)
+                </label>
+                <div class="space-y-2">
+                    <select onchange="addEquipmentTag('create-eq-tags-container', this)" class="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                        <option value="">+ Seleccionar máquina o equipo del catálogo...</option>
+                        @foreach($equipment as $eq)
+                            <option value="{{ $eq->id }}" data-name="{{ $eq->name }}">{{ $eq->name }}</option>
+                        @endforeach
+                    </select>
+
+                    <div id="create-eq-tags-container" class="flex flex-wrap gap-1.5 min-h-[36px] p-2 bg-slate-950/60 rounded-xl border border-slate-850/60 items-center">
+                        <span class="text-[10px] text-slate-500 italic empty-hint">Sin equipo seleccionado (Ejercicio con peso corporal / libre)</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                 <div>
                     <label class="block text-slate-400 uppercase tracking-wider mb-1.5">URL del Video (Demostrativo)</label>
@@ -371,6 +414,24 @@
                 <label for="edit-remove-image" class="text-xs text-rose-400 font-medium cursor-pointer">Eliminar foto actual</label>
             </div>
 
+            <div>
+                <label class="block text-slate-300 uppercase tracking-wider mb-1.5 font-bold flex items-center gap-1.5">
+                    <i data-lucide="wrench" class="w-4 h-4 text-lime-400"></i> Equipamiento / Maquinaria Requerida (Opcional)
+                </label>
+                <div class="space-y-2">
+                    <select onchange="addEquipmentTag('edit-eq-tags-container', this)" class="w-full px-3.5 py-2.5 text-xs bg-slate-950 border border-slate-855 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                        <option value="">+ Seleccionar máquina o equipo del catálogo...</option>
+                        @foreach($equipment as $eq)
+                            <option value="{{ $eq->id }}" data-name="{{ $eq->name }}">{{ $eq->name }}</option>
+                        @endforeach
+                    </select>
+
+                    <div id="edit-eq-tags-container" class="flex flex-wrap gap-1.5 min-h-[36px] p-2 bg-slate-950/60 rounded-xl border border-slate-855/60 items-center">
+                        <span class="text-[10px] text-slate-500 italic empty-hint">Sin equipo seleccionado (Ejercicio con peso corporal / libre)</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                 <div>
                     <label class="block text-slate-400 uppercase tracking-wider mb-1.5">URL del Video (Demostrativo)</label>
@@ -429,6 +490,62 @@
                 <span id="modal-exercise-status-btn-text">Confirmar</span>
             </button>
         </form>
+    </div>
+</div>
+
+<!-- ================= MODAL: DETALLE DEL EJERCICIO ================= -->
+<div id="exercise-detail-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-auto my-auto space-y-5 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-2xl bg-lime-500/10 border border-lime-500/20 text-lime-400 shrink-0">
+                    <i data-lucide="dumbbell" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base text-slate-100" id="detail-ex-name">Detalle del Ejercicio</h3>
+                    <span class="text-xs text-slate-400 font-semibold" id="detail-ex-category">Categoría</span>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('exercise-detail-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <!-- Badges Bar -->
+            <div class="flex items-center gap-2 flex-wrap" id="detail-ex-badges">
+            </div>
+
+            <!-- Equipment Section -->
+            <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 space-y-2">
+                <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block flex items-center gap-1.5">
+                    <i data-lucide="wrench" class="w-3.5 h-3.5 text-lime-400"></i> Maquinaria / Equipamiento Requerido:
+                </span>
+                <div id="detail-ex-equipment" class="flex flex-wrap gap-1.5">
+                </div>
+            </div>
+
+            <!-- Description & Instructions -->
+            <div class="space-y-3">
+                <div id="detail-ex-desc-box" class="bg-slate-950/50 p-3 rounded-xl border border-slate-850/60 space-y-1">
+                    <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">Descripción:</span>
+                    <p id="detail-ex-description" class="text-slate-300 leading-relaxed"></p>
+                </div>
+
+                <div id="detail-ex-inst-box" class="bg-slate-950/50 p-3 rounded-xl border border-slate-850/60 space-y-1">
+                    <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 block">Instrucciones de Ejecución:</span>
+                    <p id="detail-ex-instructions" class="text-slate-300 leading-relaxed whitespace-pre-line"></p>
+                </div>
+            </div>
+
+            <!-- Video Button & Routine Count -->
+            <div class="flex items-center justify-between pt-3 border-t border-slate-850 text-xs">
+                <span id="detail-ex-routines-count" class="text-slate-400 font-semibold"></span>
+                <a id="detail-ex-video-btn" href="#" target="_blank" class="px-3 py-1.5 bg-lime-500/10 hover:bg-lime-500 text-lime-400 hover:text-slate-950 border border-lime-500/25 font-bold rounded-xl transition-all inline-flex items-center gap-1.5">
+                    <i data-lucide="play-circle" class="w-4 h-4"></i> Ver Video Demostrativo
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -546,8 +663,131 @@
         toggleModal('category-modal');
     }
 
+    function openExerciseDetailModal(ex) {
+        document.getElementById('detail-ex-name').textContent = ex.name;
+        document.getElementById('detail-ex-category').textContent = ex.category ? ex.category.name : 'Sin categoría';
+
+        const badgesContainer = document.getElementById('detail-ex-badges');
+        badgesContainer.innerHTML = `
+            <span class="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-md font-bold uppercase tracking-wider text-[10px]">
+                ${escapeHtml(ex.muscle_group || 'Cuerpo Completo')}
+            </span>
+            <span class="px-2.5 py-1 bg-slate-950 text-slate-300 border border-slate-850 rounded-md font-bold uppercase tracking-wider text-[10px]">
+                ${escapeHtml(ex.difficulty)}
+            </span>
+            <span class="px-2.5 py-1 ${ex.is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'} border rounded-md font-bold uppercase tracking-wider text-[10px]">
+                ${ex.is_active ? 'Activo' : 'Inactivo'}
+            </span>
+        `;
+
+        const equipContainer = document.getElementById('detail-ex-equipment');
+        equipContainer.innerHTML = '';
+        if (ex.equipment && ex.equipment.length > 0) {
+            ex.equipment.forEach(eq => {
+                const badge = document.createElement('span');
+                badge.className = `px-2.5 py-1 bg-slate-900 border border-slate-800 text-xs font-semibold rounded-xl flex items-center gap-1.5 ${eq.is_active ? 'text-lime-400' : 'line-through text-rose-400 border-rose-500/30'}`;
+                badge.innerHTML = `<i data-lucide="wrench" class="w-3.5 h-3.5 text-slate-500"></i> ${escapeHtml(eq.name)} ${eq.is_active ? '' : '⚠️ (Inhabilitado en catálogo)'}`;
+                equipContainer.appendChild(badge);
+            });
+        } else if (ex.requires_equipment) {
+            equipContainer.innerHTML = '<span class="text-slate-400 text-xs italic">Requiere equipamiento general.</span>';
+        } else {
+            equipContainer.innerHTML = '<span class="text-slate-500 text-xs italic">Sin equipo requerido (Peso corporal / Libre).</span>';
+        }
+
+        document.getElementById('detail-ex-description').textContent = ex.description || 'Sin descripción disponible.';
+        document.getElementById('detail-ex-instructions').textContent = ex.instructions || 'Sin instrucciones cargadas.';
+
+        const videoBtn = document.getElementById('detail-ex-video-btn');
+        if (ex.video_url) {
+            videoBtn.href = ex.video_url;
+            videoBtn.classList.remove('hidden');
+        } else {
+            videoBtn.classList.add('hidden');
+        }
+
+        const routinesEl = document.getElementById('detail-ex-routines-count');
+        routinesEl.textContent = `Utilizado en ${ex.routines_count || 0} rutina(s) activa(s)`;
+
+        if (window.lucide) window.lucide.createIcons();
+        toggleModal('exercise-detail-modal');
+    }
+
+    function addEquipmentTag(containerId, selectEl, eqId = null, eqName = null) {
+        let id = eqId;
+        let name = eqName;
+        let select = selectEl;
+
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (!select) {
+            select = container.parentElement.querySelector('select');
+        }
+
+        if (selectEl) {
+            id = selectEl.value;
+            if (!id) return;
+            const opt = selectEl.options[selectEl.selectedIndex];
+            name = opt.getAttribute('data-name') || opt.text;
+            selectEl.value = '';
+        }
+
+        if (container.querySelector(`input[value="${id}"]`)) return;
+
+        if (select) {
+            const optToHide = select.querySelector(`option[value="${id}"]`);
+            if (optToHide) optToHide.hidden = true;
+        }
+
+        const hint = container.querySelector('.empty-hint');
+        if (hint) hint.classList.add('hidden');
+
+        const tagId = 'eq_tag_' + containerId + '_' + id;
+        const tag = document.createElement('span');
+        tag.id = tagId;
+        tag.className = 'px-2.5 py-1 bg-slate-900 border border-slate-800 text-lime-400 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm animate-scale-up';
+        tag.innerHTML = `
+            <span>${escapeHtml(name)}</span>
+            <input type="hidden" name="equipment_ids[]" value="${id}">
+            <button type="button" onclick="removeEquipmentTag('${containerId}', '${tagId}', '${id}')" class="p-0.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-md transition-colors cursor-pointer" title="Quitar">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+        `;
+
+        container.appendChild(tag);
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function removeEquipmentTag(containerId, tagId, eqId) {
+        const tag = document.getElementById(tagId);
+        if (tag) tag.remove();
+
+        const container = document.getElementById(containerId);
+        if (container) {
+            const select = container.parentElement.querySelector('select');
+            if (select && eqId) {
+                const optToShow = select.querySelector(`option[value="${eqId}"]`);
+                if (optToShow) optToShow.hidden = false;
+            }
+
+            if (container.querySelectorAll('input[type="hidden"]').length === 0) {
+                const hint = container.querySelector('.empty-hint');
+                if (hint) hint.classList.remove('hidden');
+            }
+        }
+    }
+
     function openCreateExerciseModal() {
         document.getElementById('create-exercise-form').reset();
+        const container = document.getElementById('create-eq-tags-container');
+        if (container) {
+            container.innerHTML = '<span class="text-[10px] text-slate-500 italic empty-hint">Sin equipo seleccionado (Ejercicio con peso corporal / libre)</span>';
+            const select = container.parentElement.querySelector('select');
+            if (select) {
+                select.querySelectorAll('option').forEach(opt => opt.hidden = false);
+            }
+        }
         toggleModal('exercise-modal');
     }
 
@@ -571,10 +811,24 @@
         }
         removeImgCheck.checked = false;
 
+        const editContainer = document.getElementById('edit-eq-tags-container');
+        if (editContainer) {
+            editContainer.innerHTML = '<span class="text-[10px] text-slate-500 italic empty-hint">Sin equipo seleccionado (Ejercicio con peso corporal / libre)</span>';
+            const select = editContainer.parentElement.querySelector('select');
+            if (select) {
+                select.querySelectorAll('option').forEach(opt => opt.hidden = false);
+            }
+            if (item.equipment && item.equipment.length > 0) {
+                item.equipment.forEach(eq => {
+                    addEquipmentTag('edit-eq-tags-container', null, eq.id, eq.name);
+                });
+            }
+        }
+
         toggleModal('edit-exercise-modal');
     }
 
-    function openDeleteExerciseModal(exId, exName, isActive) {
+    function openDeleteExerciseModal(exId, exName, isActive, routinesCount = 0) {
         document.getElementById('delete-exercise-form').action = `/ejercicios/${exId}`;
         const titleEl = document.getElementById('modal-exercise-status-title');
         const descEl = document.getElementById('modal-exercise-status-desc');
@@ -583,7 +837,23 @@
 
         if (isActive) {
             titleEl.textContent = 'Inhabilitar Ejercicio';
-            descEl.innerHTML = `¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el ejercicio (<strong class="text-slate-100">${escapeHtml(exName)}</strong>)? Ya no aparecerá al armar nuevas rutinas.`;
+            let warningAlert = '';
+            if (routinesCount > 0) {
+                warningAlert = `
+                    <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs font-semibold space-y-1 mt-2">
+                        <div class="flex items-center gap-1.5 font-extrabold text-amber-400">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0"></i> ⚠️ ¡ADVERTENCIA DE DEPENDENCIA!
+                        </div>
+                        <p class="leading-relaxed">Este ejercicio forma parte de <strong class="text-amber-200 underline">${routinesCount} rutina(s) activa(s)</strong>. Al inhabilitarlo, permanecerá en las rutinas existentes pero alertará que el ejercicio está inactivo en el catálogo.</p>
+                    </div>
+                `;
+            }
+            descEl.innerHTML = `
+                <div class="space-y-2">
+                    <p>¿Estás seguro de que deseas marcar como <strong>inactivo</strong> el ejercicio (<strong class="text-slate-100">${escapeHtml(exName)}</strong>)?</p>
+                    ${warningAlert}
+                </div>
+            `;
             btnTextEl.textContent = 'Sí, Inhabilitar';
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         } else {
@@ -593,6 +863,7 @@
             submitBtn.className = "flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-400 hover:to-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5";
         }
 
+        if (window.lucide) window.lucide.createIcons();
         toggleModal('delete-exercise-modal');
     }
 
@@ -725,13 +996,16 @@
                         </span>
                     </td>
                     <td class="p-4 text-center" id="ex_diff_${ex.id}">${diffBadgeHtml}</td>
-                    <td class="p-4 text-center font-bold text-slate-400 uppercase text-[10px]" id="ex_equip_${ex.id}">${ex.requires_equipment ? 'Sí' : 'No'}</td>
+                    <td class="p-4 text-center text-[10px]" id="ex_equip_${ex.id}">${buildEquipmentBadgesHtml(ex)}</td>
                     <td class="p-4 text-center pr-6">
                         <div class="flex items-center justify-center gap-2">
+                            <button type="button" id="ex_detail_btn_${ex.id}" onclick='openExerciseDetailModal(${exJsonStr})' class="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/25 rounded-xl transition-all shadow-sm" title="Ver Detalle Completo">
+                                <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                            </button>
                             <a id="ex_video_link_${ex.id}" href="${ex.video_url || '#'}" target="_blank" class="p-1.5 text-lime-400 hover:text-lime-300 transition-colors ${ex.video_url ? '' : 'hidden'}" title="Ver video demostrativo">
                                 <i data-lucide="play-circle" class="w-4 h-4"></i>
                             </a>
-                            <button type="button" onclick='openEditExerciseModal(${exJsonStr})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ejercicio">
+                            <button type="button" id="ex_edit_btn_${ex.id}" onclick='openEditExerciseModal(${exJsonStr})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ejercicio">
                                 <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                             </button>
                             <button type="button" onclick="openDeleteExerciseModal(${ex.id}, '${safeName.replace(/'/g, "\\'")}', 1)" id="ex_toggle_btn_${ex.id}" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Ejercicio">
@@ -757,6 +1031,37 @@
             showToast('Ocurrió un error al intentar guardar el ejercicio.', 'error');
         } finally {
             setBtnLoading(submitBtn, false);
+        }
+    }
+
+    function buildEquipmentBadgesHtml(ex) {
+        if (ex.equipment && ex.equipment.length > 0) {
+            let html = '<div class="flex flex-wrap items-center justify-center gap-1">';
+            const displayEquip = ex.equipment.slice(0, 2);
+            displayEquip.forEach(eq => {
+                const isActive = eq.is_active != 0;
+                const safeEqName = escapeHtml(eq.name);
+                html += `
+                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-semibold rounded-lg inline-flex items-center gap-1 ${isActive ? '' : 'line-through text-rose-400 border-rose-500/20'}" title="${isActive ? 'Equipo Activo' : 'Equipo Inhabilitado en Catálogo'}">
+                        <i data-lucide="wrench" class="w-3 h-3 text-slate-500"></i> ${safeEqName}
+                    </span>
+                `;
+            });
+            if (ex.equipment.length > 2) {
+                const remaining = ex.equipment.length - 2;
+                const exJsonStr = JSON.stringify(ex).replace(/'/g, "&#39;");
+                html += `
+                    <span onclick='openExerciseDetailModal(${exJsonStr})' class="px-2 py-0.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 hover:bg-lime-500 hover:text-slate-950 text-[10px] font-bold rounded-lg cursor-pointer transition-colors" title="Ver todo el equipamiento">
+                        +${remaining} más
+                    </span>
+                `;
+            }
+            html += '</div>';
+            return html;
+        } else if (ex.requires_equipment) {
+            return `<span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 text-[10px] font-bold rounded-lg uppercase">Sí (General)</span>`;
+        } else {
+            return `<span class="text-slate-500 font-semibold text-[10px] italic">Libre / Peso Corporal</span>`;
         }
     }
 
@@ -812,7 +1117,15 @@
                     }
                     if (catEl) catEl.textContent = ex.category ? ex.category.name : 'Sin categoría';
                     if (muscleEl) muscleEl.textContent = ex.muscle_group || 'Cuerpo Completo';
-                    if (equipEl) equipEl.textContent = ex.requires_equipment ? 'Sí' : 'No';
+                    if (equipEl) {
+                        equipEl.innerHTML = buildEquipmentBadgesHtml(ex);
+                    }
+
+                    const editBtn = document.getElementById(`ex_edit_btn_${ex.id}`);
+                    if (editBtn) editBtn.onclick = () => openEditExerciseModal(ex);
+
+                    const detailBtn = document.getElementById(`ex_detail_btn_${ex.id}`);
+                    if (detailBtn) detailBtn.onclick = () => openExerciseDetailModal(ex);
 
                     if (diffEl) {
                         if (ex.difficulty === 'beginner') {
@@ -924,9 +1237,9 @@
     }
 
     // Pagination & Filter Logic (10 per page)
-    let currentExercisePage = 1;
-    let currentExerciseStatusFilter = 'all';
-    const itemsPerPage = 10;
+    var currentExercisePage = 1;
+    var currentExerciseStatusFilter = 'all';
+    var itemsPerPage = 10;
 
     function setStatusFilter(status) {
         currentExerciseStatusFilter = status;
