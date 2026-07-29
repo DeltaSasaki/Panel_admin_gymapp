@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 17-07-2026 a las 05:15:02
+-- Tiempo de generación: 29-07-2026 a las 17:44:23
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -20,6 +20,8 @@ SET time_zone = "+00:00";
 --
 -- Base de datos: `teleredt_gym_prueba`
 --
+CREATE DATABASE IF NOT EXISTS `teleredt_gym_prueba` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `teleredt_gym_prueba`;
 
 -- --------------------------------------------------------
 
@@ -58,7 +60,7 @@ CREATE TABLE `admin_audit_logs` (
   `ip_address` varchar(45) DEFAULT NULL,
   `user_agent` text DEFAULT NULL COMMENT 'Navegador / Dispositivo usado',
   `createdAt` datetime NOT NULL DEFAULT current_timestamp()
-) ;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -402,7 +404,30 @@ CREATE TABLE `gym_classes` (
   `duration_minutes` int(11) NOT NULL DEFAULT 60,
   `capacity` int(11) NOT NULL DEFAULT 15,
   `color_code` varchar(7) DEFAULT '#3b82f6',
+  `category_type` varchar(30) NOT NULL DEFAULT 'clase',
+  `location` varchar(150) DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `gym_promotions`
+--
+
+CREATE TABLE `gym_promotions` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) NOT NULL,
+  `plan_id` int(11) DEFAULT NULL,
+  `title` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `months_count` int(11) NOT NULL DEFAULT 1,
+  `discount_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `promotional_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `valid_until` date DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `createdAt` timestamp NULL DEFAULT current_timestamp(),
+  `updatedAt` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -735,28 +760,6 @@ CREATE TABLE `product_sales` (
 -- Estructura de tabla para la tabla `promo_codes`
 --
 
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `gym_promotions`
---
-
-CREATE TABLE `gym_promotions` (
-  `id` int(11) NOT NULL,
-  `gym_id` int(11) NOT NULL,
-  `plan_id` int(11) DEFAULT NULL,
-  `title` varchar(150) NOT NULL,
-  `description` text DEFAULT NULL,
-  `months_count` int(11) NOT NULL DEFAULT 1,
-  `discount_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
-  `promotional_price` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `valid_until` date DEFAULT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `createdAt` timestamp NULL DEFAULT current_timestamp(),
-  `updatedAt` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE `promo_codes` (
   `id` int(11) NOT NULL,
   `gym_id` int(11) DEFAULT NULL COMMENT 'NULL si es una promoción global de tu plataforma SaaS',
@@ -870,18 +873,6 @@ CREATE TABLE `saas_modules` (
   `display_name` varchar(100) NOT NULL COMMENT 'Ej: Tienda Virtual, Módulo de Nutrición',
   `description` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Volcado de datos para la tabla `saas_modules`
---
-
-INSERT INTO `saas_modules` (`id`, `code_name`, `display_name`, `description`) VALUES
-(1, 'core', 'Gestión Básica (Usuarios y Rutinas)', NULL),
-(2, 'nutrition', 'Planes de Alimentación', NULL),
-(3, 'store', 'Tienda e Inventario', NULL),
-(4, 'classes', 'Clases y Reservas', NULL),
-(5, 'gamification', 'Retos, XP y Referidos', NULL),
-(6, 'evaluations', 'Evaluaciones Físicas y Encuestas', NULL);
 
 -- --------------------------------------------------------
 
@@ -1065,6 +1056,7 @@ CREATE TABLE `users` (
   `password_hash` varchar(255) NOT NULL,
   `role` enum('member','trainer','admin','superadmin') DEFAULT 'member',
   `is_active` tinyint(1) DEFAULT 1,
+  `credit_balance` decimal(10,2) NOT NULL DEFAULT 0.00,
   `email_verified` tinyint(1) DEFAULT 0,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL
@@ -1475,14 +1467,6 @@ CREATE TABLE `workout_sessions` (
 --
 
 --
---
--- Volcado de datos para la tabla `gym_promotions`
---
-
-INSERT INTO `gym_promotions` (`id`, `gym_id`, `plan_id`, `title`, `description`, `months_count`, `discount_pct`, `promotional_price`, `valid_until`, `is_active`, `createdAt`, `updatedAt`) VALUES
-(1, 1, 1, 'Paquete 5 Meses - 30% OFF', 'Paga 5 meses seguidos de contado y obtén un 30% de descuento en la mensualidad regular.', 5, 30.00, 175.00, NULL, 1, '2026-07-29 12:26:37', '2026-07-29 12:26:37'),
-(2, 1, 1, 'Oferta Trimestral 15% OFF', 'Paga 3 meses seguidos de contado con un 15% de descuento directo.', 3, 15.00, 127.50, NULL, 1, '2026-07-29 12:26:37', '2026-07-29 12:26:37');
-
 -- Indices de la tabla `achievement_definitions`
 --
 ALTER TABLE `achievement_definitions`
@@ -1612,6 +1596,14 @@ ALTER TABLE `gym_classes`
   ADD KEY `gym_id` (`gym_id`);
 
 --
+-- Indices de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
+  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
+
+--
 -- Indices de la tabla `gym_subscriptions`
 --
 ALTER TABLE `gym_subscriptions`
@@ -1725,20 +1717,6 @@ ALTER TABLE `product_sales`
 --
 -- Indices de la tabla `promo_codes`
 --
---
--- Indices de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
-  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
-
---
--- AUTO_INCREMENT de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
-
 ALTER TABLE `promo_codes`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `gym_code_unique` (`gym_id`,`code`);
@@ -1984,7 +1962,7 @@ ALTER TABLE `attendance_logs`
 -- AUTO_INCREMENT de la tabla `body_measurements`
 --
 ALTER TABLE `body_measurements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `challenges`
@@ -2008,19 +1986,19 @@ ALTER TABLE `class_schedules`
 -- AUTO_INCREMENT de la tabla `equipment`
 --
 ALTER TABLE `equipment`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `exercises`
 --
 ALTER TABLE `exercises`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `exercise_categories`
 --
 ALTER TABLE `exercise_categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `failed_jobs`
@@ -2038,12 +2016,18 @@ ALTER TABLE `fitness_assessments`
 -- AUTO_INCREMENT de la tabla `gyms`
 --
 ALTER TABLE `gyms`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `gym_classes`
 --
 ALTER TABLE `gym_classes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2056,19 +2040,19 @@ ALTER TABLE `gym_subscriptions`
 -- AUTO_INCREMENT de la tabla `ingredients`
 --
 ALTER TABLE `ingredients`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `inventory_movements`
 --
 ALTER TABLE `inventory_movements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `inventory_products`
 --
 ALTER TABLE `inventory_products`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `jobs`
@@ -2080,13 +2064,13 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT de la tabla `meal_plans`
 --
 ALTER TABLE `meal_plans`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `meal_plan_days`
 --
 ALTER TABLE `meal_plan_days`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `membership_payments`
@@ -2098,13 +2082,13 @@ ALTER TABLE `membership_payments`
 -- AUTO_INCREMENT de la tabla `membership_plans`
 --
 ALTER TABLE `membership_plans`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `notifications`
@@ -2116,31 +2100,17 @@ ALTER TABLE `notifications`
 -- AUTO_INCREMENT de la tabla `product_categories`
 --
 ALTER TABLE `product_categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `product_sales`
 --
 ALTER TABLE `product_sales`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `promo_codes`
 --
---
--- Indices de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
-  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
-
---
--- AUTO_INCREMENT de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
-
 ALTER TABLE `promo_codes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
@@ -2148,37 +2118,37 @@ ALTER TABLE `promo_codes`
 -- AUTO_INCREMENT de la tabla `recipes`
 --
 ALTER TABLE `recipes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `recipe_categories`
 --
 ALTER TABLE `recipe_categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `recipe_ingredients`
 --
 ALTER TABLE `recipe_ingredients`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `routine_days`
 --
 ALTER TABLE `routine_days`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `routine_exercises`
 --
 ALTER TABLE `routine_exercises`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `saas_modules`
 --
 ALTER TABLE `saas_modules`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `saas_subscription_plans`
@@ -2190,7 +2160,7 @@ ALTER TABLE `saas_subscription_plans`
 -- AUTO_INCREMENT de la tabla `sale_items`
 --
 ALTER TABLE `sale_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `satisfaction_surveys`
@@ -2208,25 +2178,25 @@ ALTER TABLE `session_exercises`
 -- AUTO_INCREMENT de la tabla `trainers`
 --
 ALTER TABLE `trainers`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_achievements`
 --
 ALTER TABLE `user_achievements`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_assigned_routines`
 --
 ALTER TABLE `user_assigned_routines`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_challenges`
@@ -2244,13 +2214,13 @@ ALTER TABLE `user_food_logs`
 -- AUTO_INCREMENT de la tabla `user_goals`
 --
 ALTER TABLE `user_goals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_meal_plans`
 --
 ALTER TABLE `user_meal_plans`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_medical_notes`
@@ -2262,13 +2232,13 @@ ALTER TABLE `user_medical_notes`
 -- AUTO_INCREMENT de la tabla `user_memberships`
 --
 ALTER TABLE `user_memberships`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_profiles`
 --
 ALTER TABLE `user_profiles`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `user_referrals`
@@ -2286,13 +2256,13 @@ ALTER TABLE `user_trainer_assignments`
 -- AUTO_INCREMENT de la tabla `workout_routines`
 --
 ALTER TABLE `workout_routines`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `workout_sessions`
 --
 ALTER TABLE `workout_sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Restricciones para tablas volcadas
@@ -2392,6 +2362,13 @@ ALTER TABLE `gym_classes`
   ADD CONSTRAINT `gclass_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE;
 
 --
+-- Filtros para la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions`
+  ADD CONSTRAINT `gym_promotions_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `gym_promotions_plan_fk` FOREIGN KEY (`plan_id`) REFERENCES `membership_plans` (`id`) ON DELETE SET NULL;
+
+--
 -- Filtros para la tabla `gym_subscriptions`
 --
 ALTER TABLE `gym_subscriptions`
@@ -2468,20 +2445,6 @@ ALTER TABLE `product_sales`
 --
 -- Filtros para la tabla `promo_codes`
 --
---
--- Indices de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
-  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
-
---
--- AUTO_INCREMENT de la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
-
 ALTER TABLE `promo_codes`
   ADD CONSTRAINT `promo_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE;
 
@@ -2657,11 +2620,3 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-
---
--- Filtros para la tabla `gym_promotions`
---
-ALTER TABLE `gym_promotions` 
-  ADD CONSTRAINT `gym_promotions_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `gym_promotions_plan_fk` FOREIGN KEY (`plan_id`) REFERENCES `membership_plans` (`id`) ON DELETE SET NULL;
-
