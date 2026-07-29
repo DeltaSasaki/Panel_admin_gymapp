@@ -1,10 +1,17 @@
 @php
-    $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+    $isSuperAdmin = auth()->check() && auth()->user()->role === 'superadmin';
+    $userGymId = auth()->check() ? auth()->user()->gym_id : null;
+    $defaultGymContext = $isSuperAdmin ? 'all' : $userGymId;
+    $activeGymId = session('superadmin_gym_id', $defaultGymContext);
+    if (!$activeGymId) {
+        $activeGymId = $defaultGymContext;
+    }
+
     $activeGymLogo = null;
     if ($activeGymId === 'all') {
         $activeGymName = 'Todas las Sucursales';
     } else {
-        if ($activeGymId == auth()->user()->gym_id) {
+        if ($userGymId && $activeGymId == $userGymId && auth()->user()->gym) {
             $activeGymName = auth()->user()->gym->name;
             $activeGymLogo = auth()->user()->gym->logo_url;
         } else {
@@ -326,8 +333,8 @@
                             <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full animate-pulse"></span>
                         </div>
                         <div class="overflow-hidden">
-                            <h4 class="font-bold text-xs text-slate-100 truncate tracking-wide">Coach {{ auth()->user()->profile->first_name }}</h4>
-                            <p class="text-[10px] text-lime-400 font-semibold truncate uppercase tracking-widest mt-0.5">{{ auth()->user()->gym->name }}</p>
+                            <h4 class="font-bold text-xs text-slate-100 truncate tracking-wide">Coach {{ auth()->user()->profile->first_name ?? 'Admin' }}</h4>
+                            <p class="text-[10px] text-lime-400 font-semibold truncate uppercase tracking-widest mt-0.5">{{ auth()->user()->gym->name ?? ($isSuperAdmin ? 'Superadministrador Global' : 'Sin Gimnasio') }}</p>
                         </div>
                     </div>
                 </div>
@@ -646,7 +653,7 @@
                     @if(auth()->user()->role === 'superadmin')
                         @php
                             $allGyms = \App\Models\Gym::orderBy('name')->get();
-                            $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+                            $activeGymId = session('superadmin_gym_id', 'all');
                         @endphp
                         <div class="flex items-center gap-2">
                             <label for="gym_id" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sucursal:</label>
@@ -665,7 +672,7 @@
                     @if(auth()->user()->role === 'superadmin')
                         @php
                             $allGyms = \App\Models\Gym::orderBy('name')->get();
-                            $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+                            $activeGymId = session('superadmin_gym_id', 'all');
                         @endphp
                         <div class="flex items-center gap-1.5">
                             <select name="gym_id" id="gym_id_mobile" onchange="switchGymContext(this.value)" class="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-lime-400 font-bold focus:outline-none cursor-pointer">

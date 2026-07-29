@@ -24,7 +24,7 @@
                 </h3>
                 
                 @php
-                    $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
+                    $activeGymId = session('superadmin_gym_id', auth()->user()->role === 'superadmin' ? 'all' : auth()->user()->gym_id);
                 @endphp
 
                 @if($activeGymId === 'all')

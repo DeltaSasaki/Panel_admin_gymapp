@@ -104,6 +104,9 @@
                         <span id="recipe_cat_badge_{{ $recipe->id }}" class="px-2.5 py-1 bg-slate-900/90 backdrop-blur-xs border border-slate-800 text-[10px] font-bold text-slate-300 rounded-lg uppercase tracking-wider">
                             {{ $recipe->category->name ?? 'Sin Categoría' }}
                         </span>
+                        @if(is_null($recipe->gym_id))
+                            <span class="px-2 py-0.5 bg-cyan-500/90 text-slate-950 text-[9px] font-extrabold uppercase rounded-md shadow-sm" title="Receta global disponible para todos los gimnasios">Global</span>
+                        @endif
                         <span id="recipe_status_badge_{{ $recipe->id }}">
                             @if($recipe->is_active)
                                 <span class="px-2 py-0.5 bg-emerald-500/90 text-slate-950 text-[9px] font-extrabold uppercase rounded-md shadow-sm">Activa</span>
@@ -1098,10 +1101,10 @@
         }
     }
 
-    // Pagination & Filter Logic (6 cards per page)
+    // Pagination & Filter Logic (10 cards per page)
     var currentRecipePage = 1;
     var currentRecipeStatusFilter = 'all';
-    var itemsPerPage = 6;
+    var itemsPerPage = 9;
 
     function setStatusFilter(status) {
         currentRecipeStatusFilter = status;
@@ -1219,19 +1222,24 @@
         renderRecipePage();
     }
 
-    // Auto-trigger session flash messages on page load
-    document.addEventListener('DOMContentLoaded', function () {
-        @if(session('success'))
-            showToast("{{ session('success') }}", 'success');
-        @endif
-        @if($errors->any())
-            @foreach($errors->all() as $error)
-                showToast("{{ $error }}", 'error');
-            @endforeach
-        @endif
-
+    function initRecipesModule() {
         updateCounters();
         renderRecipePage();
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initRecipesModule);
+    } else {
+        initRecipesModule();
+    }
+
+    @if(session('success'))
+        showToast("{{ session('success') }}", 'success');
+    @endif
+    @if($errors->any())
+        @foreach($errors->all() as $error)
+            showToast("{{ $error }}", 'error');
+        @endforeach
+    @endif
 </script>
 @endsection

@@ -19,7 +19,10 @@ class CatalogController extends Controller
     public function equipment()
     {
         $gymId = $this->getActiveGymId();
-        $equipment = Equipment::where('gym_id', $gymId)
+        $equipment = Equipment::where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)
+                  ->orWhereNull('gym_id');
+            })
             ->withCount(['exercises' => function($q) {
                 $q->where('is_active', 1);
             }])
@@ -174,7 +177,10 @@ class CatalogController extends Controller
     public function ingredients()
     {
         $gymId = $this->getActiveGymId();
-        $ingredients = Ingredient::where('gym_id', $gymId)
+        $ingredients = Ingredient::where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)
+                  ->orWhereNull('gym_id');
+            })
             ->withCount(['recipes' => function($q) {
                 $q->where('is_active', 1);
             }])
@@ -557,7 +563,13 @@ class CatalogController extends Controller
     public function recipes()
     {
         $gymId = $this->getActiveGymId();
-        $recipes = Recipe::where('gym_id', $gymId)->with(['category', 'ingredients'])->orderBy('name')->get();
+        $recipes = Recipe::where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)
+                  ->orWhereNull('gym_id');
+            })
+            ->with(['category', 'ingredients'])
+            ->orderBy('name')
+            ->get();
 
         foreach ($recipes as $rc) {
             $rc->meal_plans_count = \Illuminate\Support\Facades\DB::table('meal_plan_days')
@@ -573,8 +585,15 @@ class CatalogController extends Controller
                 ->count();
         }
 
-        $categories = RecipeCategory::where('gym_id', $gymId)->orderBy('name')->get();
-        $ingredients = Ingredient::where('gym_id', $gymId)->where('is_active', 1)->orderBy('name')->get();
+        $categories = RecipeCategory::where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)
+                  ->orWhereNull('gym_id');
+            })->orderBy('name')->get();
+
+        $ingredients = Ingredient::where(function($q) use ($gymId) {
+                $q->where('gym_id', $gymId)
+                  ->orWhereNull('gym_id');
+            })->where('is_active', 1)->orderBy('name')->get();
 
         return view('catalogos.recetas', compact('recipes', 'categories', 'ingredients'));
     }
@@ -677,7 +696,9 @@ class CatalogController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-        $recipe = Recipe::where('gym_id', $gymId)->findOrFail($id);
+        $recipe = Recipe::where(function($q) use ($gymId) {
+            $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+        })->findOrFail($id);
         $oldData = $recipe->toArray();
 
         $data = [
@@ -748,7 +769,9 @@ class CatalogController extends Controller
     public function deleteRecipe($id)
     {
         $gymId = $this->getActiveGymId();
-        $recipe = Recipe::where('gym_id', $gymId)->findOrFail($id);
+        $recipe = Recipe::where(function($q) use ($gymId) {
+            $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+        })->findOrFail($id);
         $oldData = $recipe->toArray();
 
         $newStatus = $recipe->is_active ? 0 : 1;

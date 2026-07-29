@@ -11,9 +11,7 @@ abstract class Controller
     protected function getActiveGymId()
     {
         if (auth()->check() && auth()->user()->role === 'superadmin') {
-            if (session()->has('superadmin_gym_id')) {
-                return session('superadmin_gym_id');
-            }
+            return session('superadmin_gym_id', 'all');
         }
         
         return auth()->check() ? auth()->user()->gym_id : null;
