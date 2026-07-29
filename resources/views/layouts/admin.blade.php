@@ -39,6 +39,73 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'GymOS') - Panel de Administración</title>
 
+    <!-- Font Size Accessibility Scaler (Text-Only Scaling) -->
+    <style id="typography-font-scaler">
+        html.font-scale-small { --font-scale: 0.875; }
+        html.font-scale-normal { --font-scale: 1; }
+        html.font-scale-large { --font-scale: 1.18; }
+        html.font-scale-xlarge { --font-scale: 1.35; }
+
+        html[class*="font-scale-"] .text-\[9px\] { font-size: calc(9px * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-\[10px\] { font-size: calc(10px * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-\[11px\] { font-size: calc(11px * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-xs { font-size: calc(0.75rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-sm { font-size: calc(0.875rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-base { font-size: calc(1rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-lg { font-size: calc(1.125rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-xl { font-size: calc(1.25rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-2xl { font-size: calc(1.5rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] .text-3xl { font-size: calc(1.875rem * var(--font-scale, 1)) !important; }
+        html[class*="font-scale-"] p, 
+        html[class*="font-scale-"] span, 
+        html[class*="font-scale-"] td, 
+        html[class*="font-scale-"] th, 
+        html[class*="font-scale-"] label, 
+        html[class*="font-scale-"] input, 
+        html[class*="font-scale-"] select, 
+        html[class*="font-scale-"] button, 
+        html[class*="font-scale-"] h1, 
+        html[class*="font-scale-"] h2, 
+        html[class*="font-scale-"] h3, 
+        html[class*="font-scale-"] h4 {
+            line-height: 1.35;
+        }
+    </style>
+    <script>
+        (function() {
+            window.committedFontSize = localStorage.getItem('gym_app_font_size') || 'normal';
+
+            window.previewAppFontSize = function(sizeKey) {
+                const keys = ['small', 'normal', 'large', 'xlarge'];
+                const key = keys.includes(sizeKey) ? sizeKey : 'normal';
+                
+                keys.forEach(k => document.documentElement.classList.remove('font-scale-' + k));
+                document.documentElement.classList.add('font-scale-' + key);
+                document.documentElement.style.fontSize = '100%';
+            };
+
+            window.commitAppFontSize = function(sizeKey) {
+                const keys = ['small', 'normal', 'large', 'xlarge'];
+                const key = keys.includes(sizeKey) ? sizeKey : 'normal';
+                
+                window.committedFontSize = key;
+                localStorage.setItem('gym_app_font_size', key);
+                window.previewAppFontSize(key);
+            };
+
+            window.revertAppFontSize = function() {
+                const saved = localStorage.getItem('gym_app_font_size') || 'normal';
+                window.committedFontSize = saved;
+                window.previewAppFontSize(saved);
+            };
+
+            window.applyAppFontSize = window.commitAppFontSize;
+
+            // Apply committed font size on initial script execution
+            window.revertAppFontSize();
+        })();
+    </script>
+
     <!-- Theme initialization to prevent flash -->
     <script>
         if (localStorage.getItem('theme') === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
@@ -350,6 +417,11 @@
                                         <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Finanzas & Pagos</span>
                                     </a>
+                                    <a href="{{ url('/cierre-caja') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('cierre-caja*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="calculator" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Cierre de Caja</span>
+                                    </a>
                                 @endif
                             </div>
                         </div>
@@ -402,13 +474,21 @@
                                 </a>
                                 <a href="{{ url('/clases') }}" 
                                    class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('clases*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Clases Grupales</span>
+                                    <i data-lucide="calendar-heart" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                    <span>Clases & Eventos</span>
                                 </a>
                                 <a href="{{ url('/retos') }}" 
                                    class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('retos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
                                     <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                     <span>Retos & Incentivos</span>
+                                </a>
+                                <a href="{{ url('/notificaciones') }}" 
+                                   class="sidebar-link flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('notificaciones*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                    <span class="flex items-center gap-3">
+                                        <i data-lucide="bell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Notificaciones</span>
+                                    </span>
+                                    <span class="px-2 py-0.5 text-[9px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full">Pro</span>
                                 </a>
                             </div>
                         </div>
@@ -521,7 +601,7 @@
 
                 <!-- Action Links -->
                 <div class="flex flex-col gap-1">
-                    <a href="#" class="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-100 hover:bg-slate-800/40 transition-colors">
+                    <a href="{{ route('configuracion.index') }}" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ request()->routeIs('configuracion.*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }} transition-colors">
                         <i data-lucide="settings" class="w-4 h-4"></i>
                         <span>Configuración</span>
                     </a>
@@ -1005,6 +1085,10 @@
             }
 
             async function loadPage(url, pushState = true) {
+                if (typeof window.revertAppFontSize === 'function') {
+                    window.revertAppFontSize();
+                }
+                window.checkUnsavedSettings = null;
                 showProgress();
                 const mainContainer = document.querySelector('main');
                 if (mainContainer) {
@@ -1087,20 +1171,23 @@
 
             function updateSidebarActiveLinks(currentUrl) {
                 const urlObj = new URL(currentUrl, window.location.origin);
-                const path = urlObj.pathname;
+                const path = urlObj.pathname.replace(/\/$/, '') || '/';
 
-                const navLinks = document.querySelectorAll('aside nav a[href]');
+                const navLinks = document.querySelectorAll('aside a[href]');
                 navLinks.forEach(link => {
-                    const linkUrl = new URL(link.getAttribute('href'), window.location.origin);
-                    const linkPath = linkUrl.pathname;
+                    const href = link.getAttribute('href');
+                    if (!href || href === '#' || href.startsWith('javascript:')) return;
 
-                    const isExactMatch = (path === linkPath) || (path === '/' && linkPath === '/dashboard');
+                    const linkUrl = new URL(href, window.location.origin);
+                    const linkPath = linkUrl.pathname.replace(/\/$/, '') || '/';
+
+                    const isExactMatch = (path === linkPath) || (path === '/' && linkPath === '/dashboard') || (path === '/dashboard' && linkPath === '/');
                     const isSubPathMatch = linkPath !== '/' && linkPath !== '/dashboard' && path.startsWith(linkPath);
 
                     const isActive = isExactMatch || isSubPathMatch;
 
                     if (isActive) {
-                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm";
+                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm transition-all";
                         const parentGroupDiv = link.closest('.sidebar-group-box');
                         if (parentGroupDiv) {
                             const groupContent = parentGroupDiv.querySelector('.sidebar-accordion-wrapper');
@@ -1113,7 +1200,7 @@
                             }
                         }
                     } else {
-                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item text-slate-400 hover:text-slate-100 hover:bg-slate-850/50";
+                        link.className = "sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item text-slate-400 hover:text-slate-100 hover:bg-slate-850/50 transition-colors";
                     }
                 });
             }
@@ -1130,6 +1217,11 @@
                 const targetUrl = new URL(href, window.location.origin);
                 if (targetUrl.origin !== window.location.origin) return;
                 if (targetUrl.pathname.includes('/logout')) return;
+
+                if (typeof window.checkUnsavedSettings === 'function' && window.checkUnsavedSettings(targetUrl.href)) {
+                    e.preventDefault();
+                    return;
+                }
 
                 e.preventDefault();
                 if (targetUrl.href === window.location.href) return;

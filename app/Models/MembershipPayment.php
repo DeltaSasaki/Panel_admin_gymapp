@@ -33,4 +33,9 @@ class MembershipPayment extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function receivedBy()
+    {
+        return $this->belongsTo(User::class, 'received_by');
+    }
 }

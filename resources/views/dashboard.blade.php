@@ -199,6 +199,185 @@
         </div>
     </div>
 
+    <!-- Retention Radar & Attendance Drop Alert Section -->
+    <div class="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 shadow-xl space-y-6">
+        
+        <!-- Header & Alert Banner -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-850 pb-4">
+            <div>
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
+                    <span class="px-2.5 py-0.5 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-full flex items-center gap-1">
+                        <i data-lucide="radar" class="w-3.5 h-3.5"></i> Radar de Retención
+                    </span>
+                    <span>• Tendencia de 14 Días</span>
+                </div>
+                <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                    <i data-lucide="users" class="w-6 h-6 text-amber-400"></i> Asistencia Diaria vs Comunidad Activa del Gym
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">Monitoreo continuo del porcentaje de socios inscritos que asisten al gimnasio.</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-950 px-4 py-2 rounded-2xl border border-slate-850 text-right">
+                    <span class="block text-[10px] text-slate-500 uppercase font-bold">Socios Activos Inscritos</span>
+                    <span class="text-lg font-black text-slate-100">{{ $activeMembersCount }} Socios</span>
+                </div>
+                <div class="bg-slate-950 px-4 py-2 rounded-2xl border border-slate-850 text-right">
+                    <span class="block text-[10px] text-slate-500 uppercase font-bold">Participación Hoy</span>
+                    <span class="text-lg font-black text-lime-400">{{ $todayParticipationPct }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Conditional Retention Alert Card -->
+        @if($attendanceDropPct > 15)
+            <div class="p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-300 shadow-md">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-rose-500/20 rounded-xl text-rose-400 shrink-0">
+                        <i data-lucide="trending-down" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-slate-100 text-sm flex items-center gap-2">
+                            🚨 Alerta de Caída en Asistencias (Disminución del {{ $attendanceDropPct }}%)
+                        </h4>
+                        <p class="mt-0.5 text-rose-300/80 leading-relaxed">
+                            La asistencia promedio disminuyó de <strong>{{ $first7Avg }} asistencias/día</strong> (hace 2 semanas) a <strong>{{ $recent7Avg }} asistencias/día</strong> en los últimos 7 días. Te recomendamos enviar notificaciones de motivación o promociones de reactivación.
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ url('/clientes') }}" class="px-3.5 py-2 bg-rose-500 text-slate-950 font-black rounded-xl hover:bg-rose-400 transition-colors shrink-0 text-center">
+                    Ver Listado de Socios
+                </a>
+            </div>
+        @elseif($attendanceDropPct > 5)
+            <div class="p-4 bg-amber-500/10 border border-amber-500/25 rounded-2xl flex items-center justify-between gap-3 text-xs text-amber-300">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-500/20 rounded-xl text-amber-400 shrink-0">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-slate-100 text-sm">⚡ Ligera Variación en Asistencia ({{ $attendanceDropPct }}%)</h4>
+                        <p class="text-amber-300/80 mt-0.5">Asistencia promedio reciente: <strong>{{ $recent7Avg }} socios/día</strong>. Mantén informados a tus socios con rutinas actualizadas.</p>
+                    </div>
+                </div>
+            </div>
+        @else
+            <div class="p-4 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl flex items-center justify-between gap-3 text-xs text-emerald-300">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-emerald-500/20 rounded-xl text-emerald-400 shrink-0">
+                        <i data-lucide="flame" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-slate-100 text-sm">🔥 Excelente Retención en la Comunidad del Gym</h4>
+                        <p class="text-emerald-300/80 mt-0.5">La asistencia se mantiene fuerte con un promedio de <strong>{{ $recent7Avg }} asistencias diarias</strong> en los últimos 7 días.</p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 bg-emerald-500/20 text-emerald-300 font-extrabold rounded-full text-[11px]">Comunidad Activa</span>
+            </div>
+        @endif
+
+        <!-- 14-Day Attendance Radar Chart.js Powered Container -->
+        <div class="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
+                <span class="font-bold text-slate-300 flex items-center gap-2">
+                    <i data-lucide="line-chart" class="w-4 h-4 text-lime-400"></i> Gráfica de Asistencia Diaria (Últimos 14 Días)
+                </span>
+                <div class="flex items-center gap-4 text-[11px]">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-lime-400"></span> Asistencias Reales</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-slate-600"></span> Base Activa ({{ $activeMembersCount }} Socios)</span>
+                </div>
+            </div>
+
+            <!-- Chart.js Canvas -->
+            <div class="relative h-56 w-full">
+                <canvas id="dailyRadarChartCanvas"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Gym Traffic & Peak Hours Saturation Analytics -->
+    <div class="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 shadow-xl space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-850 pb-4">
+            <div>
+                <div class="flex items-center gap-2 text-xs font-bold text-slate-400 mb-1">
+                    <span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i> Mapa de Tráfico por Hora
+                    </span>
+                    <span>• Análisis de Afluencia & Saturación</span>
+                </div>
+                <h2 class="text-xl font-extrabold text-slate-100 flex items-center gap-2.5">
+                    <i data-lucide="gauge" class="w-6 h-6 text-rose-400"></i> Horarios Pico y Nivel de Saturación del Gimnasio
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">Identifica los horarios con mayor aglomeración y las horas más tranquilas para optimizar aforo.</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-rose-500"></span> Pico / Saturado</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-amber-500"></span> Medio</span>
+                    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-emerald-500"></span> Tranquilo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3 Executive Key Metrics Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Hora Pico Card -->
+            <div class="p-4 bg-slate-950 rounded-2xl border border-rose-500/20 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-extrabold uppercase text-rose-400 flex items-center gap-1.5">
+                        <i data-lucide="flame" class="w-4 h-4"></i> Hora de Mayor Afluencia
+                    </span>
+                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                </div>
+                <h3 class="text-lg font-black text-slate-100">{{ $peakHourText }}</h3>
+                <p class="text-[11px] text-slate-500 mt-1">Hora de máxima saturación en el gimnasio</p>
+            </div>
+
+            <!-- Hora Valle Card -->
+            <div class="p-4 bg-slate-950 rounded-2xl border border-emerald-500/20 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-extrabold uppercase text-emerald-400 flex items-center gap-1.5">
+                        <i data-lucide="leaf" class="w-4 h-4"></i> Hora Más Tranquila
+                    </span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                </div>
+                <h3 class="text-lg font-black text-slate-100">{{ $quietHourText }}</h3>
+                <p class="text-[11px] text-slate-500 mt-1">Horario recomendado para entrenar sin esperas</p>
+            </div>
+
+            <!-- Día Más Concurrido Card -->
+            <div class="p-4 bg-slate-950 rounded-2xl border border-amber-500/20 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-extrabold uppercase text-amber-400 flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-4 h-4"></i> Día de Mayor Tráfico
+                    </span>
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                </div>
+                <h3 class="text-lg font-black text-slate-100">{{ $busiestDayName }}</h3>
+                <p class="text-[11px] text-slate-500 mt-1">Día de la semana con mayor concentración de socios</p>
+            </div>
+        </div>
+
+        <!-- Chart.js Hourly Bar Chart Container -->
+        <div class="bg-slate-950 p-5 rounded-2xl border border-slate-850 space-y-4">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+                <span class="font-bold text-slate-300 flex items-center gap-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-rose-400"></i> Distribución de Aforo por Hora (06:00 a 22:00 hrs)
+                </span>
+                <span class="text-[11px] text-slate-500">Basado en registros históricos de check-in</span>
+            </div>
+
+            <div class="relative h-60 w-full">
+                <canvas id="hourlyTrafficChartCanvas"></canvas>
+            </div>
+        </div>
+
+    </div>
+
     <!-- Graphic and Activity Rows -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -526,6 +705,163 @@
             }
             window.attendanceChartInstance.update();
         };
+    })();
+
+    (function renderDailyRadarChart() {
+        const canvas = document.getElementById('dailyRadarChartCanvas');
+        if (!canvas) return;
+
+        if (window.dailyRadarChartInstance) {
+            window.dailyRadarChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const radarLabels = @json($dailyRadarLabels);
+        const radarCounts = @json($dailyRadarCounts);
+        const activeMembersCount = {{ $activeMembersCount }};
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, 'rgba(163, 230, 53, 0.35)');
+        gradient.addColorStop(1, 'rgba(163, 230, 53, 0.00)');
+
+        window.dailyRadarChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: radarLabels,
+                datasets: [
+                    {
+                        label: 'Asistencias Reales',
+                        data: radarCounts,
+                        fill: true,
+                        backgroundColor: gradient,
+                        borderColor: '#a3e635',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        pointBackgroundColor: '#a3e635',
+                        pointBorderColor: '#090d16',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: '#a3e635',
+                        pointHoverBorderWidth: 3,
+                    },
+                    {
+                        label: 'Base Activa Inscrita',
+                        data: Array(radarLabels.length).fill(activeMembersCount),
+                        borderColor: '#475569',
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#a3e635',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 12,
+                        callbacks: {
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    const val = context.parsed.y;
+                                    const pct = activeMembersCount > 0 ? ((val / activeMembersCount) * 100).toFixed(1) : 0;
+                                    return val + ' asistencias (' + pct + '% de la comunidad)';
+                                }
+                                return 'Capacidad: ' + context.parsed.y + ' socios activos';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { size: 10, weight: '600' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { size: 10, weight: '600' }, stepSize: 1, precision: 0 }
+                    }
+                }
+            }
+        });
+    })();
+
+    (function renderHourlyTrafficChart() {
+        const canvas = document.getElementById('hourlyTrafficChartCanvas');
+        if (!canvas) return;
+
+        if (window.hourlyTrafficChartInstance) {
+            window.hourlyTrafficChartInstance.destroy();
+        }
+
+        const ctx = canvas.getContext('2d');
+        const trafficLabels = @json($trafficHourLabels);
+        const trafficCounts = @json($trafficHourCounts);
+        const trafficColors = @json($trafficSaturationColors);
+
+        window.hourlyTrafficChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: trafficLabels,
+                datasets: [{
+                    label: 'Accesos por Hora',
+                    data: trafficCounts,
+                    backgroundColor: trafficColors,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barPercentage: 0.65,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#f43f5e',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        cornerRadius: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.parsed.y;
+                                const color = context.dataset.backgroundColor[context.dataIndex];
+                                let level = 'Afluencia Baja (Tranquilo)';
+                                if (color === '#f43f5e') level = '🔴 HORARIO PICO / SATURADO';
+                                else if (color === '#f59e0b') level = '🟡 Tráfico Medio';
+                                return [val + ' personas registradas', level];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { size: 10, weight: '600' } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#1e293b', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { size: 10, weight: '600' }, stepSize: 1, precision: 0 }
+                    }
+                }
+            }
+        });
     })();
 </script>
 @endsection

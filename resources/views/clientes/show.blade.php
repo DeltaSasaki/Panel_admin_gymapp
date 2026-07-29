@@ -17,10 +17,10 @@
     </div>
 
     <!-- Main Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         
-        <!-- Left Profile Card -->
-        <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-6">
+        <!-- Left Profile Card (Sticky) -->
+        <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-6 lg:sticky lg:top-24">
             <div class="text-center pb-6 border-b border-slate-800/60">
                 <div class="relative inline-block">
                     <img src="{{ $cliente->profile->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop' }}" 
@@ -134,10 +134,45 @@
                         </span>
                     </div>
                 </div>
+                <!-- Active Membership Status & Daily Rate Card -->
+                <div class="pt-4 border-t border-slate-800/60">
+                    <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 block mb-2.5">Estado de Membresía</span>
+                    @if($cliente->activeMembership)
+                        @php
+                            $mPlan = $cliente->activeMembership->plan;
+                            $mPrice = $mPlan->price ?? 0;
+                            $mDays = max(1, $mPlan->duration_days ?? 30);
+                            $mDaily = $mDays > 0 ? ($mPrice / $mDays) : 0;
+                        @endphp
+                        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-slate-100 text-xs">{{ $mPlan->name ?? 'Membresía Activa' }}</span>
+                                <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase rounded-full">Activa</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-slate-400">
+                                <span>Costo por Día:</span>
+                                <span class="font-extrabold text-amber-400">${{ number_format($mDaily, 2) }} / día</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-slate-400">
+                                <span>Vence:</span>
+                                <span class="font-bold text-slate-200">{{ date('d/m/Y', strtotime($cliente->activeMembership->end_date)) }}</span>
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850 text-slate-500 text-xs italic text-center">
+                            Sin membresía activa en este momento
+                        </div>
+                    @endif
+                </div>
             </div>
 
             <!-- Profile Actions -->
             <div class="pt-6 border-t border-slate-800/60 flex flex-col gap-2">
+                @if(in_array(auth()->user()->role, ['admin', 'superadmin']) && $cliente->activeMembership)
+                    <button onclick="toggleModal('client-abono-modal')" class="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                        <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
+                    </button>
+                @endif
                 <button onclick="toggleModal('routine-modal')" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
                     <i data-lucide="dumbbell" class="w-4 h-4"></i> Asignar Rutina
                 </button>
@@ -156,50 +191,126 @@
         <div class="lg:col-span-2 space-y-6">
             
             <!-- Weight Chart Card -->
-            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
-                <div class="flex items-center justify-between mb-6">
+            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                        <h3 class="font-bold text-lg text-slate-100">Evolución de Peso</h3>
-                        <p class="text-xs text-slate-400">Histórico de mediciones (kg)</p>
+                        <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-lime-400"></i> Evolución de Peso y Progreso
+                        </h3>
+                        <p class="text-xs text-slate-400">Histórico de evaluaciones corporales (kg)</p>
                     </div>
-                    <span class="px-2.5 py-1 bg-slate-950 text-xs font-bold text-lime-400 border border-slate-850 rounded-lg">
-                        Último registro: {{ $cliente->latestMeasurement ? $cliente->latestMeasurement->weight_kg . ' kg' : 'N/A' }}
-                    </span>
+
+                    <div class="flex items-center gap-2">
+                        @if($cliente->bodyMeasurements && $cliente->bodyMeasurements->count() > 1)
+                            @php
+                                $firstWeight = $cliente->bodyMeasurements->first()->weight_kg;
+                                $lastWeight = $cliente->latestMeasurement->weight_kg;
+                                $weightDiff = round($lastWeight - $firstWeight, 1);
+                            @endphp
+                            @if($weightDiff < 0)
+                                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-black rounded-xl flex items-center gap-1" title="Reducción de Peso">
+                                    <i data-lucide="arrow-down-right" class="w-3.5 h-3.5"></i> {{ abs($weightDiff) }} kg
+                                </span>
+                            @elseif($weightDiff > 0)
+                                <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-black rounded-xl flex items-center gap-1" title="Aumento de Peso / Masa">
+                                    <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i> +{{ $weightDiff }} kg
+                                </span>
+                            @else
+                                <span class="px-2.5 py-1 bg-slate-800 text-slate-400 text-xs font-bold rounded-xl">
+                                    Sin variación
+                                </span>
+                            @endif
+                        @endif
+
+                        <span class="px-3 py-1.5 bg-slate-950 text-xs font-black text-lime-400 border border-slate-850 rounded-xl flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="scale" class="w-3.5 h-3.5 text-slate-400"></i>
+                            Último: {{ $cliente->latestMeasurement ? $cliente->latestMeasurement->weight_kg . ' kg' : 'N/A' }}
+                        </span>
+                    </div>
                 </div>
 
                 @if(!empty($weightPoints))
+                    @php
+                        $mCount = $cliente->bodyMeasurements->count();
+                    @endphp
+
                     <!-- Dynamic Weight Evolution SVG Chart -->
-                    <div class="relative h-60 w-full flex items-end">
+                    <div class="relative h-60 w-full flex items-end pt-6">
                         <svg class="w-full h-full" viewBox="0 0 600 200" preserveAspectRatio="none">
                             <line x1="0" y1="20" x2="600" y2="20" stroke="#1e293b" stroke-dasharray="4" />
                             <line x1="0" y1="90" x2="600" y2="90" stroke="#1e293b" stroke-dasharray="4" />
                             <line x1="0" y1="160" x2="600" y2="160" stroke="#1e293b" stroke-dasharray="4" />
                             <line x1="0" y1="200" x2="600" y2="200" stroke="#334155" />
 
-                            <polygon points="{{ $weightPolygonPoints }}" fill="url(#chart-grad)" />
-                            <polyline points="{{ $weightPoints }}" fill="none" stroke="#a3e635" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-
-                            <!-- Dots -->
-                            @foreach($cliente->bodyMeasurements as $index => $m)
+                            @if($mCount === 1)
                                 @php
-                                    $minWeight = $cliente->bodyMeasurements->min('weight_kg') - 2;
-                                    $maxWeight = $cliente->bodyMeasurements->max('weight_kg') + 2;
-                                    $weightRange = $maxWeight - $minWeight ?: 1;
-                                    $xStep = $cliente->bodyMeasurements->count() > 1 ? (540 / ($cliente->bodyMeasurements->count() - 1)) : 540;
-                                    $x = 30 + ($index * $xStep);
-                                    $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
+                                    $mSingle = $cliente->bodyMeasurements->first();
                                 @endphp
-                                <circle cx="{{ $x }}" cy="{{ $y }}" r="5" fill="#a3e635" class="stroke-slate-950" stroke-width="2" />
-                            @endforeach
+                                <!-- Single measurement baseline & badge -->
+                                <polygon points="30,200 30,100 570,100 570,200" fill="url(#chart-grad)" />
+                                <line x1="30" y1="100" x2="570" y2="100" stroke="#a3e635" stroke-width="2" stroke-dasharray="6" />
+                                <circle cx="300" cy="100" r="7" fill="#a3e635" stroke="#020617" stroke-width="3" />
+                                
+                                <!-- Floating label for single registration -->
+                                <rect x="220" y="45" width="160" height="34" rx="10" fill="#090d16" stroke="#a3e635" stroke-width="1.5" class="shadow-lg" />
+                                <text x="300" y="67" fill="#a3e635" font-size="13" font-weight="900" text-anchor="middle">⚖️ {{ $mSingle->weight_kg }} kg</text>
+                                <text x="300" y="130" fill="#94a3b8" font-size="11" font-weight="700" text-anchor="middle">Primer Registro de Peso ({{ \Carbon\Carbon::parse($mSingle->measured_at)->format('d/m/Y') }})</text>
+                            @else
+                                <polygon points="{{ $weightPolygonPoints }}" fill="url(#chart-grad)" />
+                                <polyline points="{{ $weightPoints }}" fill="none" stroke="#a3e635" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+
+                                <!-- Multi-point Dots with Weight Labels -->
+                                @foreach($cliente->bodyMeasurements as $index => $m)
+                                    @php
+                                        $minWeight = $cliente->bodyMeasurements->min('weight_kg') - 2;
+                                        $maxWeight = $cliente->bodyMeasurements->max('weight_kg') + 2;
+                                        $weightRange = $maxWeight - $minWeight ?: 1;
+                                        $xStep = (540 / ($mCount - 1));
+                                        $x = 30 + ($index * $xStep);
+                                        $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
+                                    @endphp
+                                    <g>
+                                        <!-- Dot -->
+                                        <circle cx="{{ $x }}" cy="{{ $y }}" r="6" fill="#a3e635" stroke="#020617" stroke-width="2.5" />
+                                        <!-- Weight Value Label above dot -->
+                                        <text x="{{ $x }}" y="{{ $y - 12 }}" fill="#a3e635" font-size="11" font-weight="800" text-anchor="middle">{{ $m->weight_kg }} kg</text>
+                                    </g>
+                                @endforeach
+                            @endif
                         </svg>
                     </div>
 
                     <!-- Chart Dates -->
-                    <div class="flex justify-between items-center mt-4 px-4 text-xs font-semibold text-slate-500">
-                        @foreach($weightDates as $date)
-                            <span>{{ $date }}</span>
-                        @endforeach
+                    <div class="flex justify-between items-center mt-2 px-4 text-xs font-semibold text-slate-500">
+                        @if($mCount === 1)
+                            <span class="mx-auto text-lime-400 font-bold">1 Registro Evaluado</span>
+                        @else
+                            @foreach($weightDates as $date)
+                                <span>{{ $date }}</span>
+                            @endforeach
+                        @endif
                     </div>
+
+                    <!-- Measurements History Table Strip -->
+                    @if($mCount > 0)
+                        <div class="pt-4 border-t border-slate-850">
+                            <span class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Historial de Mediciones Registradas ({{ $mCount }})</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                @foreach($cliente->bodyMeasurements->sortByDesc('measured_at') as $bm)
+                                    <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850 flex items-center justify-between text-xs">
+                                        <div>
+                                            <span class="block font-bold text-slate-200">{{ \Carbon\Carbon::parse($bm->measured_at)->format('d/m/Y') }}</span>
+                                            <span class="text-[10px] text-slate-500">IMC: {{ $bm->bmi ?? 'N/A' }}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="font-black text-lime-400 text-sm block">{{ $bm->weight_kg }} kg</span>
+                                            <span class="text-[10px] text-slate-400">Grasa: {{ $bm->body_fat_pct ? $bm->body_fat_pct . '%' : 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 @else
                     <div class="h-60 flex flex-col items-center justify-center text-slate-500 text-sm">
                         <i data-lucide="scale" class="w-12 h-12 text-slate-700 mb-2"></i>
@@ -251,10 +362,20 @@
 
             @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
             <!-- Membership & Payments Section (Visible to Admins/Superadmins only) -->
-            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6">
-                <h3 class="font-bold text-lg text-slate-100 mb-4 flex items-center gap-2">
-                    <i data-lucide="credit-card" class="w-5 h-5 text-lime-400"></i> Membresía y Estado de Pagos
-                </h3>
+            <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                        <i data-lucide="credit-card" class="w-5 h-5 text-lime-400"></i> Membresía y Auditoría Financiera
+                    </h3>
+
+                    <!-- Saldo a Favor Badge -->
+                    <div class="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-850 shadow-sm">
+                        <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                        <span class="text-xs text-slate-400 font-semibold">Saldo a Favor:</span>
+                        <span class="text-sm font-black text-amber-400">${{ number_format($cliente->credit_balance ?? 0, 2) }}</span>
+                    </div>
+                </div>
+
                 @if($cliente->activeMembership)
                     @php
                         $paymentStatus = $cliente->activeMembership->payment_status;
@@ -279,12 +400,22 @@
                             $paymentBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
                             $statusText = 'Vencido / Deuda';
                         }
+
+                        $mPlan = $cliente->activeMembership->plan;
+                        $mPrice = $mPlan->price ?? 0;
+                        $mDays = max(1, $mPlan->duration_days ?? 30);
+                        $mDailyRate = $mDays > 0 ? ($mPrice / $mDays) : 0;
                     @endphp
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 bg-slate-950/40 p-5 rounded-2xl border border-slate-850">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-950/40 p-5 rounded-2xl border border-slate-850">
                         <div>
                             <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Plan Contratado</span>
                             <span class="font-extrabold text-sm text-slate-100">{{ $cliente->activeMembership->plan->name }}</span>
-                            <span class="block text-xs text-slate-400 mt-0.5">{{ number_format($cliente->activeMembership->plan->price, 2) }} {{ $cliente->activeMembership->plan->currency }}</span>
+                            <span class="block text-xs text-slate-400 mt-0.5">${{ number_format($mPrice, 2) }} {{ $mPlan->currency }}</span>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Tarifa Diaria</span>
+                            <span class="font-black text-amber-400 text-sm">${{ number_format($mDailyRate, 2) }} / día</span>
+                            <span class="block text-[10px] text-slate-500 mt-0.5">({{ $mDays }} días vigencia)</span>
                         </div>
                         <div>
                             <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Vigencia</span>
@@ -294,29 +425,78 @@
                             </span>
                         </div>
                         <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado de Membresía</span>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado Membresía</span>
                             <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $statusBadge }}">
                                 {{ __($cliente->activeMembership->status) }}
                             </span>
                         </div>
                         <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado del Pago</span>
+                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado Pago</span>
                             <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $paymentBadge }}">
                                 {{ $statusText }}
                             </span>
                         </div>
                     </div>
-                    @if($cliente->activeMembership->notes)
-                        <p class="text-xs text-slate-400 bg-slate-950/20 border border-slate-850/40 rounded-xl p-3 mt-4">
-                            <strong>Notas administrativas:</strong> {{ $cliente->activeMembership->notes }}
-                        </p>
-                    @endif
                 @else
                     <div class="py-6 text-center text-slate-500 text-sm">
                         <i data-lucide="alert-circle" class="w-8 h-8 text-slate-700 mb-2 mx-auto"></i>
                         No tiene ninguna membresía activa registrada en este gimnasio.
                     </div>
                 @endif
+
+                <!-- Historial de Abonos y Pagos (Bitácora Auditora del Socio) -->
+                <div class="pt-4 border-t border-slate-850">
+                    <h4 class="font-bold text-sm text-slate-200 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-1.5">
+                            <i data-lucide="history" class="w-4 h-4 text-amber-400"></i> Bitácora de Transacciones y Abonos
+                        </span>
+                        <span class="text-xs text-slate-400 font-normal">Auditoría completa de movimientos de caja</span>
+                    </h4>
+
+                    @if($cliente->membershipPayments && $cliente->membershipPayments->count() > 0)
+                        <div class="max-h-72 overflow-y-auto overflow-x-auto rounded-2xl border border-slate-850 bg-slate-950/30 shadow-inner">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="sticky top-0 bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-850 z-10 shadow-sm">
+                                    <tr>
+                                        <th class="p-3 pl-4">Fecha / Hora</th>
+                                        <th class="p-3">Monto Abonado</th>
+                                        <th class="p-3">Método</th>
+                                        <th class="p-3">Referencia</th>
+                                        <th class="p-3 pr-4">Detalle y Auditoría</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-850/60 bg-slate-950/20">
+                                    @foreach($cliente->membershipPayments->sortByDesc('id') as $pmt)
+                                        <tr class="hover:bg-slate-900/30 transition-colors">
+                                            <td class="p-3 pl-4 font-semibold text-slate-200">
+                                                {{ \Carbon\Carbon::parse($pmt->payment_date)->format('d/m/Y H:i') }}
+                                            </td>
+                                            <td class="p-3 font-black text-emerald-400">
+                                                +${{ number_format($pmt->amount, 2) }} {{ $pmt->currency }}
+                                            </td>
+                                            <td class="p-3 uppercase text-[10px] font-bold text-slate-400">
+                                                @if($pmt->payment_method === 'cash') Efectivo
+                                                @elseif($pmt->payment_method === 'transfer') Transferencia
+                                                @elseif($pmt->payment_method === 'card') Tarjeta
+                                                @else {{ $pmt->payment_method }} @endif
+                                            </td>
+                                            <td class="p-3 font-mono text-[11px] text-slate-400">
+                                                {{ $pmt->reference_code ?: 'N/A' }}
+                                            </td>
+                                            <td class="p-3 pr-4 text-[11px] text-slate-350">
+                                                {{ $pmt->notes ?: 'Cobro de membresía procesado.' }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-850 text-slate-500 text-xs italic text-center">
+                            No se han registrado abonos ni cobros para este cliente todavía.
+                        </div>
+                    @endif
+                </div>
             </div>
             @endif
 
@@ -509,12 +689,129 @@
     </div>
 </div>
 
+@if($cliente->activeMembership)
+<!-- ================= MODAL: REGISTRAR ABONO (PERFIL SOCIO) ================= -->
+<div id="client-abono-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <i data-lucide="coins" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Registrar Abono para {{ $cliente->profile->first_name }}</h3>
+                    <p class="text-[11px] text-slate-400">Plan: {{ $cliente->activeMembership->plan->name ?? 'Membresía' }}</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('client-abono-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="{{ route('finanzas.record_abono') }}" method="POST" class="space-y-4">
+            @csrf
+            <input type="hidden" name="user_membership_id" value="{{ $cliente->activeMembership->id }}">
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Monto del Abono *</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-2.5 text-slate-400 font-bold">$</span>
+                    <input type="number" step="0.01" min="0.01" name="amount" id="client_abono_amount_input" oninput="calculateClientAbonoPreview()" required placeholder="Ej: 5.00" class="w-full pl-8 pr-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            @php
+                $clientPlan = $cliente->activeMembership->plan;
+                $clientPlanPrice = $clientPlan->price ?? 0;
+                $clientPlanDays = max(1, $clientPlan->duration_days ?? 30);
+                $clientDailyRate = $clientPlanDays > 0 ? ($clientPlanPrice / $clientPlanDays) : 0;
+                $clientEndDate = $cliente->activeMembership->end_date;
+            @endphp
+
+            <!-- Calculadora en Vivo (Live Preview Box) -->
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Precio del Plan:</span>
+                    <span class="font-bold text-slate-200">${{ number_format($clientPlanPrice, 2) }} ({{ $clientPlanDays }} días)</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Costo Diario (1 Día):</span>
+                    <span class="font-bold text-amber-400">${{ number_format($clientDailyRate, 2) }} / día</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Días Otorgados:</span>
+                    <span id="client_abono_extra_days" class="font-black text-lime-400 text-sm">+0 Días</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 font-bold pt-1">
+                    <span>Nueva Fecha de Vencimiento:</span>
+                    <span id="client_abono_new_end_date" class="text-slate-100 font-black text-sm">{{ date('d/m/Y', strtotime($clientEndDate)) }}</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Método de Pago *</label>
+                    <select name="payment_method" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50 cursor-pointer">
+                        <option value="cash">Efectivo</option>
+                        <option value="transfer">Transferencia</option>
+                        <option value="card">Tarjeta de Débito/Crédito</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">N° Referencia (Opcional)</label>
+                    <input type="text" name="reference_number" placeholder="Ej: REF-9874" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
+                <button type="button" onclick="toggleModal('client-abono-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i data-lucide="coins" class="w-4 h-4"></i>
+                    <span>Confirmar Abono</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
 <script>
     function toggleModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.toggle('hidden');
         }
+    }
+
+    function calculateClientAbonoPreview() {
+        const amountInput = document.getElementById('client_abono_amount_input');
+        const extraDaysEl = document.getElementById('client_abono_extra_days');
+        const newEndDateEl = document.getElementById('client_abono_new_end_date');
+
+        @if($cliente->activeMembership)
+            const dailyRate = {{ $clientDailyRate }};
+            const endDateStr = "{{ $clientEndDate }}";
+            const amount = parseFloat(amountInput ? amountInput.value : '0') || 0;
+
+            const extraDays = dailyRate > 0 ? Math.floor(amount / dailyRate) : 0;
+            if (extraDaysEl) extraDaysEl.textContent = '+' + extraDays + ' Días';
+
+            if (endDateStr) {
+                let baseDate = new Date(endDateStr);
+                let now = new Date();
+                if (isNaN(baseDate.getTime()) || baseDate < now) {
+                    baseDate = now;
+                }
+                baseDate.setDate(baseDate.getDate() + extraDays);
+                const day = String(baseDate.getDate()).padStart(2, '0');
+                const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+                const year = baseDate.getFullYear();
+                if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year}`;
+            }
+        @endif
     }
 </script>
 

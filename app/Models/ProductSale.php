@@ -32,7 +32,17 @@ class ProductSale extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function seller()
+    {
+        return $this->belongsTo(User::class, 'sold_by');
+    }
+
+    public function soldBy()
     {
         return $this->belongsTo(User::class, 'sold_by');
     }

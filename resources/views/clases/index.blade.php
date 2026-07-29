@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Clases Grupales')
+@section('title', 'Clases, Eventos & Actividades')
 
 @section('content')
 <div class="space-y-8 animate-fade-in">
@@ -8,15 +8,15 @@
     <!-- Top Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Clases Grupales & Sesiones</h1>
-            <p class="text-slate-400 text-xs mt-1">Organiza las disciplinas grupales, programa sesiones específicas y supervisa las reservas.</p>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Clases, Eventos & Actividades Especiales</h1>
+            <p class="text-slate-400 text-xs mt-1">Organiza las disciplinas del gimnasio, torneos, masterclass y actividades especiales al aire libre.</p>
         </div>
         
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center gap-3">
             <button type="button" onclick="openCreateClassModal()" class="px-4 py-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-slate-200 hover:text-slate-100 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md">
-                <i data-lucide="plus" class="w-4 h-4 text-lime-400"></i>
-                Nueva Clase
+                <i data-lucide="plus-circle" class="w-4 h-4 text-lime-400"></i>
+                Crear Clase / Evento
             </button>
             
             <button type="button" onclick="openCreateScheduleModal()" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
@@ -325,13 +325,27 @@
         </div>
         <form id="create-class-form" action="{{ route('clases.store') }}" method="POST" onsubmit="submitCreateClass(event)" class="p-6 space-y-4 text-xs font-semibold">
             @csrf
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="create_class_category_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Registro *</label>
+                    <select name="category_type" id="create_class_category_type" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                        <option value="clase">🏋️ Clase Grupal</option>
+                        <option value="evento">🎉 Evento Especial</option>
+                        <option value="actividad">🚴 Actividad Recreativa</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="create_class_location" class="block text-slate-400 uppercase tracking-wider mb-1.5">Ubicación / Área</label>
+                    <input type="text" name="location" id="create_class_location" placeholder="Ej: Salón Principal, Terraza..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
             <div>
-                <label for="create_class_name" class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Clase *</label>
-                <input type="text" name="name" id="create_class_name" required placeholder="Ej: Spinning, CrossFit, Yoga..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                <label for="create_class_name" class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Clase o Evento *</label>
+                <input type="text" name="name" id="create_class_name" required placeholder="Ej: Masterclass de Spinning, Torneo de CrossFit..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
             </div>
             <div>
                 <label for="create_class_description" class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción</label>
-                <textarea name="description" id="create_class_description" rows="3" placeholder="Describe brevemente la dinámica de la clase..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50"></textarea>
+                <textarea name="description" id="create_class_description" rows="3" placeholder="Describe brevemente la dinámica del evento o clase..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50"></textarea>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -364,8 +378,22 @@
         <form id="edit-class-form" action="" method="POST" onsubmit="submitEditClass(event)" class="p-6 space-y-4 text-xs font-semibold">
             @csrf
             @method('PUT')
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="edit_class_category_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Registro *</label>
+                    <select name="category_type" id="edit_class_category_type" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                        <option value="clase">🏋️ Clase Grupal</option>
+                        <option value="evento">🎉 Evento Especial</option>
+                        <option value="actividad">🚴 Actividad Recreativa</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit_class_location" class="block text-slate-400 uppercase tracking-wider mb-1.5">Ubicación / Área</label>
+                    <input type="text" name="location" id="edit_class_location" placeholder="Ej: Salón Principal, Terraza..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
             <div>
-                <label for="edit_class_name" class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Clase *</label>
+                <label for="edit_class_name" class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Clase o Evento *</label>
                 <input type="text" name="name" id="edit_class_name" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
             </div>
             <div>
@@ -770,6 +798,12 @@
         document.getElementById('edit_class_description').value = item.description || '';
         document.getElementById('edit_class_capacity').value = item.capacity;
         document.getElementById('edit_class_duration').value = item.duration_minutes;
+        if (document.getElementById('edit_class_category_type')) {
+            document.getElementById('edit_class_category_type').value = item.category_type || 'clase';
+        }
+        if (document.getElementById('edit_class_location')) {
+            document.getElementById('edit_class_location').value = item.location || '';
+        }
 
         toggleModal('modal-edit-class');
     }

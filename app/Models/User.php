@@ -29,6 +29,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'email_verified',
+        'credit_balance',
     ];
 
     /**
@@ -109,6 +110,11 @@ class User extends Authenticatable
     public function activeMembership()
     {
         return $this->hasOne(UserMembership::class, 'user_id')->where('status', 'active');
+    }
+
+    public function membershipPayments()
+    {
+        return $this->hasMany(MembershipPayment::class, 'user_id');
     }
 
     public function trainerAssignments()

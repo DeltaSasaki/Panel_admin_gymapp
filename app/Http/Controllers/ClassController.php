@@ -58,16 +58,21 @@ class ClassController extends Controller
             'description' => 'nullable|string',
             'capacity' => 'required|integer|min:1',
             'duration_minutes' => 'required|integer|min:5',
+            'category_type' => 'nullable|string|in:clase,evento,actividad',
+            'location' => 'nullable|string|max:150',
+            'color_code' => 'nullable|string|max:20',
         ]);
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            $errorMsg = 'Debes seleccionar una sucursal específica para crear una clase.';
+            $errorMsg = 'Debes seleccionar una sucursal específica para crear una clase o evento.';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMsg], 422);
             }
             return redirect()->back()->withInput()->withErrors(['error' => $errorMsg]);
         }
+
+        $categoryType = $request->input('category_type', 'clase');
 
         $gymClass = GymClass::create([
             'gym_id' => $gymId,
@@ -75,10 +80,14 @@ class ClassController extends Controller
             'description' => $request->description,
             'capacity' => $request->capacity,
             'duration_minutes' => $request->duration_minutes,
+            'category_type' => $categoryType,
+            'location' => $request->location ?: 'Salón Principal',
+            'color_code' => $request->color_code ?: '#a3e635',
             'is_active' => 1,
         ]);
 
-        $message = 'Clase grupal creada exitosamente.';
+        $typeLabel = ($categoryType === 'evento') ? 'Evento especial' : (($categoryType === 'actividad') ? 'Actividad recreativa' : 'Clase grupal');
+        $message = "{$typeLabel} creado(a) exitosamente.";
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -101,16 +110,26 @@ class ClassController extends Controller
             'description' => 'nullable|string',
             'capacity' => 'required|integer|min:1',
             'duration_minutes' => 'required|integer|min:5',
+            'category_type' => 'nullable|string|in:clase,evento,actividad',
+            'location' => 'nullable|string|max:150',
+            'color_code' => 'nullable|string|max:20',
         ]);
 
         $gymId = $this->getActiveGymId();
-        $gymClass = GymClass::where('gym_id', $gymId)->findOrFail($id);
+        $gymClassQuery = GymClass::query();
+        if ($gymId !== 'all') {
+            $gymClassQuery->where('gym_id', $gymId);
+        }
+        $gymClass = $gymClassQuery->findOrFail($id);
 
         $gymClass->update([
             'name' => $request->name,
             'description' => $request->description,
             'capacity' => $request->capacity,
             'duration_minutes' => $request->duration_minutes,
+            'category_type' => $request->input('category_type', $gymClass->category_type ?: 'clase'),
+            'location' => $request->location ?: $gymClass->location,
+            'color_code' => $request->color_code ?: $gymClass->color_code,
         ]);
 
         $message = 'Clase grupal actualizada exitosamente.';

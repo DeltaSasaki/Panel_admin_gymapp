@@ -23,8 +23,9 @@ use App\Models\MembershipPayment;
 use App\Models\MealPlanDay;
 use App\Models\Recipe;
 use App\Models\Notification;
-use App\Models\ProductSale;
+use App\Models\AttendanceLog;
 use App\Models\UserMembership;
+use App\Models\ProductSale;
 use App\Models\InventoryProduct;
 use App\Models\UserTrainerAssignment;
 
@@ -90,25 +91,36 @@ class AdminController extends Controller
             ['type' => 'success', 'message' => 'Pasarela de pagos Stripe & Cash en línea (100% UP).', 'time' => 'Activo'],
         ];
 
-        // Weekly attendance parsing
+        // Weekly attendance parsing (AttendanceLog with WorkoutSession fallback)
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
-        $sessionsByDay = WorkoutSession::whereHas('user', function ($q) use ($gymId) {
-            $q->when($gymId !== 'all', function ($sq) use ($gymId) {
-                $sq->where('gym_id', $gymId);
-            });
-        })
-            ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
-            ->selectRaw('DAYOFWEEK(session_date) as day, COUNT(*) as count')
+        $attLogsByDay = AttendanceLog::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->whereBetween('check_in', [$startOfWeek, $endOfWeek])
+            ->selectRaw('DAYOFWEEK(check_in) as day, COUNT(*) as count')
             ->groupBy('day')
             ->pluck('count', 'day')
             ->toArray();
 
+        if (array_sum($attLogsByDay) === 0) {
+            $attLogsByDay = WorkoutSession::whereHas('user', function ($q) use ($gymId) {
+                $q->when($gymId !== 'all', function ($sq) use ($gymId) {
+                    $sq->where('gym_id', $gymId);
+                });
+            })
+                ->whereBetween('session_date', [$startOfWeek, $endOfWeek])
+                ->selectRaw('DAYOFWEEK(session_date) as day, COUNT(*) as count')
+                ->groupBy('day')
+                ->pluck('count', 'day')
+                ->toArray();
+        }
+
         $daysMap = [2, 3, 4, 5, 6, 7, 1];
         $attendanceData = [];
         foreach ($daysMap as $dayNum) {
-            $attendanceData[] = $sessionsByDay[$dayNum] ?? 0;
+            $attendanceData[] = $attLogsByDay[$dayNum] ?? 0;
         }
 
         $maxVal = max($attendanceData) ?: 1;
@@ -136,6 +148,185 @@ class AdminController extends Controller
             ->take(3)
             ->get();
 
+        // ----------------------------------------------------
+        // 14-DAY ATTENDANCE RADAR & RETENTION DROP DETECTOR
+        // ----------------------------------------------------
+        $activeMembersQuery = User::where('role', 'member')
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->whereHas('memberships', function ($q) {
+                $q->where('status', 'active');
+            });
+            
+        $activeMembersCount = $activeMembersQuery->count();
+        if ($activeMembersCount === 0) {
+            $activeMembersCount = User::where('role', 'member')
+                ->when($gymId !== 'all', function ($q) use ($gymId) {
+                    $q->where('gym_id', $gymId);
+                })->count();
+        }
+
+        $radarEndDate = Carbon::today();
+        $radarStartDate = Carbon::today()->subDays(13);
+
+        $dailyAttendanceRaw = AttendanceLog::whereBetween(DB::raw('DATE(check_in)'), [$radarStartDate->format('Y-m-d'), $radarEndDate->format('Y-m-d')])
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->selectRaw('DATE(check_in) as date, COUNT(DISTINCT user_id) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+
+        $dailyTrendData = [];
+        $first7Sum = 0;
+        $recent7Sum = 0;
+
+        for ($i = 13; $i >= 0; $i--) {
+            $dateObj = Carbon::today()->subDays($i);
+            $dateKey = $dateObj->format('Y-m-d');
+            $dayLabel = $dateObj->isoFormat('DD/MM');
+            $count = $dailyAttendanceRaw[$dateKey] ?? 0;
+            
+            $ratioPct = ($activeMembersCount > 0) ? round(($count / $activeMembersCount) * 100, 1) : 0;
+            
+            $dailyTrendData[] = [
+                'date' => $dateKey,
+                'label' => $dayLabel,
+                'count' => $count,
+                'ratio_pct' => $ratioPct
+            ];
+
+            if ($i >= 7) {
+                $first7Sum += $count;
+            } else {
+                $recent7Sum += $count;
+            }
+        }
+
+        $first7Avg = round($first7Sum / 7, 1);
+        $recent7Avg = round($recent7Sum / 7, 1);
+
+        $attendanceDropPct = 0;
+        if ($first7Avg > 0) {
+            $attendanceDropPct = round((($first7Avg - $recent7Avg) / $first7Avg) * 100, 1);
+        }
+
+        // Generate SVG Points for 14-Day Radar Line
+        $maxRadarVal = max(array_column($dailyTrendData, 'count')) ?: 1;
+        $maxRadarVal = max($maxRadarVal, $activeMembersCount ?: 1);
+
+        $radarXCoords = [20, 60, 100, 140, 180, 220, 260, 300, 340, 380, 420, 460, 500, 540];
+        $radarLinePointsArr = [];
+        $radarPolyPointsArr = ["20,180"];
+
+        foreach ($dailyTrendData as $index => $item) {
+            $x = $radarXCoords[$index];
+            $y = 160 - (($item['count'] / $maxRadarVal) * 130);
+            $radarLinePointsArr[] = "$x,$y";
+            $radarPolyPointsArr[] = "$x,$y";
+        }
+        $radarPolyPointsArr[] = "540,180";
+
+        $radarLinePoints = implode(' ', $radarLinePointsArr);
+        $radarPolygonPoints = implode(' ', $radarPolyPointsArr);
+        $todayAttendanceCount = end($dailyTrendData)['count'] ?? 0;
+        $todayParticipationPct = ($activeMembersCount > 0) ? round(($todayAttendanceCount / $activeMembersCount) * 100, 1) : 0;
+
+        $dailyRadarLabels = array_column($dailyTrendData, 'label');
+        $dailyRadarCounts = array_column($dailyTrendData, 'count');
+        $dailyRadarBaseline = array_fill(0, count($dailyTrendData), $activeMembersCount);
+
+        // ----------------------------------------------------
+        // HOURLY TRAFFIC & GYM SATURATION ANALYTICS
+        // ----------------------------------------------------
+        $operatingHours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+        
+        $rawHourlyCheckins = AttendanceLog::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->selectRaw('HOUR(check_in) as hour, COUNT(*) as count')
+            ->groupBy('hour')
+            ->pluck('count', 'hour')
+            ->toArray();
+
+        $trafficHourLabels = [];
+        $trafficHourCounts = [];
+        $trafficSaturationColors = [];
+        $maxHourlyCount = 1;
+
+        foreach ($operatingHours as $h) {
+            $formattedHour = str_pad($h, 2, '0', STR_PAD_LEFT) . ':00';
+            $count = $rawHourlyCheckins[$h] ?? 0;
+            $trafficHourLabels[] = $formattedHour;
+            $trafficHourCounts[] = $count;
+            if ($count > $maxHourlyCount) {
+                $maxHourlyCount = $count;
+            }
+        }
+
+        // Color coding based on saturation relative to max hourly count
+        foreach ($trafficHourCounts as $count) {
+            $saturationRatio = ($maxHourlyCount > 0) ? ($count / $maxHourlyCount) : 0;
+            if ($saturationRatio >= 0.75 && $count > 0) {
+                $trafficSaturationColors[] = '#f43f5e'; // Red (High Traffic / Peak)
+            } elseif ($saturationRatio >= 0.40) {
+                $trafficSaturationColors[] = '#f59e0b'; // Amber (Medium Traffic)
+            } else {
+                $trafficSaturationColors[] = '#10b981'; // Emerald (Quiet / Low Traffic)
+            }
+        }
+
+        // Identify Peak & Quiet Hours
+        $peakHourIndex = array_search(max($trafficHourCounts), $trafficHourCounts);
+        $peakHourVal = max($trafficHourCounts);
+        $peakHourText = ($peakHourVal > 0) ? ($trafficHourLabels[$peakHourIndex] . ' - ' . ($operatingHours[$peakHourIndex] + 1) . ':00 hrs (' . $peakHourVal . ' accesos)') : 'Sin registros';
+
+        $nonZeroCounts = array_filter($trafficHourCounts, fn($c) => $c > 0);
+        $minHourVal = count($nonZeroCounts) > 0 ? min($nonZeroCounts) : 0;
+        $quietHourIndex = array_search($minHourVal, $trafficHourCounts);
+        $quietHourText = ($minHourVal > 0) ? ($trafficHourLabels[$quietHourIndex] . ' - ' . ($operatingHours[$quietHourIndex] + 1) . ':00 hrs (' . $minHourVal . ' accesos)') : 'Sin registros';
+
+        // Day of Week Traffic Analysis
+        $daysOfWeekNames = [
+            1 => 'Domingo',
+            2 => 'Lunes',
+            3 => 'Martes',
+            4 => 'Miércoles',
+            5 => 'Jueves',
+            6 => 'Viernes',
+            7 => 'Sábado'
+        ];
+
+        $rawDayCheckins = AttendanceLog::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->selectRaw('DAYOFWEEK(check_in) as day, COUNT(*) as count')
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->toArray();
+
+        $busiestDayNum = 2;
+        $busiestDayMax = 0;
+        $quietestDayNum = 2;
+        $quietestDayMin = 999999;
+
+        foreach ($daysOfWeekNames as $dayNum => $dayName) {
+            $c = $rawDayCheckins[$dayNum] ?? 0;
+            if ($c > $busiestDayMax) {
+                $busiestDayMax = $c;
+                $busiestDayNum = $dayNum;
+            }
+            if ($c < $quietestDayMin && $c > 0) {
+                $quietestDayMin = $c;
+                $quietestDayNum = $dayNum;
+            }
+        }
+
+        $busiestDayName = ($busiestDayMax > 0) ? ($daysOfWeekNames[$busiestDayNum] . ' (' . $busiestDayMax . ' accesos)') : 'Sin registros';
+        $quietestDayName = ($quietestDayMin < 999999) ? ($daysOfWeekNames[$quietestDayNum] . ' (' . $quietestDayMin . ' accesos)') : 'Sin registros';
+
         return view('dashboard', compact(
             'totalClients',
             'activeClientsToday',
@@ -153,7 +344,26 @@ class AdminController extends Controller
             'attendanceData',
             'chartLinePoints',
             'chartPolygonPoints',
-            'recentClients'
+            'recentClients',
+            'activeMembersCount',
+            'dailyTrendData',
+            'first7Avg',
+            'recent7Avg',
+            'attendanceDropPct',
+            'radarLinePoints',
+            'radarPolygonPoints',
+            'todayAttendanceCount',
+            'todayParticipationPct',
+            'dailyRadarLabels',
+            'dailyRadarCounts',
+            'dailyRadarBaseline',
+            'trafficHourLabels',
+            'trafficHourCounts',
+            'trafficSaturationColors',
+            'peakHourText',
+            'quietHourText',
+            'busiestDayName',
+            'quietestDayName'
         ));
     }
 
@@ -200,6 +410,8 @@ class AdminController extends Controller
                 'activeMealPlan.mealPlan',
                 'activeMealPlan.assigner',
                 'activeMembership.plan',
+                'memberships.plan',
+                'membershipPayments',
                 'activeTrainerAssignment.trainer'
             ])
             ->findOrFail($id);
@@ -216,19 +428,31 @@ class AdminController extends Controller
             $maxWeight = $measurements->max('weight_kg') + 2;
             $weightRange = $maxWeight - $minWeight ?: 1;
 
-            $xStep = $measurements->count() > 1 ? (540 / ($measurements->count() - 1)) : 540;
             $pts = [];
-            $polyPts = ["30,200"];
+            $polyPts = [];
 
-            foreach ($measurements as $index => $m) {
-                $x = 30 + ($index * $xStep);
-                $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
+            if ($measurements->count() === 1) {
+                $m = $measurements->first();
+                $x = 300;
+                $y = 100;
                 $pts[] = "$x,$y";
-                $polyPts[] = "$x,$y";
-                $weightDates[] = Carbon::parse($m->measured_at)->format('d/m');
+                $polyPts = ["30,200", "30,100", "570,100", "570,200"];
+                $weightDates[] = Carbon::parse($m->measured_at)->format('d/m/Y');
                 $weightValues[] = $m->weight_kg;
+            } else {
+                $xStep = (540 / ($measurements->count() - 1));
+                $polyPts[] = "30,200";
+
+                foreach ($measurements as $index => $m) {
+                    $x = 30 + ($index * $xStep);
+                    $y = 180 - ((($m->weight_kg - $minWeight) / $weightRange) * 140);
+                    $pts[] = "$x,$y";
+                    $polyPts[] = "$x,$y";
+                    $weightDates[] = Carbon::parse($m->measured_at)->format('d/m');
+                    $weightValues[] = $m->weight_kg;
+                }
+                $polyPts[] = "570,200";
             }
-            $polyPts[] = "570,200";
 
             $weightPoints = implode(' ', $pts);
             $weightPolygonPoints = implode(' ', $polyPts);

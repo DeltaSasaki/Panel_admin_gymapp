@@ -7,6 +7,7 @@ use App\Models\MembershipPlan;
 use App\Models\UserMembership;
 use App\Models\MembershipPayment;
 use App\Models\PromoCode;
+use App\Models\GymPromotion;
 use App\Models\User;
 use App\Models\AdminAuditLog;
 use Carbon\Carbon;
@@ -66,7 +67,14 @@ class FinanceController extends Controller
         }
         $promos = $promosQuery->orderBy('id', 'desc')->get();
 
-        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos'));
+        // Fetch Gym Promotions (Descuentos y paquetes de membresía)
+        $gymPromosQuery = GymPromotion::with(['gym', 'plan']);
+        if ($gymId !== 'all') {
+            $gymPromosQuery->where('gym_id', $gymId);
+        }
+        $gymPromotions = $gymPromosQuery->orderBy('id', 'desc')->get();
+
+        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions'));
     }
 
     /**
@@ -319,6 +327,167 @@ class FinanceController extends Controller
     }
 
     /**
+     * Record advance payment (Abono) for client and calculate extra days added to membership.
+     */
+    public function recordAbono(Request $request)
+    {
+        $this->checkAdmin();
+        $request->validate([
+            'user_membership_id' => 'required|exists:user_memberships,id',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|in:cash,card,transfer,other',
+            'reference_number' => 'nullable|string|max:100',
+        ]);
+
+        try {
+            $membership = UserMembership::with(['plan', 'user.profile'])->findOrFail($request->user_membership_id);
+
+            if (!$membership->plan) {
+                $errMsg = 'La membresía seleccionada no tiene un plan asociado.';
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json(['error' => $errMsg], 422);
+                }
+                return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
+            }
+
+            $plan = $membership->plan;
+            $durationDays = max(1, (int)$plan->duration_days);
+            $dailyRate = (float)$plan->price / $durationDays;
+
+            if ($dailyRate <= 0) {
+                $errMsg = 'El plan de membresía actual no tiene una tarifa diaria válida para abonar.';
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json(['error' => $errMsg], 422);
+                }
+                return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
+            }
+
+            $user = $membership->user;
+            $prevCredit = (float) ($user->credit_balance ?? 0);
+            $payAmount = (float) $request->amount;
+            $totalFunds = $payAmount + $prevCredit;
+
+            $extraDays = (int) floor($totalFunds / $dailyRate);
+
+            if ($extraDays < 1) {
+                $newCredit = round($totalFunds, 2);
+                $user->update(['credit_balance' => $newCredit]);
+
+                $notes = "ABONO EN CREDITOS: Monto \${$payAmount} guardado en Saldo a Favor. Saldo total acumulado: \${$newCredit}. (Tarifa diaria: \$" . number_format($dailyRate, 2) . "/día).";
+                
+                $payment = MembershipPayment::create([
+                    'membership_id' => $membership->id,
+                    'user_id' => $membership->user_id,
+                    'amount' => $payAmount,
+                    'payment_date' => Carbon::now(),
+                    'payment_method' => $request->payment_method,
+                    'reference_code' => $request->reference_number,
+                    'received_by' => auth()->user()->id,
+                    'currency' => $plan->currency ?? 'USD',
+                    'notes' => $notes,
+                ]);
+
+                $msg = "Abono de \${$payAmount} guardado como Saldo a Favor. Crédito acumulado total: \${$newCredit}. Faltan \$" . number_format($dailyRate - $newCredit, 2) . " para 1 día extra.";
+                
+                if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                    return response()->json([
+                        'success' => true,
+                        'message' => $msg,
+                        'extra_days' => 0,
+                        'credit_balance' => $newCredit,
+                        'membership' => $membership->fresh(['user.profile', 'plan']),
+                    ]);
+                }
+
+                return redirect()->back()->with('success', $msg);
+            }
+
+            // Calculate cost used for extra days & remaining new credit
+            $costUsed = $extraDays * $dailyRate;
+            $newCredit = max(0, round($totalFunds - $costUsed, 2));
+
+            // Update user credit balance
+            $user->update(['credit_balance' => $newCredit]);
+
+            // Calculate new end date based on current end_date or now
+            $oldData = $membership->toArray();
+            $currentEndDate = Carbon::parse($membership->end_date);
+            $baseDate = $currentEndDate->isPast() ? Carbon::now() : $currentEndDate;
+            $newEndDate = $baseDate->copy()->addDays($extraDays);
+
+            // Update membership end date and status
+            $membership->update([
+                'end_date' => $newEndDate,
+                'status' => 'active',
+                'payment_status' => 'paid',
+            ]);
+
+            // Record transaction
+            $formattedRate = number_format($dailyRate, 2);
+            $creditText = $newCredit > 0 ? " (Saldo a favor acumulado remanente: \${$newCredit})" : "";
+            $notes = "ABONO ADELANTADO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} crédito previo" : "") . " otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
+            
+            $payment = MembershipPayment::create([
+                'membership_id' => $membership->id,
+                'user_id' => $membership->user_id,
+                'amount' => $payAmount,
+                'payment_date' => Carbon::now(),
+                'payment_method' => $request->payment_method,
+                'reference_code' => $request->reference_number,
+                'received_by' => auth()->user()->id,
+                'currency' => $plan->currency ?? 'USD',
+                'notes' => $notes,
+            ]);
+
+            $userName = ($user && $user->profile) 
+                ? $user->profile->first_name . ' ' . $user->profile->last_name 
+                : ($user->email ?? 'Socio');
+
+            AdminAuditLog::logAction(
+                'TRANSACCION',
+                'Abono por Adelantado',
+                "Abono por Adelantado de \${$payment->amount} {$payment->currency} registrado para {$userName}. Vigencia extendida +{$extraDays} días hasta el {$newEndDate->format('d/m/Y')}. Saldo a favor sobrante: \${$newCredit}.",
+                $oldData,
+                $membership->fresh()->toArray(),
+                $membership->gym_id
+            );
+
+            $msg = "¡Abono registrado con éxito! Se otorgaron +{$extraDays} día(s) extra a {$userName}. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . ($newCredit > 0 ? " (Queda \${$newCredit} en saldo a favor)." : ".");
+
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'extra_days' => $extraDays,
+                    'new_end_date' => $newEndDate->format('Y-m-d'),
+                    'new_end_date_formatted' => $newEndDate->format('d/m/Y'),
+                    'membership' => $membership->fresh(['user.profile', 'plan']),
+                ]);
+            }
+
+            return redirect()->back()->with('success', $msg);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            $errorMessage = $e->getMessage();
+            if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
+                $errorText = trim($matches[1]);
+            } else {
+                $errorText = 'Error de base de datos al registrar el abono: ' . $errorMessage;
+            }
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
+        } catch (\Exception $e) {
+            $errorText = 'Error inesperado: ' . $e->getMessage();
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errorText], 500);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
+        }
+    }
+
+    /**
      * Renew/Create user membership.
      */
     public function renewMembership(Request $request)
@@ -540,6 +709,142 @@ class FinanceController extends Controller
             'discount_type' => $promo->discount_type,
             'discount_value' => (float)$promo->discount_value,
             'id' => $promo->id,
+        ]);
+    }
+
+    /**
+     * Store new Gym Promotion (Paquetes y descuentos por meses seguidos).
+     */
+    public function storeGymPromotion(Request $request)
+    {
+        $this->checkAdmin();
+        $request->validate([
+            'title' => 'required|string|max:150',
+            'plan_id' => 'required|exists:membership_plans,id',
+            'months_count' => 'required|integer|min:1|max:36',
+            'discount_pct' => 'required|numeric|min:0|max:100',
+            'description' => 'nullable|string',
+            'valid_until' => 'nullable|date',
+        ]);
+
+        $gymId = $this->getActiveGymId();
+        if ($gymId === 'all') {
+            $errMsg = 'Debes seleccionar una sucursal específica para crear una promoción.';
+            if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                return response()->json(['error' => $errMsg], 422);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $errMsg]);
+        }
+
+        $plan = MembershipPlan::findOrFail($request->plan_id);
+        $months = (int) $request->months_count;
+        $discountPct = (float) $request->discount_pct;
+
+        // Calculate regular price vs promotional price
+        $regularTotalPrice = (float) $plan->price * $months;
+        $promotionalPrice = max(0, round($regularTotalPrice * (1 - ($discountPct / 100)), 2));
+
+        $promo = GymPromotion::create([
+            'gym_id' => $gymId,
+            'plan_id' => $plan->id,
+            'title' => $request->title,
+            'description' => $request->description,
+            'months_count' => $months,
+            'discount_pct' => $discountPct,
+            'promotional_price' => $promotionalPrice,
+            'valid_until' => $request->valid_until,
+            'is_active' => 1,
+        ]);
+
+        AdminAuditLog::logAction(
+            'CREACION',
+            'Promoción de Gimnasio',
+            "Promoción '{$promo->title}' ({$months} meses con {$discountPct}% OFF - Precio \${$promotionalPrice}) creada exitosamente.",
+            null,
+            $promo->toArray(),
+            $gymId
+        );
+
+        if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'success' => true,
+                'message' => "Promoción '{$promo->title}' creada exitosamente.",
+                'promo' => $promo->load('plan')
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Promoción '{$promo->title}' creada exitosamente.");
+    }
+
+    /**
+     * Toggle active status of a Gym Promotion.
+     */
+    public function toggleGymPromotion($id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $query = GymPromotion::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+
+        $promo = $query->findOrFail($id);
+        $oldState = $promo->toArray();
+        $newStatus = $promo->is_active ? 0 : 1;
+        $promo->update(['is_active' => $newStatus]);
+
+        $actionLabel = $newStatus ? 'HABILITADO' : 'INHABILITADO';
+        $descLabel = $newStatus ? 'activada' : 'desactivada';
+
+        AdminAuditLog::logAction(
+            $actionLabel,
+            'Promoción de Gimnasio',
+            "Promoción '{$promo->title}' {$descLabel} por el administrador.",
+            $oldState,
+            $promo->toArray(),
+            $promo->gym_id
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Promoción '{$promo->title}' {$descLabel} exitosamente.",
+            'is_active' => $newStatus
+        ]);
+    }
+
+    /**
+     * Delete Gym Promotion.
+     */
+    public function deleteGymPromotion($id)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $query = GymPromotion::query();
+        if ($gymId !== 'all') {
+            $query->where('gym_id', $gymId);
+        }
+
+        $promo = $query->findOrFail($id);
+        $oldState = $promo->toArray();
+        $promoTitle = $promo->title;
+        $promoGymId = $promo->gym_id;
+
+        $promo->delete();
+
+        AdminAuditLog::logAction(
+            'ELIMINACION',
+            'Promoción de Gimnasio',
+            "Promoción '{$promoTitle}' eliminada por el administrador.",
+            $oldState,
+            null,
+            $promoGymId
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Promoción '{$promoTitle}' eliminada exitosamente."
         ]);
     }
 

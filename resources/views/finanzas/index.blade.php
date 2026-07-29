@@ -12,6 +12,9 @@
             <p class="text-xs text-slate-400 mt-1">Administra los planes de suscripción, cobros, cupones y estados de facturación.</p>
         </div>
         <div class="flex items-center gap-2">
+            <button onclick="openAbonoModal()" class="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500 border border-amber-500/25 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
+            </button>
             <button onclick="toggleModal('plan-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
                 <i data-lucide="plus-circle" class="w-4 h-4 text-lime-400"></i> Crear Plan de Membresía
             </button>
@@ -95,6 +98,14 @@
             class="finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
             <i data-lucide="package" class="w-4 h-4"></i>
             <span>Planes de Suscripción</span>
+        </button>
+        <button 
+            type="button"
+            onclick="switchFinanceTab('promociones')" 
+            id="tab-btn-promociones"
+            class="finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2">
+            <i data-lucide="flame" class="w-4 h-4 text-amber-400"></i>
+            <span>Promociones del Gym</span>
         </button>
         <button 
             type="button"
@@ -193,13 +204,16 @@
                                 @endif
                             </td>
                             <td class="p-4 text-right pr-6" id="membership_action_cell_{{ $m->id }}">
-                                @if($m->payment_status !== 'paid')
-                                    <button onclick="openPaymentModal({{ $m->id }}, {{ $m->plan->price ?? 0 }})" class="px-3 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
-                                        Registrar Pago
+                                <div class="flex items-center justify-end gap-1.5">
+                                    @if($m->payment_status !== 'paid')
+                                        <button onclick="openPaymentModal({{ $m->id }}, {{ $m->plan->price ?? 0 }})" class="px-2.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
+                                            Registrar Pago
+                                        </button>
+                                    @endif
+                                    <button onclick='openAbonoModal({{ json_encode($m) }})' class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-extrabold text-[10px] rounded-xl transition-all shadow-sm flex items-center gap-1" title="Abonar días adelantados">
+                                        <i data-lucide="coins" class="w-3 h-3"></i> Abonar
                                     </button>
-                                @else
-                                    <span class="text-slate-500 font-bold text-[10px] uppercase">Facturado</span>
-                                @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -335,6 +349,94 @@
         </div>
     </div>
 
+    <!-- Tab: Promociones y Paquetes de Membresía del Gym -->
+    <div id="tab-content-promociones" class="finance-tab-content hidden bg-slate-900/40 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-850 pb-4">
+            <div>
+                <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                    <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i> Promociones y Paquetes Especiales del Gimnasio
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Ofertas especiales por pago de varios meses seguidos (ej: 5 meses con 30% OFF).</p>
+            </div>
+            
+            <button type="button" onclick="toggleModal('create-gym-promo-modal')" class="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all flex items-center gap-2 cursor-pointer shrink-0">
+                <i data-lucide="plus" class="w-4 h-4"></i> Crear Promoción Especial
+            </button>
+        </div>
+
+        <!-- Promociones Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="gym-promotions-grid">
+            @forelse($gymPromotions as $gPromo)
+                @php
+                    $planBase = $gPromo->plan;
+                    $regularPrice = $planBase ? ($planBase->price * $gPromo->months_count) : 0;
+                    $savings = max(0, $regularPrice - $gPromo->promotional_price);
+                    $totalDays = $planBase ? ($planBase->duration_days * $gPromo->months_count) : ($gPromo->months_count * 30);
+                @endphp
+                <div id="gym-promo-card-{{ $gPromo->id }}" class="bg-slate-950 rounded-3xl border border-slate-850 p-6 flex flex-col justify-between space-y-4 hover:border-slate-750 transition-all shadow-md group relative overflow-hidden">
+                    <div class="absolute -top-12 -right-12 w-28 h-28 bg-amber-500/10 rounded-full blur-xl pointer-events-none group-hover:bg-amber-500/20 transition-all"></div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex items-start justify-between gap-2">
+                            <span class="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/25 text-xs font-black rounded-full flex items-center gap-1">
+                                <i data-lucide="flame" class="w-3.5 h-3.5"></i> {{ (float)$gPromo->discount_pct }}% OFF
+                            </span>
+                            <span id="gym-promo-status-badge-{{ $gPromo->id }}" class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full {{ $gPromo->is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20' }}">
+                                {{ $gPromo->is_active ? 'Activa' : 'Inactiva' }}
+                            </span>
+                        </div>
+
+                        <h4 class="font-black text-lg text-slate-100 line-clamp-1">{{ $gPromo->title }}</h4>
+                        <p class="text-xs text-slate-400 line-clamp-2">{{ $gPromo->description ?: 'Oferta de membresía por paquete multi-mes.' }}</p>
+
+                        <div class="bg-slate-900/60 p-3.5 rounded-2xl border border-slate-850 space-y-2 text-xs">
+                            <div class="flex items-center justify-between text-slate-400">
+                                <span>Plan Base:</span>
+                                <span class="font-bold text-slate-200">{{ $planBase->name ?? 'Plan Standard' }} (${{ number_format($planBase->price ?? 0, 2) }}/mes)</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-400">
+                                <span>Duración Total:</span>
+                                <span class="font-bold text-lime-400">{{ $gPromo->months_count }} Meses ({{ $totalDays }} días)</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-400 border-t border-slate-850/60 pt-2">
+                                <span>Precio Regular:</span>
+                                <span class="line-through text-slate-500 font-bold">${{ number_format($regularPrice, 2) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-100 font-black text-sm pt-1">
+                                <span>Precio Promocional:</span>
+                                <span class="text-amber-400 text-base">${{ number_format($gPromo->promotional_price, 2) }}</span>
+                            </div>
+                            @if($savings > 0)
+                                <div class="text-[11px] text-emerald-400 font-bold text-right">
+                                    ¡El socio ahorra ${{ number_format($savings, 2) }}!
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Card Footer Actions -->
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-850/60">
+                        <button type="button" id="gym-promo-toggle-btn-{{ $gPromo->id }}" onclick="toggleGymPromoAjax({{ $gPromo->id }})" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-xs font-bold text-slate-300 rounded-xl transition-colors">
+                            {{ $gPromo->is_active ? 'Desactivar' : 'Activar' }}
+                        </button>
+                        <button type="button" onclick="deleteGymPromoAjax({{ $gPromo->id }})" class="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer" title="Eliminar Promoción">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            @empty
+                <div id="no-gym-promos-box" class="col-span-full py-12 text-center text-slate-500 text-sm bg-slate-950/30 rounded-3xl border border-slate-850">
+                    <i data-lucide="flame" class="w-12 h-12 text-slate-700 mb-2 mx-auto"></i>
+                    <p class="font-bold text-slate-400">No hay promociones registradas aún.</p>
+                    <p class="text-xs text-slate-500 mt-1">Crea promociones para ofrecer paquetes de 3, 5 o 12 meses con descuentos especiales.</p>
+                    <button type="button" onclick="toggleModal('create-gym-promo-modal')" class="mt-4 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-colors inline-block cursor-pointer">
+                        Crear Primera Promoción
+                    </button>
+                </div>
+            @endforelse
+        </div>
+    </div>
+
     <!-- Tab 3: Cupones de Descuento -->
     <div id="tab-content-cupones" class="finance-tab-content hidden bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
         <div class="p-6 border-b border-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -454,6 +556,92 @@
         </div>
     </div>
 
+</div>
+
+<!-- ================= MODAL: CREAR PROMOCIÓN ESPECIAL ================= -->
+<div id="create-gym-promo-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-lg mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto relative">
+        <div class="flex items-center justify-between border-b border-slate-850 pb-4">
+            <h3 class="font-extrabold text-lg text-slate-100 flex items-center gap-2">
+                <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i> Crear Promoción Especial del Gym
+            </h3>
+            <button type="button" onclick="toggleModal('create-gym-promo-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="create-gym-promo-form" action="{{ route('finanzas.store_gym_promo') }}" method="POST" onsubmit="submitGymPromoForm(event)" class="space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Título de la Promoción *</label>
+                <input type="text" name="title" required placeholder="Ej: Paquete 5 Meses - 30% OFF" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500/50">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Plan Base *</label>
+                    <select name="plan_id" id="promo_plan_id" onchange="calculateGymPromoPreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50 cursor-pointer">
+                        <option value="" disabled selected>Selecciona plan...</option>
+                        @foreach($plans as $p)
+                            <option value="{{ $p->id }}" data-price="{{ $p->price }}" data-days="{{ $p->duration_days }}">
+                                {{ $p->name }} (${{ number_format($p->price, 2) }})
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Meses del Paquete *</label>
+                    <input type="number" min="1" max="36" name="months_count" id="promo_months_count" value="5" oninput="calculateGymPromoPreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Porcentaje de Descuento (%) *</label>
+                    <div class="relative">
+                        <input type="number" step="0.5" min="0" max="100" name="discount_pct" id="promo_discount_pct" value="30" oninput="calculateGymPromoPreview()" required class="w-full pl-4 pr-8 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-black focus:outline-none focus:border-amber-500/50">
+                        <span class="absolute right-4 top-2.5 text-slate-400 font-bold">%</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Válido Hasta (Opcional)</label>
+                    <input type="date" name="valid_until" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Descripción de la Oferta</label>
+                <textarea name="description" rows="2" placeholder="Ej: Paga 5 meses de contado y obtén un 30% de descuento en la mensualidad." class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50"></textarea>
+            </div>
+
+            <!-- Calculadora de Oferta en Vivo -->
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2 text-xs">
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span>Costo Regular Sin Descuento:</span>
+                    <span id="promo_preview_regular" class="line-through font-bold text-slate-500">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span>Precio Promocional Final:</span>
+                    <span id="promo_preview_final" class="font-extrabold text-amber-400 text-sm">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-emerald-400 font-bold pt-0.5">
+                    <span>Ahorro Total para el Socio:</span>
+                    <span id="promo_preview_savings" class="font-black">$0.00</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-850">
+                <button type="button" onclick="toggleModal('create-gym-promo-modal')" class="px-4 py-2 bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition-colors cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all cursor-pointer">
+                    Guardar Promoción
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- ================= MODAL: CREAR PLAN ================= -->
@@ -710,6 +898,109 @@
     </div>
 </div>
 
+<!-- ================= MODAL: REGISTRAR ABONO (PAGO ADELANTADO) ================= -->
+<div id="abono-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <i data-lucide="coins" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Registrar Abono (Pago Adelantado)</h3>
+                    <p class="text-[11px] text-slate-400">Extiende la vigencia del cliente según su tarifa diaria</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('abono-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="abono-form" action="{{ route('finanzas.record_abono') }}" method="POST" onsubmit="submitAbonoForm(event)" class="space-y-4">
+            @csrf
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Membresía del Socio *</label>
+                <select name="user_membership_id" id="abono_membership_select" onchange="calculateAbonoPreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50 cursor-pointer">
+                    <option value="" disabled selected>Selecciona un socio activo...</option>
+                    @foreach($memberships as $m)
+                        <option value="{{ $m->id }}" 
+                            data-user-name="{{ ($m->user && $m->user->profile) ? $m->user->profile->first_name . ' ' . $m->user->profile->last_name : ($m->user->email ?? 'Socio') }}"
+                            data-plan-name="{{ $m->plan->name ?? 'Membresía' }}"
+                            data-plan-price="{{ $m->plan->price ?? 0 }}"
+                            data-plan-days="{{ $m->plan->duration_days ?? 30 }}"
+                            data-credit-balance="{{ $m->user->credit_balance ?? 0 }}"
+                            data-end-date="{{ $m->end_date }}">
+                            {{ ($m->user && $m->user->profile) ? $m->user->profile->first_name . ' ' . $m->user->profile->last_name : ($m->user->email ?? 'Socio') }} - {{ $m->plan->name ?? 'Plan' }} (Vence: {{ date('d/m/Y', strtotime($m->end_date)) }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Monto del Abono *</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-2.5 text-slate-400 font-bold">$</span>
+                    <input type="number" step="0.01" min="0.01" name="amount" id="abono_amount_input" oninput="calculateAbonoPreview()" required placeholder="Ej: 5.00" class="w-full pl-8 pr-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            <!-- Calculadora en Vivo (Live Preview Box) -->
+            <div id="abono_preview_box" class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Precio del Plan:</span>
+                    <span id="abono_preview_plan_price" class="font-bold text-slate-200">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Costo Diario (1 Día):</span>
+                    <span id="abono_preview_daily_rate" class="font-bold text-amber-400">$0.00 / día</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Saldo a Favor Previo:</span>
+                    <span id="abono_preview_prev_credit" class="font-bold text-blue-400">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Días Otorgados:</span>
+                    <span id="abono_preview_extra_days" class="font-black text-lime-400 text-sm">+0 Días</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Nuevo Saldo a Favor:</span>
+                    <span id="abono_preview_new_credit" class="font-bold text-emerald-400">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 font-bold pt-1">
+                    <span>Nueva Fecha de Vencimiento:</span>
+                    <span id="abono_preview_new_end_date" class="text-slate-100 font-black text-sm">--/--/----</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Método de Pago *</label>
+                    <select name="payment_method" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50 cursor-pointer">
+                        <option value="cash">Efectivo</option>
+                        <option value="transfer">Transferencia</option>
+                        <option value="card">Tarjeta de Débito/Crédito</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">N° Referencia (Opcional)</label>
+                    <input type="text" name="reference_number" placeholder="Ej: REF-9874" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50">
+                </div>
+            </div>
+
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
+                <button type="button" onclick="toggleModal('abono-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" id="abono-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5">
+                    <i data-lucide="coins" class="w-4 h-4"></i>
+                    <span>Confirmar Abono</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     function toggleModal(modalId) {
         const modal = document.getElementById(modalId);
@@ -743,6 +1034,125 @@
         feedback.innerText = '';
         
         toggleModal('payment-modal');
+    }
+
+    function openAbonoModal(mObj = null) {
+        const select = document.getElementById('abono_membership_select');
+        if (mObj && select) {
+            select.value = mObj.id;
+        }
+        calculateAbonoPreview();
+        toggleModal('abono-modal');
+    }
+
+    function calculateAbonoPreview() {
+        const select = document.getElementById('abono_membership_select');
+        const amountInput = document.getElementById('abono_amount_input');
+        
+        const priceEl = document.getElementById('abono_preview_plan_price');
+        const rateEl = document.getElementById('abono_preview_daily_rate');
+        const prevCreditEl = document.getElementById('abono_preview_prev_credit');
+        const extraDaysEl = document.getElementById('abono_preview_extra_days');
+        const newCreditEl = document.getElementById('abono_preview_new_credit');
+        const newEndDateEl = document.getElementById('abono_preview_new_end_date');
+
+        if (!select || !select.value) {
+            if (priceEl) priceEl.textContent = '$0.00';
+            if (rateEl) rateEl.textContent = '$0.00 / día';
+            if (prevCreditEl) prevCreditEl.textContent = '$0.00';
+            if (extraDaysEl) extraDaysEl.textContent = '+0 Días';
+            if (newCreditEl) newCreditEl.textContent = '$0.00';
+            if (newEndDateEl) newEndDateEl.textContent = '--/--/----';
+            return;
+        }
+
+        const opt = select.options[select.selectedIndex];
+        const planPrice = parseFloat(opt.getAttribute('data-plan-price') || '0');
+        const planDays = parseInt(opt.getAttribute('data-plan-days') || '30', 10);
+        const endDateStr = opt.getAttribute('data-end-date') || '';
+        const prevCredit = parseFloat(opt.getAttribute('data-credit-balance') || '0');
+        const amount = parseFloat(amountInput ? amountInput.value : '0') || 0;
+
+        const totalFunds = amount + prevCredit;
+        const dailyRate = planDays > 0 ? (planPrice / planDays) : 0;
+        const extraDays = dailyRate > 0 ? Math.floor(totalFunds / dailyRate) : 0;
+        const costUsed = extraDays * dailyRate;
+        const newCredit = Math.max(0, totalFunds - costUsed);
+
+        if (priceEl) priceEl.textContent = '$' + planPrice.toFixed(2) + ' (' + planDays + ' días)';
+        if (rateEl) rateEl.textContent = '$' + dailyRate.toFixed(2) + ' / día';
+        if (prevCreditEl) prevCreditEl.textContent = '$' + prevCredit.toFixed(2);
+        if (extraDaysEl) extraDaysEl.textContent = '+' + extraDays + ' Días';
+        if (newCreditEl) newCreditEl.textContent = '$' + newCredit.toFixed(2);
+
+        if (endDateStr) {
+            let baseDate = new Date(endDateStr);
+            let now = new Date();
+            if (isNaN(baseDate.getTime()) || baseDate < now) {
+                baseDate = now;
+            }
+            baseDate.setDate(baseDate.getDate() + extraDays);
+            const day = String(baseDate.getDate()).padStart(2, '0');
+            const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+            const year = baseDate.getFullYear();
+            if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year}`;
+        }
+    }
+
+    async function submitAbonoForm(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('abono-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Procesando Abono...');
+
+        try {
+            const formData = new FormData(form);
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const m = data.membership;
+                
+                const endDateCell = document.getElementById(`membership_end_date_cell_${m.id}`);
+                if (endDateCell) {
+                    endDateCell.textContent = data.new_end_date_formatted || data.new_end_date;
+                }
+
+                const statusCell = document.getElementById(`membership_status_cell_${m.id}`);
+                if (statusCell) {
+                    statusCell.innerHTML = `<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Activo (+${data.extra_days}d)</span>`;
+                }
+
+                const statTotal = document.getElementById('stat_total_collected');
+                if (statTotal && formData.get('amount')) {
+                    const currentVal = parseFloat(statTotal.getAttribute('data-value') || '0');
+                    const added = parseFloat(formData.get('amount'));
+                    const newVal = currentVal + added;
+                    statTotal.setAttribute('data-value', newVal);
+                    statTotal.textContent = '$' + newVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+
+                form.reset();
+                toggleModal('abono-modal');
+                showFinanceToast(data.message, 'success');
+            } else {
+                showFinanceToast(data.error || data.message || 'Error al procesar el abono.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Ocurrió un error al procesar el abono.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
     }
 
     async function applyPromoCode() {
@@ -1754,6 +2164,141 @@
     function changePromoPage(delta) {
         currentPromoPage += delta;
         renderPromoPage();
+    }
+
+    // GYM PROMOTIONS FUNCTIONS (Paquetes y descuentos multi-mes)
+    function calculateGymPromoPreview() {
+        const planSelect = document.getElementById('promo_plan_id');
+        const monthsInput = document.getElementById('promo_months_count');
+        const discountInput = document.getElementById('promo_discount_pct');
+
+        if (!planSelect || !monthsInput || !discountInput) return;
+
+        const selectedOpt = planSelect.options[planSelect.selectedIndex];
+        const planPrice = selectedOpt ? parseFloat(selectedOpt.getAttribute('data-price') || 0) : 0;
+        const months = parseInt(monthsInput.value || 1);
+        const discountPct = parseFloat(discountInput.value || 0);
+
+        const regularTotal = planPrice * months;
+        const promoPrice = Math.max(0, regularTotal * (1 - (discountPct / 100)));
+        const savings = Math.max(0, regularTotal - promoPrice);
+
+        const regularEl = document.getElementById('promo_preview_regular');
+        const finalEl = document.getElementById('promo_preview_final');
+        const savingsEl = document.getElementById('promo_preview_savings');
+
+        if (regularEl) regularEl.textContent = '$' + regularTotal.toFixed(2);
+        if (finalEl) finalEl.textContent = '$' + promoPrice.toFixed(2);
+        if (savingsEl) savingsEl.textContent = '$' + savings.toFixed(2);
+    }
+
+    async function submitGymPromoForm(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        setBtnLoading(submitBtn, true, 'Guardando...');
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toggleModal('create-gym-promo-modal');
+                form.reset();
+                showFinanceToast(data.message, 'success');
+                if (typeof window.loadUrl === 'function') {
+                    window.loadUrl(window.location.href, false);
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                const errMsg = data.error || data.message || 'Error al guardar la promoción.';
+                showFinanceToast(errMsg, 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Ocurrió un error al procesar la promoción.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    async function toggleGymPromoAjax(id) {
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch(`/finanzas/promociones-gym/${id}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showFinanceToast(data.message, 'success');
+                const badge = document.getElementById(`gym-promo-status-badge-${id}`);
+                const btn = document.getElementById(`gym-promo-toggle-btn-${id}`);
+                if (data.is_active) {
+                    if (badge) {
+                        badge.className = "px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+                        badge.textContent = 'Activa';
+                    }
+                    if (btn) btn.textContent = 'Desactivar';
+                } else {
+                    if (badge) {
+                        badge.className = "px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20";
+                        badge.textContent = 'Inactiva';
+                    }
+                    if (btn) btn.textContent = 'Activar';
+                }
+            } else {
+                showFinanceToast(data.error || 'Error al cambiar estado.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Error de conexión.', 'error');
+        }
+    }
+
+    async function deleteGymPromoAjax(id) {
+        if (!confirm('¿Estás seguro de que deseas eliminar esta promoción?')) return;
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch(`/finanzas/promociones-gym/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showFinanceToast(data.message, 'success');
+                const card = document.getElementById(`gym-promo-card-${id}`);
+                if (card) card.remove();
+            } else {
+                showFinanceToast(data.error || 'Error al eliminar la promoción.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Error de conexión.', 'error');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {

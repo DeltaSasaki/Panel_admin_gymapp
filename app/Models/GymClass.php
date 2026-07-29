@@ -17,6 +17,8 @@ class GymClass extends Model
         'duration_minutes',
         'capacity',
         'color_code',
+        'category_type',
+        'location',
         'is_active',
     ];
 

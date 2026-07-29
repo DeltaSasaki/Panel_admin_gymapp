@@ -4,28 +4,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class UserMembership extends Model
+class GymPromotion extends Model
 {
     const CREATED_AT = 'createdAt';
     const UPDATED_AT = 'updatedAt';
 
-    protected $table = 'user_memberships';
+    protected $table = 'gym_promotions';
 
     protected $fillable = [
-        'user_id',
         'gym_id',
         'plan_id',
-        'start_date',
-        'end_date',
-        'status',
-        'payment_status',
-        'notes',
+        'title',
+        'description',
+        'months_count',
+        'discount_pct',
+        'promotional_price',
+        'valid_until',
+        'is_active',
     ];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
 
     public function gym()
     {
@@ -35,10 +31,5 @@ class UserMembership extends Model
     public function plan()
     {
         return $this->belongsTo(MembershipPlan::class, 'plan_id');
-    }
-
-    public function payments()
-    {
-        return $this->hasMany(MembershipPayment::class, 'membership_id');
     }
 }

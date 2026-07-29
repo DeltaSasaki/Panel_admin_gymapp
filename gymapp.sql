@@ -735,6 +735,28 @@ CREATE TABLE `product_sales` (
 -- Estructura de tabla para la tabla `promo_codes`
 --
 
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `gym_promotions`
+--
+
+CREATE TABLE `gym_promotions` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) NOT NULL,
+  `plan_id` int(11) DEFAULT NULL,
+  `title` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `months_count` int(11) NOT NULL DEFAULT 1,
+  `discount_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `promotional_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `valid_until` date DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `createdAt` timestamp NULL DEFAULT current_timestamp(),
+  `updatedAt` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `promo_codes` (
   `id` int(11) NOT NULL,
   `gym_id` int(11) DEFAULT NULL COMMENT 'NULL si es una promoción global de tu plataforma SaaS',
@@ -1453,6 +1475,14 @@ CREATE TABLE `workout_sessions` (
 --
 
 --
+--
+-- Volcado de datos para la tabla `gym_promotions`
+--
+
+INSERT INTO `gym_promotions` (`id`, `gym_id`, `plan_id`, `title`, `description`, `months_count`, `discount_pct`, `promotional_price`, `valid_until`, `is_active`, `createdAt`, `updatedAt`) VALUES
+(1, 1, 1, 'Paquete 5 Meses - 30% OFF', 'Paga 5 meses seguidos de contado y obtén un 30% de descuento en la mensualidad regular.', 5, 30.00, 175.00, NULL, 1, '2026-07-29 12:26:37', '2026-07-29 12:26:37'),
+(2, 1, 1, 'Oferta Trimestral 15% OFF', 'Paga 3 meses seguidos de contado con un 15% de descuento directo.', 3, 15.00, 127.50, NULL, 1, '2026-07-29 12:26:37', '2026-07-29 12:26:37');
+
 -- Indices de la tabla `achievement_definitions`
 --
 ALTER TABLE `achievement_definitions`
@@ -1695,6 +1725,20 @@ ALTER TABLE `product_sales`
 --
 -- Indices de la tabla `promo_codes`
 --
+--
+-- Indices de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
+  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
+
+--
+-- AUTO_INCREMENT de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
 ALTER TABLE `promo_codes`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `gym_code_unique` (`gym_id`,`code`);
@@ -2083,6 +2127,20 @@ ALTER TABLE `product_sales`
 --
 -- AUTO_INCREMENT de la tabla `promo_codes`
 --
+--
+-- Indices de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
+  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
+
+--
+-- AUTO_INCREMENT de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
 ALTER TABLE `promo_codes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
@@ -2410,6 +2468,20 @@ ALTER TABLE `product_sales`
 --
 -- Filtros para la tabla `promo_codes`
 --
+--
+-- Indices de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `gym_promotions_gym_fk` (`gym_id`),
+  ADD KEY `gym_promotions_plan_fk` (`plan_id`);
+
+--
+-- AUTO_INCREMENT de la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
 ALTER TABLE `promo_codes`
   ADD CONSTRAINT `promo_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE;
 
@@ -2585,3 +2657,11 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+--
+-- Filtros para la tabla `gym_promotions`
+--
+ALTER TABLE `gym_promotions` 
+  ADD CONSTRAINT `gym_promotions_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `gym_promotions_plan_fk` FOREIGN KEY (`plan_id`) REFERENCES `membership_plans` (`id`) ON DELETE SET NULL;
+

@@ -7,6 +7,8 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\CashClosingController;
+use App\Http\Controllers\NotificationController;
 
 // Public Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -59,10 +61,20 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/finanzas/planes/{id}', [FinanceController::class, 'updatePlan'])->name('finanzas.update_plan');
     Route::post('/finanzas/planes/{id}/toggle', [FinanceController::class, 'togglePlan'])->name('finanzas.toggle_plan');
     Route::post('/finanzas/pagos', [FinanceController::class, 'recordPayment'])->name('finanzas.record_payment');
+    Route::post('/finanzas/abonos', [FinanceController::class, 'recordAbono'])->name('finanzas.record_abono');
     Route::post('/finanzas/renovar', [FinanceController::class, 'renewMembership'])->name('finanzas.renew_membership');
     Route::post('/finanzas/promos', [FinanceController::class, 'storePromoCode'])->name('finanzas.store_promo');
     Route::post('/finanzas/promos/{id}/toggle', [FinanceController::class, 'togglePromoCode'])->name('finanzas.toggle_promo');
     Route::get('/api/promos/validate', [FinanceController::class, 'validatePromo'])->name('api.promos.validate');
+
+    // Promociones del Gym (Paquetes y descuentos por meses seguidos)
+    Route::post('/finanzas/promociones-gym', [FinanceController::class, 'storeGymPromotion'])->name('finanzas.store_gym_promo');
+    Route::post('/finanzas/promociones-gym/{id}/toggle', [FinanceController::class, 'toggleGymPromotion'])->name('finanzas.toggle_gym_promo');
+    Route::delete('/finanzas/promociones-gym/{id}', [FinanceController::class, 'deleteGymPromotion'])->name('finanzas.delete_gym_promo');
+
+    // Cierre de Caja y Balance Diario
+    Route::get('/cierre-caja', [CashClosingController::class, 'index'])->name('cierre_caja.index');
+    Route::post('/cierre-caja/cerrar', [CashClosingController::class, 'closeDay'])->name('cierre_caja.close_day');
 
     // Tienda & Inventario (POS open to trainers/admins, catalog and sales history restricted to admins)
     Route::get('/tienda/pos', [InventoryController::class, 'pos'])->name('tienda.pos');
@@ -194,4 +206,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/retos/inscribir', [\App\Http\Controllers\GamificationController::class, 'enrollParticipant'])->name('retos.enroll_participant');
     Route::post('/retos/participantes/{id}/actualizar', [\App\Http\Controllers\GamificationController::class, 'updateParticipant'])->name('retos.update_participant');
     Route::post('/retos/medallas/otorgar', [\App\Http\Controllers\GamificationController::class, 'awardAchievementToUser'])->name('retos.award_achievement');
+
+    // Notification Center routes
+    Route::get('/notificaciones', [NotificationController::class, 'index'])->name('notificaciones.index');
+    Route::post('/notificaciones/enviar', [NotificationController::class, 'sendManual'])->name('notificaciones.send_manual');
+    Route::post('/notificaciones/{id}/leer', [NotificationController::class, 'markAsRead'])->name('notificaciones.mark_read');
+    Route::post('/notificaciones/marcar-todas', [NotificationController::class, 'markAllAsRead'])->name('notificaciones.mark_all_read');
+    Route::post('/notificaciones/ejecutar-disparadores', [NotificationController::class, 'runAutoTriggers'])->name('notificaciones.run_triggers');
+
+    // Settings / Configuración routes
+    Route::get('/configuracion', [\App\Http\Controllers\SettingsController::class, 'index'])->name('configuracion.index');
+    Route::post('/configuracion/font-size', [\App\Http\Controllers\SettingsController::class, 'updateFontSize'])->name('configuracion.update_font_size');
 });
