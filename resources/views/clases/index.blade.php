@@ -103,29 +103,21 @@
             </div>
         </div>
 
-        <!-- Schedules Grid grouped by day -->
-        <div id="schedules-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @forelse($schedules->groupBy('scheduled_date') as $date => $daySchedules)
-                @php
-                    $formattedDate = \Carbon\Carbon::parse($date)->locale('es')->isoFormat('dddd D [de] MMMM');
-                @endphp
-                <div id="schedule_day_card_{{ $date }}" data-schedule-day-card="{{ $date }}" class="bg-slate-900/40 border border-slate-800/90 rounded-3xl p-5 space-y-4 flex flex-col shadow-xl hover:border-slate-700/60 transition-all">
-                    <!-- Day Header -->
-                    <div class="border-b border-slate-800/80 pb-3.5 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2.5 rounded-2xl bg-lime-500/10 border border-lime-500/20 text-lime-400 shrink-0">
-                                <i data-lucide="calendar" class="w-4 h-4"></i>
-                            </div>
-                            <div class="overflow-hidden">
-                                <h3 class="font-extrabold text-xs uppercase tracking-wider text-slate-100 capitalize truncate">{{ $formattedDate }}</h3>
-                                <span class="text-[10px] text-slate-400 font-bold uppercase day-sessions-count mt-0.5 block" id="day_count_{{ $date }}">{{ $daySchedules->count() }} Sesiones</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Day Sessions List -->
-                    <div class="space-y-3.5 flex-1 day-sessions-list" id="day_sessions_list_{{ $date }}">
-                        @foreach($daySchedules as $sched)
+        <!-- Agenda Table Container -->
+        <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse whitespace-nowrap" id="schedules-table">
+                    <thead>
+                        <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
+                            <th class="p-4 pl-6 text-left">Fecha &amp; Horario</th>
+                            <th class="p-4 text-left">Clase / Disciplina</th>
+                            <th class="p-4 text-left">Coach Responsable</th>
+                            <th class="p-4 text-center">Estado</th>
+                            <th class="p-4 text-right pr-6">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedules_table_body" class="divide-y divide-slate-850/50">
+                        @forelse($schedules as $sched)
                             @php
                                 $trainerName = ($sched->trainer && $sched->trainer->user && $sched->trainer->user->profile) 
                                     ? trim($sched->trainer->user->profile->first_name . ' ' . $sched->trainer->user->profile->last_name) 
@@ -133,79 +125,104 @@
                                 $photoUrl = ($sched->trainer && $sched->trainer->user && $sched->trainer->user->profile && $sched->trainer->user->profile->profile_photo)
                                     ? asset($sched->trainer->user->profile->profile_photo)
                                     : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+                                $formattedDate = \Carbon\Carbon::parse($sched->scheduled_date)->locale('es')->isoFormat('ddd D MMM, YYYY');
                             @endphp
-                            <div id="schedule_item_{{ $sched->id }}" 
-                                 data-schedule-item
-                                 data-classname="{{ strtolower($sched->gymClass->name ?? '') }}"
-                                 data-trainer="{{ strtolower($trainerName) }}"
-                                 data-status="{{ $sched->status }}"
-                                 class="bg-slate-950/80 border border-slate-800/90 rounded-2xl p-4 space-y-3.5 hover:border-lime-500/40 hover:bg-slate-900/80 transition-all duration-300 group shadow-md">
+                            <tr id="schedule_item_{{ $sched->id }}" 
+                                data-schedule-item
+                                data-classname="{{ strtolower($sched->gymClass->name ?? '') }}"
+                                data-trainer="{{ strtolower($trainerName) }}"
+                                data-status="{{ $sched->status }}"
+                                class="hover:bg-slate-900/40 text-slate-200 transition-colors">
                                 
-                                <!-- Card Header & Badge -->
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="space-y-1 min-w-0 flex-1">
-                                        <h4 class="font-extrabold text-sm text-slate-100 group-hover:text-lime-400 transition-colors leading-snug break-words" id="sched_title_{{ $sched->id }}">{{ $sched->gymClass->name }}</h4>
-                                        <div class="inline-flex items-center gap-1.5 text-xs text-slate-400 font-semibold">
-                                            <i data-lucide="clock" class="w-3.5 h-3.5 text-lime-400 shrink-0"></i>
-                                            <span id="sched_time_{{ $sched->id }}">{{ \Carbon\Carbon::parse($sched->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($sched->end_time)->format('H:i') }}</span>
+                                <!-- Fecha & Horario -->
+                                <td class="p-4 pl-6">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="p-2 rounded-xl bg-lime-500/10 border border-lime-500/20 text-lime-400 shrink-0">
+                                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <span class="block font-bold text-slate-100 capitalize">{{ $formattedDate }}</span>
+                                            <span id="sched_time_{{ $sched->id }}" class="text-[11px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
+                                                <i data-lucide="clock" class="w-3 h-3 text-lime-400 inline"></i>
+                                                {{ \Carbon\Carbon::parse($sched->start_time)->format('H:i') }} - {{ \Carbon\Carbon::parse($sched->end_time)->format('H:i') }}
+                                            </span>
                                         </div>
                                     </div>
-                                    <span id="sched_status_badge_{{ $sched->id }}" class="px-2.5 py-1 text-[9px] font-extrabold rounded-lg uppercase tracking-wider shrink-0 whitespace-nowrap border {{ $sched->status === 'scheduled' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ($sched->status === 'completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') }}">
+                                </td>
+
+                                <!-- Clase / Disciplina -->
+                                <td class="p-4">
+                                    <span id="sched_title_{{ $sched->id }}" class="font-extrabold text-slate-100 text-xs block">{{ $sched->gymClass->name ?? 'Clase Grupal' }}</span>
+                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 rounded-md text-[9px] font-semibold mt-1 inline-block">
+                                        Capacidad: {{ $sched->gymClass->capacity ?? 'General' }}
+                                    </span>
+                                </td>
+
+                                <!-- Coach Responsable -->
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2.5">
+                                        <img src="{{ $photoUrl }}" class="w-7 h-7 rounded-full object-cover border border-slate-700 shrink-0">
+                                        <span id="sched_trainer_{{ $sched->id }}" class="font-bold text-slate-200 text-xs truncate max-w-[140px]">{{ $trainerName }}</span>
+                                    </div>
+                                </td>
+
+                                <!-- Estado -->
+                                <td class="p-4 text-center">
+                                    <span id="sched_status_badge_{{ $sched->id }}" class="px-2.5 py-0.5 text-[9px] font-extrabold rounded-full uppercase tracking-wider border {{ $sched->status === 'scheduled' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ($sched->status === 'completed' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') }}">
                                         {{ $sched->status === 'scheduled' ? 'Programado' : ($sched->status === 'completed' ? 'Completada' : 'Cancelada') }}
                                     </span>
-                                </div>
+                                </td>
 
-                                <!-- Coach Info Pill -->
-                                <div class="flex items-center gap-3 p-2.5 bg-slate-900/80 border border-slate-800/80 rounded-xl">
-                                    <img src="{{ $photoUrl }}" class="w-8 h-8 rounded-full object-cover border border-slate-700 shrink-0 shadow-sm">
-                                    <div class="overflow-hidden min-w-0">
-                                        <span class="block text-[9px] text-slate-500 uppercase font-black tracking-widest leading-none">Coach Responsable</span>
-                                        <span class="block text-xs font-extrabold text-slate-200 truncate mt-1" id="sched_trainer_{{ $sched->id }}">{{ $trainerName }}</span>
+                                <!-- Acciones -->
+                                <td class="p-4 text-right pr-6">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <a href="{{ route('clases.bookings', $sched->id) }}" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-850 hover:border-lime-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm">
+                                            <i data-lucide="users" class="w-3.5 h-3.5 text-lime-400"></i>
+                                            <span>Reservaciones</span>
+                                        </a>
+
+                                        <button type="button" onclick='openEditScheduleModal({{ json_encode($sched) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Sesión">
+                                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                        </button>
+
+                                        <button type="button" onclick="openDeleteScheduleModal({{ $sched->id }}, '{{ addslashes($sched->gymClass->name ?? 'Clase') }}')" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Eliminar Sesión">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        </button>
                                     </div>
-                                </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr id="no_schedules_empty">
+                                <td colspan="5" class="p-8 text-center text-slate-500">
+                                    No hay sesiones programadas para los próximos días.
+                                </td>
+                            </tr>
+                        @endforelse
 
-                                <!-- Card Actions -->
-                                <div class="flex items-center gap-2 pt-2 border-t border-slate-850/80">
-                                    <a href="{{ route('clases.bookings', $sched->id) }}" class="flex-1 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-slate-100 border border-slate-800 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap overflow-hidden">
-                                        <i data-lucide="users" class="w-3.5 h-3.5 text-lime-400 shrink-0"></i>
-                                        <span class="truncate">Reservaciones</span>
-                                    </a>
-                                    <button type="button" onclick='openEditScheduleModal({{ json_encode($sched) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shrink-0" title="Editar Sesión">
-                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                                    </button>
-                                    <button type="button" onclick="openDeleteScheduleModal({{ $sched->id }}, '{{ addslashes($sched->gymClass->name) }}')" class="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shrink-0" title="Eliminar Sesión">
-                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @empty
-                <div id="no_schedules_empty" class="col-span-full py-16 text-center text-slate-500 bg-slate-900/20 border border-slate-800/60 rounded-3xl">
-                    <i data-lucide="calendar-days" class="w-12 h-12 mx-auto text-slate-700 mb-3"></i>
-                    <p class="font-bold text-slate-400">No hay sesiones programadas para los próximos días</p>
-                    <p class="text-xs text-slate-500 mt-1">Programa una nueva clase grupal haciendo clic en "Programar Sesión".</p>
-                </div>
-            @endforelse
-
-            <div id="no_schedules_search_row" class="col-span-full py-12 text-center text-slate-500 bg-slate-900/20 border border-slate-800/60 rounded-3xl hidden">
-                <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-700 mb-2"></i>
-                <p class="font-bold text-slate-400 text-sm">No se encontraron sesiones que coincidan con la búsqueda.</p>
+                        <tr id="no_schedules_search_row" class="hidden">
+                            <td colspan="5" class="p-10 text-center text-slate-500">
+                                <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+                                No se encontraron sesiones que coincidan con la búsqueda.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        </div>
 
-        <!-- Schedule Pagination Controls Footer -->
-        <div id="schedule_pagination_container" class="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-            <span id="schedule_pagination_info">Mostrando días programados...</span>
-            <div class="flex items-center gap-2">
-                <button type="button" id="sched_prev_page_btn" onclick="changeSchedulePage(-1)" class="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
-                    Anterior
-                </button>
-                <span id="sched_page_number_display" class="font-bold text-slate-200 px-2">Página 1</span>
-                <button type="button" id="sched_next_page_btn" onclick="changeSchedulePage(1)" class="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
-                    Siguiente
-                </button>
+            <!-- Schedule Pagination Controls Footer (Max 10 per page) -->
+            <div id="schedule_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-slate-400">
+                <span id="schedule_pagination_info">Mostrando sesiones...</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="sched_prev_page_btn" onclick="changeSchedulePage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                        Anterior
+                    </button>
+                    <span id="sched_page_number_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                    <button type="button" id="sched_next_page_btn" onclick="changeSchedulePage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                        Siguiente
+                        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1404,9 +1421,9 @@
         if (statClasses) statClasses.textContent = classCards.length;
     }
 
-    // Schedule Tab Filtering & Pagination (4 day cards per page)
+    // Schedule Tab Filtering & Pagination (10 sessions per page)
     let currentSchedulePage = 1;
-    const scheduleItemsPerPage = 4;
+    const scheduleItemsPerPage = 10;
 
     function onScheduleFilterChange() {
         currentSchedulePage = 1;
@@ -1419,42 +1436,23 @@
         const classVal = (document.getElementById('filter-schedule-class')?.value || '').toLowerCase();
         const statusVal = document.getElementById('filter-schedule-status')?.value || '';
 
-        const dayCards = Array.from(document.querySelectorAll('[data-schedule-day-card]'));
+        const rows = Array.from(document.querySelectorAll('[data-schedule-item]'));
 
-        let totalVisibleDays = 0;
+        const filtered = rows.filter(r => {
+            const className = r.getAttribute('data-classname') || '';
+            const trainer = r.getAttribute('data-trainer') || '';
+            const status = r.getAttribute('data-status') || '';
 
-        dayCards.forEach(dayCard => {
-            const items = Array.from(dayCard.querySelectorAll('[data-schedule-item]'));
-            let visibleItemsCount = 0;
+            const matchesSearch = !searchVal || className.includes(searchVal) || trainer.includes(searchVal);
+            const matchesTrainer = !trainerVal || trainer.includes(trainerVal);
+            const matchesClass = !classVal || className.includes(classVal);
+            const matchesStatus = !statusVal || status === statusVal;
 
-            items.forEach(item => {
-                const className = item.getAttribute('data-classname') || '';
-                const trainer = item.getAttribute('data-trainer') || '';
-                const status = item.getAttribute('data-status') || '';
-
-                const matchesSearch = !searchVal || className.includes(searchVal) || trainer.includes(searchVal);
-                const matchesTrainer = !trainerVal || trainer.includes(trainerVal);
-                const matchesClass = !classVal || className.includes(classVal);
-                const matchesStatus = !statusVal || status === statusVal;
-
-                if (matchesSearch && matchesTrainer && matchesClass && matchesStatus) {
-                    item.classList.remove('hidden');
-                    visibleItemsCount++;
-                } else {
-                    item.classList.add('hidden');
-                }
-            });
-
-            if (visibleItemsCount > 0) {
-                dayCard.setAttribute('data-day-visible', 'true');
-                totalVisibleDays++;
-            } else {
-                dayCard.setAttribute('data-day-visible', 'false');
-            }
+            return matchesSearch && matchesTrainer && matchesClass && matchesStatus;
         });
 
-        const visibleDayCards = dayCards.filter(d => d.getAttribute('data-day-visible') === 'true');
-        const totalPages = Math.ceil(totalVisibleDays / scheduleItemsPerPage) || 1;
+        const totalFiltered = filtered.length;
+        const totalPages = Math.ceil(totalFiltered / scheduleItemsPerPage) || 1;
 
         if (currentSchedulePage > totalPages) currentSchedulePage = totalPages;
         if (currentSchedulePage < 1) currentSchedulePage = 1;
@@ -1462,16 +1460,18 @@
         const startIndex = (currentSchedulePage - 1) * scheduleItemsPerPage;
         const endIndex = startIndex + scheduleItemsPerPage;
 
-        dayCards.forEach(d => d.classList.add('hidden'));
+        // Hide all rows using inline style (100% reliable)
+        rows.forEach(r => r.style.display = 'none');
 
-        visibleDayCards.slice(startIndex, endIndex).forEach(d => d.classList.remove('hidden'));
+        // Show current page slice
+        filtered.slice(startIndex, endIndex).forEach(r => r.style.display = '');
 
         const noSearchRow = document.getElementById('no_schedules_search_row');
         if (noSearchRow) {
-            if (totalVisibleDays === 0 && dayCards.length > 0) {
-                noSearchRow.classList.remove('hidden');
+            if (totalFiltered === 0 && rows.length > 0) {
+                noSearchRow.style.display = '';
             } else {
-                noSearchRow.classList.add('hidden');
+                noSearchRow.style.display = 'none';
             }
         }
 
@@ -1481,18 +1481,20 @@
         const nextBtn = document.getElementById('sched_next_page_btn');
 
         if (infoSpan) {
-            if (totalVisibleDays === 0) {
-                infoSpan.textContent = "No hay sesiones que mostrar.";
+            if (totalFiltered === 0) {
+                infoSpan.textContent = "No hay sesiones para mostrar.";
             } else {
                 const fromNum = startIndex + 1;
-                const toNum = Math.min(endIndex, totalVisibleDays);
-                infoSpan.textContent = `Mostrando días ${fromNum}-${toNum} de ${totalVisibleDays} días programados`;
+                const toNum = Math.min(endIndex, totalFiltered);
+                infoSpan.textContent = `Mostrando ${fromNum}-${toNum} de ${totalFiltered} sesiones`;
             }
         }
 
         if (pageSpan) pageSpan.textContent = `Página ${currentSchedulePage} de ${totalPages}`;
         if (prevBtn) prevBtn.disabled = (currentSchedulePage <= 1);
         if (nextBtn) nextBtn.disabled = (currentSchedulePage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
     }
 
     function changeSchedulePage(delta) {
@@ -1551,16 +1553,16 @@
         const startIndex = (currentClassPage - 1) * classItemsPerPage;
         const endIndex = startIndex + classItemsPerPage;
 
-        classCards.forEach(c => c.classList.add('hidden'));
+        classCards.forEach(c => c.style.display = 'none');
 
-        filtered.slice(startIndex, endIndex).forEach(c => c.classList.remove('hidden'));
+        filtered.slice(startIndex, endIndex).forEach(c => c.style.display = '');
 
         const noSearchRow = document.getElementById('no_classes_search_row');
         if (noSearchRow) {
             if (totalFiltered === 0 && classCards.length > 0) {
-                noSearchRow.classList.remove('hidden');
+                noSearchRow.style.display = '';
             } else {
-                noSearchRow.classList.add('hidden');
+                noSearchRow.style.display = 'none';
             }
         }
 
@@ -1582,12 +1584,23 @@
         if (pageSpan) pageSpan.textContent = `Página ${currentClassPage} de ${totalPages}`;
         if (prevBtn) prevBtn.disabled = (currentClassPage <= 1);
         if (nextBtn) nextBtn.disabled = (currentClassPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
     }
 
     function changeClassPage(delta) {
         currentClassPage += delta;
         renderClassesPage();
     }
+
+    function initClasesPagination() {
+        updateCounters();
+        renderSchedulesPage();
+        renderClassesPage();
+    }
+
+    // Run pagination immediately and on PJAX page swaps
+    setTimeout(initClasesPagination, 0);
 
     // Flash messages on load
     document.addEventListener('DOMContentLoaded', function () {
@@ -1600,9 +1613,11 @@
             @endforeach
         @endif
 
-        updateCounters();
-        renderSchedulesPage();
-        renderClassesPage();
+        initClasesPagination();
+    });
+
+    window.addEventListener('page:loaded', function() {
+        setTimeout(initClasesPagination, 0);
     });
 </script>
 @endsection

@@ -102,6 +102,11 @@ class User extends Authenticatable
         return $this->hasMany(WorkoutSession::class, 'user_id');
     }
 
+    public function attendanceLogs()
+    {
+        return $this->hasMany(AttendanceLog::class, 'user_id');
+    }
+
     public function memberships()
     {
         return $this->hasMany(UserMembership::class, 'user_id');

@@ -18,8 +18,9 @@ class AttendanceController extends Controller
     {
         $gymId = $this->getActiveGymId();
         $selectedDate = $request->input('date', Carbon::today()->toDateString());
+        $period = $request->input('period', 'today');
 
-        // Fetch logs for the selected date
+        // Fetch logs for the initial view
         $logsQuery = AttendanceLog::with(['user.profile', 'gym'])
             ->whereDate('check_in', $selectedDate)
             ->orderBy('check_in', 'desc');
@@ -30,7 +31,7 @@ class AttendanceController extends Controller
 
         $logs = $logsQuery->get();
 
-        // Count stats (always based on today for current active count)
+        // Initial summary counts based on today
         $todayLogsQuery = AttendanceLog::whereDate('check_in', Carbon::today());
         if ($gymId !== 'all') {
             $todayLogsQuery->where('gym_id', $gymId);
@@ -38,6 +39,7 @@ class AttendanceController extends Controller
         $todayLogs = $todayLogsQuery->get();
         $todayEntriesCount = $todayLogs->count();
         $currentlyInGymCount = $todayLogs->whereNull('check_out')->count();
+        $completedSessionsCount = $todayLogs->whereNotNull('check_out')->count();
 
         // Clients for dropdown check-in (only members belonging to the current gym/gyms)
         $clientsQuery = User::where('role', 'member')->where('is_active', 1)->with('profile');
@@ -46,7 +48,14 @@ class AttendanceController extends Controller
         }
         $clients = $clientsQuery->get();
 
-        return view('asistencia.index', compact('logs', 'clients', 'selectedDate', 'todayEntriesCount', 'currentlyInGymCount'));
+        return view('asistencia.index', compact(
+            'logs', 
+            'clients', 
+            'selectedDate', 
+            'todayEntriesCount', 
+            'currentlyInGymCount',
+            'completedSessionsCount'
+        ));
     }
 
     /**
@@ -223,20 +232,55 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Get attendance logs by date via AJAX.
+     * Get attendance logs by date / period via AJAX.
      */
     public function getLogsByDate(Request $request)
     {
         $selectedDate = $request->input('date', Carbon::today()->toDateString());
+        $period = $request->input('period', 'today');
         $gymId = $this->getActiveGymId();
 
-        $logsQuery = AttendanceLog::with(['user.profile', 'gym'])
-            ->whereDate('check_in', $selectedDate)
-            ->orderBy('check_in', 'desc');
+        $logsQuery = AttendanceLog::with(['user.profile', 'gym']);
+
+        $periodLabel = 'Hoy';
+
+        if ($period === 'this_week') {
+            $startDate = Carbon::now()->startOfWeek();
+            $endDate = Carbon::now()->endOfWeek();
+            $logsQuery->whereBetween('check_in', [$startDate, $endDate]);
+            $periodLabel = 'Esta Semana';
+        } elseif ($period === 'last_week') {
+            $startDate = Carbon::now()->subWeek()->startOfWeek();
+            $endDate = Carbon::now()->subWeek()->endOfWeek();
+            $logsQuery->whereBetween('check_in', [$startDate, $endDate]);
+            $periodLabel = 'Semana Anterior';
+        } elseif ($period === 'this_month') {
+            $startDate = Carbon::now()->startOfMonth();
+            $endDate = Carbon::now()->endOfMonth();
+            $logsQuery->whereBetween('check_in', [$startDate, $endDate]);
+            $periodLabel = 'Mes Actual';
+        } elseif ($period === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
+            $startDate = Carbon::parse($request->input('start_date'))->startOfDay();
+            $endDate = Carbon::parse($request->input('end_date'))->endOfDay();
+            $logsQuery->whereBetween('check_in', [$startDate, $endDate]);
+            $periodLabel = 'Periodo Personalizado';
+        } else {
+            $logsQuery->whereDate('check_in', $selectedDate);
+            $periodLabel = Carbon::parse($selectedDate)->format('d/m/Y');
+        }
+
+        $logsQuery->orderBy('check_in', 'desc');
 
         if ($gymId !== 'all') {
             $logsQuery->where('gym_id', $gymId);
         }
+
+        $allLogs = $logsQuery->get();
+
+        // Calculate stats synchronized with the selected period
+        $periodEntriesCount = $allLogs->count();
+        $currentlyInGymCount = $allLogs->whereNull('check_out')->count();
+        $completedSessionsCount = $allLogs->whereNotNull('check_out')->count();
 
         $methodMap = [
             'admin' => 'Admin',
@@ -251,12 +295,13 @@ class AttendanceController extends Controller
             'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
         ];
 
-        $logs = $logsQuery->get()->map(function($log) use ($methodMap, $methodBadge) {
+        $logs = $allLogs->map(function($log) use ($methodMap, $methodBadge) {
             return [
                 'id' => $log->id,
                 'user_name' => trim(($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? '')),
                 'user_email' => $log->user->email ?? '',
                 'user_photo' => $log->user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                'gym_name' => $log->gym->name ?? 'Sucursal Global',
                 'check_in_time' => Carbon::parse($log->check_in)->format('H:i'),
                 'check_in_date' => Carbon::parse($log->check_in)->format('d/m/Y'),
                 'check_out' => $log->check_out ? [
@@ -268,15 +313,6 @@ class AttendanceController extends Controller
                 'check_out_url' => route('asistencia.check_out', $log->id),
             ];
         });
-
-        // Compute today's active metrics
-        $todayLogsQuery = AttendanceLog::whereDate('check_in', Carbon::today());
-        if ($gymId !== 'all') {
-            $todayLogsQuery->where('gym_id', $gymId);
-        }
-        $todayLogs = $todayLogsQuery->get();
-        $todayEntriesCount = $todayLogs->count();
-        $currentlyInGymCount = $todayLogs->whereNull('check_out')->count();
 
         // Calculate real capacity stats
         if ($gymId === 'all') {
@@ -294,8 +330,11 @@ class AttendanceController extends Controller
 
         return response()->json([
             'selected_date' => $selectedDate,
-            'today_entries_count' => $todayEntriesCount,
+            'period' => $period,
+            'period_label' => $periodLabel,
+            'period_entries_count' => $periodEntriesCount,
             'currently_in_gym_count' => $currentlyInGymCount,
+            'completed_sessions_count' => $completedSessionsCount,
             'aforo_current_users' => $aforoCurrentUsers,
             'aforo_max_users' => $aforoMaxUsers,
             'logs' => $logs

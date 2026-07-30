@@ -35,7 +35,10 @@ class InventoryController extends Controller
         // Fetch clients for dropdown (optional customer association)
         $clients = User::where('role', 'member')->where('gym_id', $gymId)->with('profile')->get();
 
-        return view('tienda.pos', compact('products', 'clients'));
+        // Fetch product categories for cashier quick filtering
+        $categories = ProductCategory::where('gym_id', $gymId)->get();
+
+        return view('tienda.pos', compact('products', 'clients', 'categories'));
     }
 
     /**

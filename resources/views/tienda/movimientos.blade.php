@@ -282,16 +282,18 @@
             </table>
         </div>
 
-        <!-- Pagination Controls Footer -->
-        <div id="movement_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <!-- Pagination Controls Footer (Max 10 per page) -->
+        <div id="movement_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-slate-400">
             <span id="movement_pagination_info">Mostrando movimientos...</span>
             <div class="flex items-center gap-2">
-                <button type="button" id="prev_mov_page_btn" onclick="changeMovementPage(-1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                <button type="button" id="prev_mov_page_btn" onclick="changeMovementPage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
                     Anterior
                 </button>
-                <span id="mov_page_number_display" class="font-bold text-slate-200 px-2">Página 1</span>
-                <button type="button" id="next_mov_page_btn" onclick="changeMovementPage(1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                <span id="mov_page_number_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                <button type="button" id="next_mov_page_btn" onclick="changeMovementPage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
                     Siguiente
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
         </div>

@@ -3,39 +3,94 @@
 @section('title', 'Control de Asistencia')
 
 @section('content')
-<div class="space-y-8 animate-fade-in">
+<div class="space-y-6 animate-fade-in">
     
     <!-- Top Action Bar -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl">
         <div>
-            <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Control de Asistencia</h1>
-            <p class="text-slate-400 text-xs mt-1">Registra la entrada y salida manual de atletas, y supervisa el flujo de accesos.</p>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-slate-100 tracking-tight flex items-center gap-2.5">
+                <i data-lucide="check-square" class="w-7 h-7 text-lime-400"></i>
+                Control de Asistencia &amp; Aforo
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">Supervisión de ingresos, aforo en sala e historial de accesos en tiempo real.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            @php
+                $activeGymId = session('superadmin_gym_id', auth()->user()->role === 'superadmin' ? 'all' : auth()->user()->gym_id);
+            @endphp
+            @if($activeGymId === 'all')
+                <span class="px-3 py-1.5 text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-xl flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                    Vista Global (Todas las Sucursales)
+                </span>
+            @else
+                <span class="px-3 py-1.5 text-xs font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-xl flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-lime-400"></span>
+                    Sucursal Activa
+                </span>
+            @endif
         </div>
     </div>
 
+    <!-- 2. Dynamic Synchronized Executive Aforo & Summary Banner -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Metric Card 1: Entries in Period (Synchronized with Period Filter) -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+                <span id="period_label_title" class="block text-xs font-extrabold text-slate-400 uppercase tracking-wider">Entradas Hoy</span>
+                <span id="today_entries_count_val" class="text-3xl font-black text-lime-400 mt-1 block">{{ $todayEntriesCount }}</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Check-ins registrados en el periodo</p>
+            </div>
+            <div class="p-3 bg-lime-500/10 text-lime-400 rounded-xl border border-lime-500/20">
+                <i data-lucide="log-in" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- Metric Card 2: Currently in Gym (Active in Room) -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+                <span class="block text-xs font-extrabold text-slate-400 uppercase tracking-wider">Actualmente en Sala</span>
+                <span id="currently_in_gym_count_val" class="text-3xl font-black text-emerald-400 mt-1 block">{{ $currentlyInGymCount }}</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Atletas entrenando sin marcar salida</p>
+            </div>
+            <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                <i data-lucide="user-check" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- Metric Card 3: Completed Sessions -->
+        <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+            <div>
+                <span class="block text-xs font-extrabold text-slate-400 uppercase tracking-wider">Entrenamientos Completados</span>
+                <span id="completed_sessions_count_val" class="text-3xl font-black text-purple-400 mt-1 block">{{ $completedSessionsCount }}</span>
+                <p class="text-[11px] text-slate-500 mt-0.5">Accesos con salida confirmada</p>
+            </div>
+            <div class="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- Check-in Panel -->
+        <!-- Left Column (1/3 Width): Check-in Manual Panel -->
         <div class="lg:col-span-1 space-y-6">
-            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 shadow-lg">
-                <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-widest border-b border-slate-800 pb-3 flex items-center gap-2">
-                    <i data-lucide="check-square" class="text-lime-400 w-4 h-4"></i>
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                <h3 class="font-extrabold text-base text-slate-100 uppercase tracking-wider border-b border-slate-800 pb-3 flex items-center gap-2">
+                    <i data-lucide="qr-code" class="text-lime-400 w-5 h-5"></i>
                     Check-in Manual
                 </h3>
-                
-                @php
-                    $activeGymId = session('superadmin_gym_id', auth()->user()->role === 'superadmin' ? 'all' : auth()->user()->gym_id);
-                @endphp
 
                 @if($activeGymId === 'all')
-                    <div class="mt-4 p-4 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs rounded-xl flex items-start gap-2.5">
-                        <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 mt-0.5"></i>
-                        <p class="font-semibold">
-                            Estás en la vista de todas las sucursales. Selecciona una sucursal específica en el menú superior para poder registrar asistencias.
+                    <div class="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs rounded-2xl flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+                        <p class="leading-relaxed font-medium">
+                            Estás navegando en modo <strong>Vista Global (Superadmin)</strong>. Para registrar asistencias presenciales, selecciona una sucursal específica en el menú superior.
                         </p>
                     </div>
                 @else
-                    <form id="checkin_form" action="{{ route('asistencia.check_in') }}" method="POST" onsubmit="submitCheckIn(event)" class="mt-4 space-y-4 text-xs font-semibold">
+                    <form id="checkin_form" action="{{ route('asistencia.check_in') }}" method="POST" onsubmit="submitCheckIn(event)" class="space-y-4 text-xs font-semibold">
                         @csrf
                         <input type="hidden" name="user_id" id="selected_user_id" value="{{ old('user_id') }}">
 
@@ -63,7 +118,7 @@
                         </div>
 
                         <!-- Selected Client Preview Card -->
-                        <div id="selected_client_card" class="hidden p-3.5 bg-slate-950/80 border border-lime-500/30 rounded-xl">
+                        <div id="selected_client_card" class="hidden p-3.5 bg-slate-950 border border-lime-500/30 rounded-xl">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3 min-w-0">
                                     <img id="card_client_photo" src="" class="w-10 h-10 rounded-full object-cover border border-slate-800 shrink-0">
@@ -100,87 +155,93 @@
 
                         <button type="submit" id="submit_checkin_btn" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
                             <i data-lucide="check" class="w-4 h-4 stroke-[3px]"></i>
-                            Registrar Entrada
+                            Registrar Entrada Presencial
                         </button>
                     </form>
                 @endif
             </div>
-
-            <!-- Quick Information Summary -->
-            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 shadow-lg space-y-4">
-                <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-widest border-b border-slate-800 pb-3 flex items-center gap-2">
-                    <i data-lucide="activity" class="text-lime-400 w-4 h-4"></i>
-                    Aforo del Día
-                </h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-slate-950/40 p-4 border border-slate-850 rounded-xl text-center">
-                        <span id="today_entries_count_val" class="block text-2xl font-black text-lime-400">
-                            {{ $todayEntriesCount }}
-                        </span>
-                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Entradas Hoy</span>
-                    </div>
-                    <div class="bg-slate-950/40 p-4 border border-slate-850 rounded-xl text-center">
-                        <span id="currently_in_gym_count_val" class="block text-2xl font-black text-lime-400">
-                            {{ $currentlyInGymCount }}
-                        </span>
-                        <span class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">En el Gimnasio</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Attendance Logs feed -->
+        <!-- Right Column (2/3 Width): Re-structured Attendance Logs Feed -->
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 shadow-lg">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-3">
-                    <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="history" class="text-lime-400 w-4 h-4"></i>
-                        Historial de Accesos
-                    </h3>
-                    <div class="flex items-center gap-2 m-0">
-                        <label for="date-filter" class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fecha:</label>
-                        <input type="date" id="date-filter" name="date" value="{{ $selectedDate }}" onchange="reloadAttendanceData(this.value)" onclick="this.showPicker()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer">
+            <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+                
+                <!-- Period Filter & Custom Date Selector Controls -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-4 gap-3">
+                    <div>
+                        <h3 class="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                            <i data-lucide="history" class="text-lime-400 w-5 h-5"></i>
+                            Historial de Accesos
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Bitácora de entradas, salidas y medios de acceso.</p>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="attendance_period_filter" onchange="onAttendancePeriodFilterChange()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-lime-400 font-bold focus:outline-none focus:border-lime-500 cursor-pointer">
+                            <option value="today" selected>Hoy</option>
+                            <option value="this_week">Esta Semana</option>
+                            <option value="last_week">Semana Anterior</option>
+                            <option value="this_month">Mes Actual</option>
+                            <option value="custom">Fecha Específica...</option>
+                        </select>
+
+                        <div id="attendance_custom_date_container" class="hidden">
+                            <input type="date" id="date-filter" name="date" value="{{ $selectedDate }}" onchange="reloadAttendanceData()" onclick="this.showPicker()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-medium">
+                        </div>
                     </div>
                 </div>
 
+                <!-- Spacious Table Layout -->
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[640px]">
                         <thead>
                             <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase font-bold">
-                                <th class="py-3 px-4 text-center">Atleta</th>
-                                <th class="py-3 px-4 text-center">Entrada</th>
-                                <th class="py-3 px-4 text-center">Salida</th>
-                                <th class="py-3 px-4 text-center">Medio</th>
-                                <th class="py-3 px-4 text-center">Acción</th>
+                                <th class="py-3 px-3">Atleta</th>
+                                @if($activeGymId === 'all')
+                                    <th class="py-3 px-3 text-center">Sucursal</th>
+                                @endif
+                                <th class="py-3 px-3 text-center">Entrada</th>
+                                <th class="py-3 px-3 text-center">Salida</th>
+                                <th class="py-3 px-3 text-center">Medio</th>
+                                <th class="py-3 px-3 text-right">Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="logs_table_body" class="divide-y divide-slate-800/40 text-sm transition-opacity duration-200">
+                        <tbody id="logs_table_body" class="divide-y divide-slate-800/50 text-sm transition-opacity duration-200">
                             @forelse($logs as $log)
-                                <tr class="hover:bg-slate-800/10 transition-colors">
-                                    <td class="py-4 px-4">
+                                <tr data-log-row class="hover:bg-slate-850/40 transition-colors">
+                                    <td class="py-3.5 px-3">
                                         <div class="flex items-center gap-3">
-                                            <img src="{{ $log->user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-8 h-8 rounded-full object-cover border border-slate-800 shrink-0">
-                                            <div class="overflow-hidden">
-                                                <span class="block font-bold text-slate-200 truncate">{{ $log->user->profile->first_name ?? 'Atleta' }} {{ $log->user->profile->last_name ?? '' }}</span>
+                                            <img src="{{ $log->user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" class="w-9 h-9 rounded-full object-cover border border-slate-800 shrink-0">
+                                            <div class="max-w-[170px] sm:max-w-[220px]">
+                                                <span class="block font-bold text-slate-100 text-xs truncate">
+                                                    {{ $log->user->profile->first_name ?? 'Atleta' }} {{ $log->user->profile->last_name ?? '' }}
+                                                </span>
                                                 <span class="block text-[10px] text-slate-500 truncate">{{ $log->user->email }}</span>
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="py-4 px-4 text-center">
-                                        <span class="block font-semibold text-slate-300 text-xs">{{ \Carbon\Carbon::parse($log->check_in)->format('H:i') }}</span>
-                                        <span class="block text-[9px] text-slate-500">{{ \Carbon\Carbon::parse($log->check_in)->format('d/m/Y') }}</span>
+                                    @if($activeGymId === 'all')
+                                        <td class="py-3.5 px-3 text-center">
+                                            <span class="px-2 py-0.5 text-[10px] font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-md">
+                                                {{ $log->gym->name ?? 'Global' }}
+                                            </span>
+                                        </td>
+                                    @endif
+                                    <td class="py-3.5 px-3 text-center">
+                                        <span class="block font-bold text-slate-200 text-xs">{{ \Carbon\Carbon::parse($log->check_in)->format('H:i') }}</span>
+                                        <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($log->check_in)->format('d/m/Y') }}</span>
                                     </td>
-                                    <td class="py-4 px-4 text-center">
+                                    <td class="py-3.5 px-3 text-center">
                                         @if($log->check_out)
-                                            <span class="block font-semibold text-slate-400 text-xs">{{ \Carbon\Carbon::parse($log->check_out)->format('H:i') }}</span>
-                                            <span class="block text-[9px] text-slate-550">{{ \Carbon\Carbon::parse($log->check_out)->format('d/m/Y') }}</span>
+                                            <span class="block font-bold text-slate-300 text-xs">{{ \Carbon\Carbon::parse($log->check_out)->format('H:i') }}</span>
+                                            <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($log->check_out)->format('d/m/Y') }}</span>
                                         @else
-                                            <span class="px-2 py-0.5 text-[9px] font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded">
+                                            <span class="px-2 py-0.5 text-[10px] font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-md">
                                                 En Sala
                                             </span>
                                         @endif
                                     </td>
-                                    <td class="py-4 px-4 text-center">
+                                    <td class="py-3.5 px-3 text-center">
                                         @php
                                             $methodMap = [
                                                 'admin' => 'Admin',
@@ -195,14 +256,14 @@
                                                 'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                             ];
                                         @endphp
-                                        <span class="px-2 py-0.5 text-[9px] font-bold border rounded-md {{ $methodBadge[$log->entry_method] ?? 'bg-slate-950 text-slate-500 border-slate-850' }}">
+                                        <span class="px-2 py-0.5 text-[10px] font-bold border rounded-md {{ $methodBadge[$log->entry_method] ?? 'bg-slate-950 text-slate-500 border-slate-850' }}">
                                             {{ $methodMap[$log->entry_method] ?? $log->entry_method }}
                                         </span>
                                     </td>
-                                    <td class="py-4 px-4 text-center">
+                                    <td class="py-3.5 px-3 text-right">
                                         @if(!$log->check_out)
-                                            <button type="button" onclick="submitCheckOut(event, '{{ route('asistencia.check_out', $log->id) }}')" class="px-2.5 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750 hover:text-slate-100 text-xs font-bold rounded-lg transition-all text-center leading-tight">
-                                                Marcar <br> Salida
+                                            <button type="button" onclick="submitCheckOut(event, '{{ route('asistencia.check_out', $log->id) }}')" class="px-3 py-1.5 bg-slate-950 text-lime-400 border border-lime-500/30 hover:bg-lime-500 hover:text-slate-950 text-xs font-bold rounded-lg transition-all">
+                                                Marcar Salida
                                             </button>
                                         @else
                                             <span class="text-xs text-slate-500 italic font-semibold">Completado</span>
@@ -211,7 +272,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="py-12 text-center text-slate-500">
+                                    <td colspan="{{ $activeGymId === 'all' ? 6 : 5 }}" class="py-12 text-center text-slate-500">
                                         <i data-lucide="calendar-x" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
                                         <p>No se encontraron registros de asistencia hoy.</p>
                                     </td>
@@ -220,6 +281,23 @@
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Logs Table Interactive Pagination Controls (10 per page) -->
+                <div id="logs_pagination_container" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-850 text-xs font-medium text-slate-400">
+                    <span id="logs_pagination_info">Mostrando accesos...</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="logs_prev_btn" onclick="changeLogsPage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                            Anterior
+                        </button>
+                        <span id="logs_page_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                        <button type="button" id="logs_next_btn" onclick="changeLogsPage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                            Siguiente
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -229,8 +307,12 @@
 
 <script>
     var searchDebounceTimeout = null;
+    var currentLogsPage = 1;
+    var logsPerPage = 10;
+    var cachedLogsData = [];
+    var isSuperadminAllMode = {{ $activeGymId === 'all' ? 'true' : 'false' }};
 
-    // Show temporary toast alerts (matches productos.blade.php style)
+    // Show temporary toast alerts
     function showToast(message, type = 'success') {
         let container = document.getElementById('attendance-toast-container');
         if (!container) {
@@ -345,7 +427,6 @@
         }, 150);
     }
 
-    // Capture ENTER keypress on search input to auto-pick and submit without page reload!
     async function onDniSearchKeydown(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -353,7 +434,6 @@
 
             const selectedId = document.getElementById('selected_user_id')?.value;
             if (selectedId) {
-                // Already selected a client, proceed to submit check-in via AJAX!
                 submitCheckIn();
                 return;
             }
@@ -366,7 +446,6 @@
                 return;
             }
 
-            // Quick lookup to pick best match
             try {
                 const res = await fetch(`{{ route('api.clientes.search_dni') }}?q=${encodeURIComponent(query)}`);
                 const clients = await res.json();
@@ -374,7 +453,6 @@
                 if (clients && clients.length > 0) {
                     const topMatch = clients[0];
                     pickClient(topMatch.id, topMatch.name, topMatch.dni, topMatch.email, topMatch.photo);
-                    // Automatically submit checkin
                     submitCheckIn();
                 } else {
                     showToast('No se encontró ningún atleta registrado con ese DNI o nombre.', 'error');
@@ -441,7 +519,6 @@
         if (selectEl) selectEl.selectedIndex = 0;
     }
 
-    // Hide search dropdown when clicking outside
     document.addEventListener('click', function (e) {
         const searchInput = document.getElementById('dni_search_input');
         const resultsDropdown = document.getElementById('search_results_dropdown');
@@ -450,7 +527,6 @@
         }
     });
 
-    // Helper for button loading status
     function setBtnLoading(btn, isLoading, text = 'Procesando...') {
         if (!btn) return;
         if (isLoading) {
@@ -506,8 +582,7 @@
             if (data.success) {
                 showToast(data.message, 'success');
                 clearSelectedClient();
-                const currentDateFilter = document.getElementById('date-filter')?.value || '';
-                reloadAttendanceData(currentDateFilter);
+                reloadAttendanceData();
             } else {
                 showToast(data.message || 'Error al procesar check-in.', 'error');
             }
@@ -543,8 +618,7 @@
 
             if (data.success) {
                 showToast(data.message, 'success');
-                const currentDateFilter = document.getElementById('date-filter')?.value || '';
-                reloadAttendanceData(currentDateFilter);
+                reloadAttendanceData();
             } else {
                 showToast(data.message || 'Error al marcar salida.', 'error');
                 setBtnLoading(btn, false);
@@ -556,92 +630,58 @@
         }
     }
 
-    // Dynamic Attendance Data and Capacity Counter Reload (AJAX)
-    function reloadAttendanceData(dateVal) {
+    // Period selector handler
+    function onAttendancePeriodFilterChange() {
+        const period = document.getElementById('attendance_period_filter').value;
+        const customContainer = document.getElementById('attendance_custom_date_container');
+        if (period === 'custom') {
+            customContainer.classList.remove('hidden');
+        } else {
+            customContainer.classList.add('hidden');
+            reloadAttendanceData();
+        }
+    }
+
+    // Dynamic Attendance Data and Pagination (AJAX) - Synchronized with Top Banner!
+    function reloadAttendanceData() {
         const tbody = document.getElementById('logs_table_body');
-        const selectedDate = dateVal || document.getElementById('date-filter')?.value || '';
+        const period = document.getElementById('attendance_period_filter')?.value || 'today';
+        const dateVal = document.getElementById('date-filter')?.value || '';
 
         if (tbody) tbody.style.opacity = '0.4';
 
-        fetch(`{{ route('api.asistencia.logs') }}?date=${encodeURIComponent(selectedDate)}`)
+        let url = `{{ route('api.asistencia.logs') }}?period=${encodeURIComponent(period)}`;
+        if (period === 'custom' || dateVal) {
+            url += `&date=${encodeURIComponent(dateVal)}`;
+        }
+
+        fetch(url)
             .then(res => res.json())
             .then(data => {
-                const logs = data.logs || [];
+                cachedLogsData = data.logs || [];
 
-                // Update today summary counters
+                // Synchronize Top Summary Banner cards with selected period data!
                 const entriesVal = document.getElementById('today_entries_count_val');
                 const inGymVal = document.getElementById('currently_in_gym_count_val');
-                if (entriesVal && data.today_entries_count !== undefined) entriesVal.textContent = data.today_entries_count;
-                if (inGymVal && data.currently_in_gym_count !== undefined) inGymVal.textContent = data.currently_in_gym_count;
+                const completedVal = document.getElementById('completed_sessions_count_val');
+                const labelTitle = document.getElementById('period_label_title');
 
-                // Update Sidebar capacity metrics if present in DOM
-                const sidebarCount = document.querySelector('.aforo-count-val');
-                const sidebarBadge = document.querySelector('.aforo-pct-badge-val');
-                const sidebarBar = document.getElementById('aforo-bar');
-                if (sidebarCount && data.aforo_current_users !== undefined && data.aforo_max_users !== undefined) {
-                    sidebarCount.textContent = `${data.aforo_current_users}/${data.aforo_max_users}`;
-                    const pct = data.aforo_max_users > 0 ? Math.round((data.aforo_current_users / data.aforo_max_users) * 100) : 0;
-                    if (sidebarBadge) sidebarBadge.textContent = `${pct}%`;
-                    if (sidebarBar) sidebarBar.style.width = `${Math.min(100, Math.max(2, pct))}%`;
+                if (labelTitle && data.period_label) {
+                    labelTitle.textContent = `Entradas ${data.period_label}`;
+                }
+                if (entriesVal && data.period_entries_count !== undefined) {
+                    entriesVal.textContent = data.period_entries_count;
+                }
+                if (inGymVal && data.currently_in_gym_count !== undefined) {
+                    inGymVal.textContent = data.currently_in_gym_count;
+                }
+                if (completedVal && data.completed_sessions_count !== undefined) {
+                    completedVal.textContent = data.completed_sessions_count;
                 }
 
-                if (logs.length === 0) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="5" class="py-12 text-center text-slate-500">
-                                <i data-lucide="calendar-x" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
-                                <p>No se encontraron registros de asistencia para la fecha elegida.</p>
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    tbody.innerHTML = logs.map(log => {
-                        const checkOutCell = log.check_out 
-                            ? `<span class="block font-semibold text-slate-400 text-xs">${log.check_out.time}</span>
-                               <span class="block text-[9px] text-slate-550">${log.check_out.date}</span>`
-                            : `<span class="px-2 py-0.5 text-[9px] font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded">
-                                  En Sala
-                               </span>`;
-
-                        const actionCell = log.check_out 
-                            ? `<span class="text-xs text-slate-500 italic font-semibold">Completado</span>`
-                            : `<button type="button" onclick="submitCheckOut(event, '${log.check_out_url}')" class="px-2.5 py-1.5 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750 hover:text-slate-100 text-xs font-bold rounded-lg transition-all text-center leading-tight">
-                                   Marcar <br> Salida
-                               </button>`;
-
-                        return `
-                            <tr class="hover:bg-slate-800/10 transition-colors">
-                                <td class="py-4 px-4">
-                                    <div class="flex items-center gap-3">
-                                        <img src="${log.user_photo}" class="w-8 h-8 rounded-full object-cover border border-slate-800 shrink-0">
-                                        <div class="overflow-hidden">
-                                            <span class="block font-bold text-slate-200 truncate">${escapeHtml(log.user_name)}</span>
-                                            <span class="block text-[10px] text-slate-500 truncate">${escapeHtml(log.user_email)}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-4 text-center">
-                                    <span class="block font-semibold text-slate-300 text-xs">${log.check_in_time}</span>
-                                    <span class="block text-[9px] text-slate-500">${log.check_in_date}</span>
-                                </td>
-                                <td class="py-4 px-4 text-center">
-                                    ${checkOutCell}
-                                </td>
-                                <td class="py-4 px-4 text-center">
-                                    <span class="px-2 py-0.5 text-[9px] font-bold border rounded-md ${log.entry_method_badge}">
-                                        ${log.entry_method_label}
-                                    </span>
-                                </td>
-                                <td class="py-4 px-4 text-center">
-                                    ${actionCell}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-                }
-
-                tbody.style.opacity = '1';
-                if (window.lucide) window.lucide.createIcons();
+                currentLogsPage = 1;
+                renderLogsTablePage();
+                if (tbody) tbody.style.opacity = '1';
             })
             .catch(err => {
                 console.error('Error al actualizar asistencias:', err);
@@ -649,7 +689,116 @@
             });
     }
 
-    // Auto-trigger session flash messages on page load as toasts
+    // Render 10 logs per page slice
+    function renderLogsTablePage() {
+        const tbody = document.getElementById('logs_table_body');
+        if (!tbody) return;
+
+        const totalLogs = cachedLogsData.length;
+        const totalPages = Math.ceil(totalLogs / logsPerPage) || 1;
+
+        if (currentLogsPage > totalPages) currentLogsPage = totalPages;
+        if (currentLogsPage < 1) currentLogsPage = 1;
+
+        const startIndex = (currentLogsPage - 1) * logsPerPage;
+        const endIndex = startIndex + logsPerPage;
+        const pageSlice = cachedLogsData.slice(startIndex, endIndex);
+
+        const colSpan = isSuperadminAllMode ? 6 : 5;
+
+        if (totalLogs === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="${colSpan}" class="py-12 text-center text-slate-500">
+                        <i data-lucide="calendar-x" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
+                        <p>No se encontraron registros de asistencia para el periodo seleccionado.</p>
+                    </td>
+                </tr>
+            `;
+        } else {
+            tbody.innerHTML = pageSlice.map(log => {
+                const gymCell = isSuperadminAllMode 
+                    ? `<td class="py-3.5 px-3 text-center">
+                           <span class="px-2 py-0.5 text-[10px] font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded-md">
+                               ${escapeHtml(log.gym_name)}
+                           </span>
+                       </td>` 
+                    : '';
+
+                const checkOutCell = log.check_out 
+                    ? `<span class="block font-bold text-slate-300 text-xs">${log.check_out.time}</span>
+                       <span class="block text-[10px] text-slate-500">${log.check_out.date}</span>`
+                    : `<span class="px-2 py-0.5 text-[10px] font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-md">
+                          En Sala
+                       </span>`;
+
+                const actionCell = log.check_out 
+                    ? `<span class="text-xs text-slate-500 italic font-semibold">Completado</span>`
+                    : `<button type="button" onclick="submitCheckOut(event, '${log.check_out_url}')" class="px-3 py-1.5 bg-slate-950 text-lime-400 border border-lime-500/30 hover:bg-lime-500 hover:text-slate-950 text-xs font-bold rounded-lg transition-all">
+                           Marcar Salida
+                       </button>`;
+
+                return `
+                    <tr class="hover:bg-slate-850/40 transition-colors">
+                        <td class="py-3.5 px-3">
+                            <div class="flex items-center gap-3">
+                                <img src="${log.user_photo}" class="w-9 h-9 rounded-full object-cover border border-slate-800 shrink-0">
+                                <div class="max-w-[170px] sm:max-w-[220px]">
+                                    <span class="block font-bold text-slate-100 text-xs truncate">${escapeHtml(log.user_name)}</span>
+                                    <span class="block text-[10px] text-slate-500 truncate">${escapeHtml(log.user_email)}</span>
+                                </div>
+                            </div>
+                        </td>
+                        ${gymCell}
+                        <td class="py-3.5 px-3 text-center">
+                            <span class="block font-bold text-slate-200 text-xs">${log.check_in_time}</span>
+                            <span class="block text-[10px] text-slate-500">${log.check_in_date}</span>
+                        </td>
+                        <td class="py-3.5 px-3 text-center">
+                            ${checkOutCell}
+                        </td>
+                        <td class="py-3.5 px-3 text-center">
+                            <span class="px-2 py-0.5 text-[10px] font-bold border rounded-md ${log.entry_method_badge}">
+                                ${log.entry_method_label}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-3 text-right">
+                            ${actionCell}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update pagination UI controls
+        const infoSpan = document.getElementById('logs_pagination_info');
+        const pageSpan = document.getElementById('logs_page_display');
+        const prevBtn = document.getElementById('logs_prev_btn');
+        const nextBtn = document.getElementById('logs_next_btn');
+
+        if (infoSpan) {
+            if (totalLogs === 0) {
+                infoSpan.textContent = "No hay asistencias registradas.";
+            } else {
+                const fromNum = startIndex + 1;
+                const toNum = Math.min(endIndex, totalLogs);
+                infoSpan.textContent = `Mostrando ${fromNum}-${toNum} de ${totalLogs} accesos`;
+            }
+        }
+
+        if (pageSpan) pageSpan.textContent = `Página ${currentLogsPage} de ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = (currentLogsPage <= 1);
+        if (nextBtn) nextBtn.disabled = (currentLogsPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function changeLogsPage(delta) {
+        currentLogsPage += delta;
+        renderLogsTablePage();
+    }
+
+    // Auto-trigger session flash messages on page load as toasts & initialize logs
     document.addEventListener('DOMContentLoaded', function () {
         @if(session('success'))
             showToast("{{ session('success') }}", 'success');
@@ -660,6 +809,8 @@
                 showToast("{{ $error }}", 'error');
             @endforeach
         @endif
+
+        reloadAttendanceData();
     });
 </script>
 @endsection

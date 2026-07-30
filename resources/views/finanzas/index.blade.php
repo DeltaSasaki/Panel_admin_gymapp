@@ -1919,7 +1919,7 @@
     // MEMBRESIAS FILTER & PAGINATION
     var currentMembershipPage = 1;
     var currentMembershipStatusFilter = 'all';
-    var itemsPerPage = 10;
+    var itemsPerPage = 9;
 
     function setMembershipStatusFilter(status) {
         currentMembershipStatusFilter = status;

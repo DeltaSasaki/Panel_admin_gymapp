@@ -22,6 +22,8 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/dashboard/api/attendance', [AdminController::class, 'apiAttendanceData'])->name('dashboard.api.attendance');
+    Route::get('/dashboard/api/traffic', [AdminController::class, 'apiTrafficData'])->name('dashboard.api.traffic');
 
     // Clientes routes
     Route::get('/clientes', [AdminController::class, 'clientes'])->name('clientes.index');

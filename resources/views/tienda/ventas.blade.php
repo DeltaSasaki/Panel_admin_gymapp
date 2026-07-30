@@ -11,16 +11,50 @@
         <p class="text-xs text-slate-400 mt-1">Monitorea los comprobantes de caja y transacciones de productos de la tienda.</p>
     </div>
 
-    <!-- Sales Receipts Logs -->
-    <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-        <div class="p-6 border-b border-slate-850">
-            <h3 class="font-bold text-lg text-slate-100">Transacciones Registradas</h3>
+    <!-- Sales Receipts Logs Card -->
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl space-y-4">
+        
+        <!-- Header Controls: Title, Period Filter & Text Search Input -->
+        <div class="p-6 border-b border-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                    <i data-lucide="receipt" class="w-5 h-5 text-lime-400"></i>
+                    Transacciones Registradas
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Historial de ventas en terminal POS con filtros por fecha y buscador.</p>
+            </div>
+
+            <!-- Date Period & Search Controls -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Date Period Filter Dropdown -->
+                <select id="sales_period_filter" onchange="onSalesPeriodFilterChange()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-lime-400 font-bold focus:outline-none focus:border-lime-500 cursor-pointer">
+                    <option value="all" selected>Todas las Fechas</option>
+                    <option value="today">Hoy</option>
+                    <option value="this_week">Esta Semana</option>
+                    <option value="last_week">Semana Anterior</option>
+                    <option value="this_month">Mes Actual</option>
+                    <option value="custom">Rango Personalizado...</option>
+                </select>
+
+                <div id="sales_custom_date_container" class="hidden flex items-center gap-2">
+                    <input type="date" id="sales_start_date" onchange="applySalesFilters()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-medium">
+                    <span class="text-slate-500 text-xs">-</span>
+                    <input type="date" id="sales_end_date" onchange="applySalesFilters()" class="text-xs bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-slate-200 font-medium">
+                </div>
+
+                <!-- Text Search Input (Filters by articles, seller, client, price, ID) -->
+                <div class="relative w-full sm:w-64">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                    <input type="text" id="sales_search_input" oninput="applySalesFilters()" placeholder="Buscar por producto, atendió o precio..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
         </div>
         
+        <!-- Table Container -->
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
+            <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
                 <thead>
-                    <tr class="bg-slate-950/40 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
+                    <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
                         <th class="p-4 pl-6">ID Venta</th>
                         <th class="p-4">Fecha y Hora</th>
                         <th class="p-4">Cliente / Socio</th>
@@ -32,9 +66,26 @@
                         <th class="p-4 text-center pr-6">Nota</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-850/50">
+                <tbody id="sales_table_body" class="divide-y divide-slate-850/50">
                     @forelse($sales as $sale)
-                        <tr class="hover:bg-slate-900/20 text-slate-200">
+                        @php
+                            $formattedDate = \Carbon\Carbon::parse($sale->createdAt)->format('Y-m-d');
+                            $clientNameEmail = $sale->client 
+                                ? trim(($sale->client->profile->first_name ?? '') . ' ' . ($sale->client->profile->last_name ?? '') . ' ' . ($sale->client->email ?? ''))
+                                : 'cliente general';
+                            $sellerNameEmail = $sale->seller 
+                                ? trim(($sale->seller->profile->first_name ?? '') . ' ' . ($sale->seller->profile->last_name ?? '') . ' ' . ($sale->seller->email ?? ''))
+                                : 'sistema';
+                            $itemsListStr = $sale->items->pluck('product.name')->filter()->implode(' ');
+                        @endphp
+                        <tr data-sale-row
+                            data-sale-id="{{ str_pad($sale->id, 5, '0', STR_PAD_LEFT) }}"
+                            data-date="{{ $formattedDate }}"
+                            data-client="{{ strtolower($clientNameEmail) }}"
+                            data-seller="{{ strtolower($sellerNameEmail) }}"
+                            data-items="{{ strtolower($itemsListStr) }}"
+                            data-amount="{{ number_format($sale->total_amount, 2) }}"
+                            class="hover:bg-slate-900/20 text-slate-200 transition-colors">
                             <td class="p-4 pl-6 font-mono font-bold text-lime-400">#{{ str_pad($sale->id, 5, '0', STR_PAD_LEFT) }}</td>
                             <td class="p-4 text-slate-400 whitespace-nowrap">{{ \Carbon\Carbon::parse($sale->createdAt)->format('d/m/Y H:i') }}</td>
                             <td class="p-4">
@@ -97,9 +148,33 @@
                             </td>
                         </tr>
                     @endforelse
+
+                    <tr id="no_sales_search_row" class="hidden">
+                        <td colspan="9" class="p-10 text-center text-slate-500">
+                            <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+                            No se encontraron comprobantes de venta que coincidan con la búsqueda o filtro de fecha.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Controls Footer (Max 10 per page) -->
+        <div id="sales_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-slate-400">
+            <span id="sales_pagination_info">Mostrando ventas...</span>
+            <div class="flex items-center gap-2">
+                <button type="button" id="prev_sales_page_btn" onclick="changeSalesPage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    Anterior
+                </button>
+                <span id="sales_page_number_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                <button type="button" id="next_sales_page_btn" onclick="changeSalesPage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    Siguiente
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -145,6 +220,151 @@
 @endpush
 
 <script>
+    let currentSalesPage = 1;
+    const salesPerPage = 10;
+    let matchingSalesRows = [];
+
+    function onSalesPeriodFilterChange() {
+        const period = document.getElementById('sales_period_filter').value;
+        const customContainer = document.getElementById('sales_custom_date_container');
+        if (period === 'custom') {
+            customContainer.classList.remove('hidden');
+        } else {
+            customContainer.classList.add('hidden');
+            applySalesFilters();
+        }
+    }
+
+    function applySalesFilters() {
+        const period = document.getElementById('sales_period_filter').value;
+        const query = (document.getElementById('sales_search_input')?.value || '').toLowerCase().trim();
+        const rows = Array.from(document.querySelectorAll('[data-sale-row]'));
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        let periodStart = null;
+        let periodEnd = null;
+
+        if (period === 'today') {
+            periodStart = todayStr;
+            periodEnd = todayStr;
+        } else if (period === 'this_week') {
+            const dayOfWeek = now.getDay() || 7;
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - (dayOfWeek - 1));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            periodStart = monday.toISOString().split('T')[0];
+            periodEnd = sunday.toISOString().split('T')[0];
+        } else if (period === 'last_week') {
+            const dayOfWeek = now.getDay() || 7;
+            const monday = new Date(now);
+            monday.setDate(now.getDate() - (dayOfWeek - 1) - 7);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            periodStart = monday.toISOString().split('T')[0];
+            periodEnd = sunday.toISOString().split('T')[0];
+        } else if (period === 'this_month') {
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+            periodStart = `${year}-${month}-01`;
+            periodEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+        } else if (period === 'custom') {
+            periodStart = document.getElementById('sales_start_date')?.value || null;
+            periodEnd = document.getElementById('sales_end_date')?.value || null;
+        }
+
+        matchingSalesRows = rows.filter(row => {
+            const saleDate = row.getAttribute('data-date') || '';
+            const saleId = row.getAttribute('data-sale-id') || '';
+            const client = row.getAttribute('data-client') || '';
+            const seller = row.getAttribute('data-seller') || '';
+            const items = row.getAttribute('data-items') || '';
+            const amount = row.getAttribute('data-amount') || '';
+
+            // Period check
+            let matchesPeriod = true;
+            if (periodStart && periodEnd) {
+                matchesPeriod = (saleDate >= periodStart && saleDate <= periodEnd);
+            } else if (periodStart) {
+                matchesPeriod = (saleDate >= periodStart);
+            }
+
+            // Search query check (articles, seller, client, ID, amount)
+            let matchesQuery = true;
+            if (query) {
+                matchesQuery = items.includes(query) || 
+                               seller.includes(query) || 
+                               client.includes(query) || 
+                               saleId.includes(query) || 
+                               amount.includes(query);
+            }
+
+            return matchesPeriod && matchesQuery;
+        });
+
+        currentSalesPage = 1;
+        renderSalesPage();
+    }
+
+    function renderSalesPage() {
+        const rows = Array.from(document.querySelectorAll('[data-sale-row]'));
+        const totalMatching = matchingSalesRows.length;
+        const totalPages = Math.ceil(totalMatching / salesPerPage) || 1;
+
+        if (currentSalesPage > totalPages) currentSalesPage = totalPages;
+        if (currentSalesPage < 1) currentSalesPage = 1;
+
+        // Hide all rows first
+        rows.forEach(r => r.classList.add('hidden'));
+
+        // Show page slice
+        const startIndex = (currentSalesPage - 1) * salesPerPage;
+        const endIndex = startIndex + salesPerPage;
+        const pageSlice = matchingSalesRows.slice(startIndex, endIndex);
+
+        pageSlice.forEach(r => r.classList.remove('hidden'));
+
+        // Empty state row handler
+        const emptyRow = document.getElementById('no_sales_search_row');
+        if (emptyRow) {
+            if (totalMatching === 0 && rows.length > 0) {
+                emptyRow.classList.remove('hidden');
+            } else {
+                emptyRow.classList.add('hidden');
+            }
+        }
+
+        // Update UI info
+        const infoSpan = document.getElementById('sales_pagination_info');
+        const pageDisplay = document.getElementById('sales_page_number_display');
+        const prevBtn = document.getElementById('prev_sales_page_btn');
+        const nextBtn = document.getElementById('next_sales_page_btn');
+
+        if (infoSpan) {
+            if (totalMatching === 0) {
+                infoSpan.textContent = "No hay ventas registradas para la búsqueda.";
+            } else {
+                const fromNum = startIndex + 1;
+                const toNum = Math.min(endIndex, totalMatching);
+                infoSpan.textContent = `Mostrando ${fromNum}-${toNum} de ${totalMatching} ventas`;
+            }
+        }
+
+        if (pageDisplay) pageDisplay.textContent = `Página ${currentSalesPage} de ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = (currentSalesPage <= 1);
+        if (nextBtn) nextBtn.disabled = (currentSalesPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function changeSalesPage(delta) {
+        currentSalesPage += delta;
+        renderSalesPage();
+    }
+
     function toggleSaleNoteModal() {
         const modal = document.getElementById('sale-note-modal');
         if (modal) modal.classList.toggle('hidden');
@@ -158,5 +378,17 @@
 
         toggleSaleNoteModal();
     }
+
+    function initVentasPagination() {
+        const rows = Array.from(document.querySelectorAll('[data-sale-row]'));
+        matchingSalesRows = rows;
+        renderSalesPage();
+    }
+
+    // Run pagination immediately on script evaluation & SPA load
+    initVentasPagination();
+
+    document.addEventListener('DOMContentLoaded', initVentasPagination);
+    window.addEventListener('page:loaded', initVentasPagination);
 </script>
 @endsection

@@ -1170,6 +1170,7 @@
 
                     window.scrollTo({ top: 0, behavior: 'instant' });
                     completeProgress();
+                    window.dispatchEvent(new CustomEvent('page:loaded', { detail: { url: url } }));
                 } catch (err) {
                     console.error('PJAX Navigation Error:', err);
                     window.location.href = url;

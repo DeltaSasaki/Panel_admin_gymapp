@@ -7,15 +7,35 @@
     
     <!-- Left Column: Products Grid (2/3 width) -->
     <div class="lg:col-span-2 space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Punto de Venta</h1>
-                <p class="text-xs text-slate-400 mt-1">Registra la venta rápida de productos para socios y clientes generales.</p>
+        <!-- Header Title & Subtitle -->
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Punto de Venta (POS)</h1>
+            <p class="text-xs text-slate-400 mt-1">Registra la venta rápida de suplementos y productos con filtrado rápido por categoría.</p>
+        </div>
+
+        <!-- Cashier Category & Search Quick Filter Bar -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+            <!-- Category Filter Pills -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                <button type="button" onclick="filterByCategory('all', this)" id="cat-btn-all" class="pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 shrink-0 transition-colors cursor-pointer">
+                    Todos ({{ $products->count() }})
+                </button>
+                @foreach($categories as $cat)
+                    @php
+                        $catCount = $products->where('category_id', $cat->id)->count();
+                    @endphp
+                    @if($catCount > 0)
+                        <button type="button" onclick="filterByCategory('{{ strtolower($cat->name) }}', this)" class="pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-850 shrink-0 transition-colors cursor-pointer">
+                            {{ $cat->name }} ({{ $catCount }})
+                        </button>
+                    @endif
+                @endforeach
             </div>
-            <!-- Search bar -->
-            <div class="relative w-full sm:w-64">
+
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-56 shrink-0">
                 <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar producto..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
             </div>
         </div>
 
@@ -37,28 +57,44 @@
             </div>
         @endif
 
-        <!-- Products Catalog Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="products-container">
+        <!-- Products Catalog Grid (Max 9 per page) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="products-container">
             @forelse($products as $product)
-                <div class="product-card bg-slate-900/40 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-lime-500/30 transition-colors cursor-pointer select-none active:scale-[0.98]" 
+                <div class="product-card bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-lime-500/40 transition-colors cursor-pointer select-none active:scale-[0.98]" 
                      data-id="{{ $product->id }}" 
                      data-name="{{ $product->name }}" 
+                     data-category="{{ $product->category->name ?? '' }}"
                      data-price="{{ $product->price }}" 
                      data-stock="{{ $product->stock_quantity }}"
                      onclick="addToCart(this)">
                     <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[10px] uppercase font-bold text-slate-500 px-2 py-0.5 bg-slate-950/60 rounded-md border border-slate-850/50">
-                                {{ $product->category->name }}
+                        <!-- Category Badge & Stock Indicator -->
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <span class="text-[10px] uppercase font-extrabold text-slate-400 px-2 py-0.5 bg-slate-950 rounded-md border border-slate-800 truncate max-w-[65%] shrink" title="{{ $product->category->name ?? 'Producto' }}">
+                                {{ $product->category->name ?? 'Producto' }}
                             </span>
-                            <span class="text-xs text-lime-400 font-bold">Stock: {{ $product->stock_quantity }}</span>
+                            <span class="text-xs font-bold text-lime-400 shrink-0 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-lime-400"></span>
+                                Stock: {{ $product->stock_quantity }}
+                            </span>
                         </div>
-                        <h3 class="font-bold text-slate-100 text-sm leading-snug truncate-2-lines">{{ $product->name }}</h3>
-                        <p class="text-[10px] text-slate-400 mt-1 line-clamp-1">{{ $product->description ?? 'Sin descripción.' }}</p>
+                        
+                        <!-- Title with Even Height -->
+                        <h3 class="font-bold text-slate-100 text-sm leading-snug line-clamp-2 min-h-[40px]" title="{{ $product->name }}">
+                            {{ $product->name }}
+                        </h3>
+                        
+                        <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">{{ $product->description ?? 'Sin descripción.' }}</p>
                     </div>
-                    <div class="flex justify-between items-center border-t border-slate-850/50 pt-3 mt-3">
-                        <span class="text-[10px] text-slate-500 uppercase">Precio</span>
-                        <span class="font-black text-lime-400 text-sm">${{ number_format($product->price, 2) }}</span>
+
+                    <div class="flex justify-between items-center border-t border-slate-800/80 pt-3 mt-3">
+                        <div>
+                            <span class="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Precio</span>
+                            <span class="font-black text-lime-400 text-base">${{ number_format($product->price, 2) }}</span>
+                        </div>
+                        <span class="px-2.5 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-lg text-xs font-extrabold flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar
+                        </span>
                     </div>
                 </div>
             @empty
@@ -67,18 +103,39 @@
                     No hay productos en inventario con stock disponible actualmente.
                 </div>
             @endforelse
+
+            <div id="no_pos_results_msg" class="col-span-full py-12 text-center text-slate-500 hidden">
+                <i data-lucide="search-x" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
+                <p>No se encontraron productos que coincidan con el filtro o la búsqueda.</p>
+            </div>
+        </div>
+
+        <!-- POS Interactive Grid Pagination Controls (Max 9 per page) -->
+        <div id="pos_pagination_container" class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl text-xs font-medium text-slate-400 mt-4">
+            <span id="pos_pagination_info">Mostrando productos...</span>
+            <div class="flex items-center gap-2">
+                <button type="button" id="pos_prev_btn" onclick="changePosGridPage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+                    Anterior
+                </button>
+                <span id="pos_page_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                <button type="button" id="pos_next_btn" onclick="changePosGridPage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    Siguiente
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Right Column: Shopping Cart (1/3 width) -->
-    <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 flex flex-col min-h-[calc(100vh-120px)] sticky top-24">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col min-h-[calc(100vh-120px)] sticky top-24">
         <h3 class="font-bold text-lg text-slate-100 mb-3 flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
             <span class="flex items-center gap-2">
                 <i data-lucide="shopping-cart" class="w-5 h-5 text-lime-400"></i> Detalle de Venta
             </span>
         </h3>
 
-        <!-- Cart Items List (Guaranteed height so items are never cut off) -->
+        <!-- Cart Items List -->
         <div class="min-h-[150px] max-h-[260px] overflow-y-auto pr-1 space-y-2.5 my-2" id="cart-items-container">
             <!-- Empty Cart State -->
             <div class="h-full min-h-[130px] flex flex-col items-center justify-center text-slate-500 text-xs py-6" id="empty-cart-state">
@@ -161,19 +218,106 @@
 
 <script>
     let cart = [];
+    let currentPosPage = 1;
+    const posPerPage = 9;
+    let matchingPosCards = [];
+    let selectedCategoryFilter = 'all';
+
+    function filterByCategory(catName, btnEl) {
+        selectedCategoryFilter = catName.toLowerCase();
+
+        // Update button active styles
+        const btns = document.querySelectorAll('.pos-cat-btn');
+        btns.forEach(b => {
+            b.className = "pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-850 shrink-0 transition-colors cursor-pointer";
+        });
+
+        if (btnEl) {
+            btnEl.className = "pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 shrink-0 transition-colors cursor-pointer";
+        }
+
+        filterProducts();
+    }
 
     function filterProducts() {
-        const query = document.getElementById('search-input').value.toLowerCase();
+        const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
         const cards = document.querySelectorAll('.product-card');
-        
+        matchingPosCards = [];
+        currentPosPage = 1;
+
         cards.forEach(card => {
-            const name = card.getAttribute('data-name').toLowerCase();
-            if (name.includes(query)) {
-                card.style.display = 'flex';
+            const name = (card.getAttribute('data-name') || '').toLowerCase();
+            const category = (card.getAttribute('data-category') || '').toLowerCase();
+            
+            const matchesCategory = (selectedCategoryFilter === 'all' || category === selectedCategoryFilter);
+            const matchesQuery = (query.length === 0 || name.includes(query) || category.includes(query));
+
+            if (matchesCategory && matchesQuery) {
+                matchingPosCards.push(card);
             } else {
                 card.style.display = 'none';
             }
         });
+
+        renderPosPaginatedGrid();
+    }
+
+    function renderPosPaginatedGrid() {
+        const cards = document.querySelectorAll('.product-card');
+        const totalMatching = matchingPosCards.length;
+        const totalPages = Math.ceil(totalMatching / posPerPage) || 1;
+
+        if (currentPosPage > totalPages) currentPosPage = totalPages;
+        if (currentPosPage < 1) currentPosPage = 1;
+
+        const startIndex = (currentPosPage - 1) * posPerPage;
+        const endIndex = startIndex + posPerPage;
+
+        // Hide all cards first
+        cards.forEach(c => c.style.display = 'none');
+
+        // Show current page slice
+        const pageSlice = matchingPosCards.slice(startIndex, endIndex);
+        pageSlice.forEach(c => c.style.display = 'flex');
+
+        // Update UI controls
+        const infoSpan = document.getElementById('pos_pagination_info');
+        const pageSpan = document.getElementById('pos_page_display');
+        const prevBtn = document.getElementById('pos_prev_btn');
+        const nextBtn = document.getElementById('pos_next_btn');
+        const emptyMsg = document.getElementById('no_pos_results_msg');
+        const paginationContainer = document.getElementById('pos_pagination_container');
+
+        if (emptyMsg) {
+            if (totalMatching === 0 && cards.length > 0) {
+                emptyMsg.classList.remove('hidden');
+                if (paginationContainer) paginationContainer.classList.add('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+                if (paginationContainer) paginationContainer.classList.remove('hidden');
+            }
+        }
+
+        if (infoSpan) {
+            if (totalMatching === 0) {
+                infoSpan.textContent = "No hay productos para mostrar.";
+            } else {
+                const fromNum = startIndex + 1;
+                const toNum = Math.min(endIndex, totalMatching);
+                infoSpan.textContent = `Mostrando ${fromNum}-${toNum} de ${totalMatching} productos`;
+            }
+        }
+
+        if (pageSpan) pageSpan.textContent = `Página ${currentPosPage} de ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = (currentPosPage <= 1);
+        if (nextBtn) nextBtn.disabled = (currentPosPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function changePosGridPage(delta) {
+        currentPosPage += delta;
+        renderPosPaginatedGrid();
     }
 
     function addToCart(card) {
@@ -423,5 +567,12 @@
             setTimeout(() => toast.remove(), 300);
         }, 3500);
     }
+
+    // Initialize pagination on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.product-card');
+        matchingPosCards = Array.from(cards);
+        renderPosPaginatedGrid();
+    });
 </script>
 @endsection

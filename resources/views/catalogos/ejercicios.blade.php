@@ -88,17 +88,14 @@
             </div>
         </div>
         
-        <div class="overflow-x-auto">
+         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse whitespace-nowrap" id="exercises-table">
                 <thead>
                     <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
-                        <th class="p-4 pl-6 text-left">Nombre de Ejercicio</th>
-                        <th class="p-4 text-center">Estado</th>
-                        <th class="p-4 text-left">Categoría</th>
-                        <th class="p-4 text-left">Grupo Muscular</th>
-                        <th class="p-4 text-center">Dificultad</th>
-                        <th class="p-4 text-center">Requiere Equipamiento</th>
-                        <th class="p-4 text-center pr-6">Acciones</th>
+                        <th class="p-3.5 pl-6 text-left">Ejercicio &amp; Categoría</th>
+                        <th class="p-3.5 text-left">Dificultad &amp; Equipamiento</th>
+                        <th class="p-3.5 text-center">Estado</th>
+                        <th class="p-3.5 text-right pr-6">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="exercises_table_body" class="divide-y divide-slate-850/50">
@@ -112,74 +109,68 @@
                             data-equipment="{{ $exercise->requires_equipment ? 'Sí' : 'No' }}"
                             data-active="{{ $exercise->is_active ? 1 : 0 }}"
                             class="hover:bg-slate-900/20 text-slate-200 transition-colors {{ $exercise->is_active ? '' : 'opacity-60 bg-slate-950/30' }}">
-                            <td class="p-4 pl-6 flex items-center gap-3">
-                                <img id="ex_img_{{ $exercise->id }}" src="{{ $exercise->image_url ? asset($exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
-                                <div>
-                                    <span id="ex_name_{{ $exercise->id }}" class="block font-bold text-slate-100">{{ $exercise->name }}</span>
-                                    <span id="ex_desc_{{ $exercise->id }}" class="block text-[10px] text-slate-450 mt-0.5 line-clamp-1 {{ $exercise->description ? '' : 'hidden' }}" title="{{ $exercise->description }}">{{ $exercise->description }}</span>
+                            <td class="p-3.5 pl-6">
+                                <div class="flex items-center gap-3">
+                                    <img id="ex_img_{{ $exercise->id }}" src="{{ $exercise->image_url ? asset($exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
+                                    <div>
+                                        <span id="ex_name_{{ $exercise->id }}" class="block font-bold text-slate-100 text-xs">{{ $exercise->name }}</span>
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                            <span id="ex_cat_{{ $exercise->id }}" class="px-2 py-0.5 bg-slate-950 border border-slate-800 text-slate-400 rounded-md text-[9px] font-semibold">
+                                                {{ $exercise->category->name ?? 'General' }}
+                                            </span>
+                                            <span id="ex_muscle_{{ $exercise->id }}" class="px-2 py-0.5 bg-slate-950 border border-slate-800 text-slate-300 rounded-md text-[9px] font-semibold">
+                                                {{ $exercise->muscle_group ?? 'Cuerpo Completo' }}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="p-4 text-center" id="ex_status_{{ $exercise->id }}">
+                            <td class="p-3.5">
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <div id="ex_diff_{{ $exercise->id }}" class="inline-block">
+                                        @if($exercise->difficulty === 'beginner')
+                                            <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-md text-[9px] font-bold uppercase">Principiante</span>
+                                        @elseif($exercise->difficulty === 'intermediate')
+                                            <span class="px-2 py-0.5 bg-lime-500/10 text-lime-400 border border-lime-500/25 rounded-md text-[9px] font-bold uppercase">Intermedio</span>
+                                        @else
+                                            <span class="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/25 rounded-md text-[9px] font-bold uppercase">Avanzado</span>
+                                        @endif
+                                    </div>
+                                    <div id="ex_equip_{{ $exercise->id }}" class="inline-block text-[10px]">
+                                        @if($exercise->equipment && $exercise->equipment->count() > 0)
+                                            <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 rounded-md font-semibold text-[9px]">
+                                                <i data-lucide="wrench" class="w-3 h-3 inline text-slate-500 mr-0.5"></i> {{ $exercise->equipment->first()->name }} {{ $exercise->equipment->count() > 1 ? '+'.($exercise->equipment->count() - 1) : '' }}
+                                            </span>
+                                        @elseif($exercise->requires_equipment)
+                                            <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 text-[9px] font-bold rounded-md uppercase">
+                                                Con Equipo
+                                            </span>
+                                        @else
+                                            <span class="text-slate-500 font-semibold text-[9px] italic">
+                                                Peso Corporal
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-3.5 text-center" id="ex_status_{{ $exercise->id }}">
                                 @if($exercise->is_active)
                                     <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Activo</span>
                                 @else
                                     <span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-400 text-[9px] font-bold uppercase rounded-full border border-rose-500/20">Inactivo</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-slate-350 font-medium" id="ex_cat_{{ $exercise->id }}">{{ $exercise->category->name ?? 'Sin categoría' }}</td>
-                            <td class="p-4">
-                                <span id="ex_muscle_{{ $exercise->id }}" class="px-2.5 py-1 bg-slate-950 border border-slate-850 text-slate-300 rounded-lg text-[10px] font-semibold">
-                                    {{ $exercise->muscle_group ?? 'Cuerpo Completo' }}
-                                </span>
-                            </td>
-                            <td class="p-4 text-center" id="ex_diff_{{ $exercise->id }}">
-                                @if($exercise->difficulty === 'beginner')
-                                    <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-full text-[9px] font-bold uppercase">Principiante</span>
-                                @elseif($exercise->difficulty === 'intermediate')
-                                    <span class="px-2 py-0.5 bg-lime-500/10 text-lime-400 border border-lime-500/25 rounded-full text-[9px] font-bold uppercase">Intermedio</span>
-                                @else
-                                    <span class="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/25 rounded-full text-[9px] font-bold uppercase">Avanzado</span>
-                                @endif
-                            </td>
-                            <td class="p-4 text-center text-[10px]" id="ex_equip_{{ $exercise->id }}">
-                                @if($exercise->equipment && $exercise->equipment->count() > 0)
-                                    <div class="flex flex-wrap items-center justify-center gap-1">
-                                        @foreach($exercise->equipment->take(2) as $eq)
-                                            <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 text-[10px] font-semibold rounded-lg inline-flex items-center gap-1 {{ $eq->is_active ? '' : 'line-through text-rose-400 border-rose-500/20' }}" title="{{ $eq->is_active ? 'Equipo Activo' : 'Equipo Inhabilitado en Catálogo' }}">
-                                                <i data-lucide="wrench" class="w-3 h-3 text-slate-500"></i> {{ $eq->name }}
-                                            </span>
-                                        @endforeach
-                                        @if($exercise->equipment->count() > 2)
-                                            <span onclick='openExerciseDetailModal({{ json_encode($exercise) }})' class="px-2 py-0.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 hover:bg-lime-500 hover:text-slate-950 text-[10px] font-bold rounded-lg cursor-pointer transition-colors" title="Ver todo el equipamiento">
-                                                +{{ $exercise->equipment->count() - 2 }} más
-                                            </span>
-                                        @endif
-                                    </div>
-                                @elseif($exercise->requires_equipment)
-                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 text-[10px] font-bold rounded-lg uppercase">
-                                        Sí (General)
-                                    </span>
-                                @else
-                                    <span class="text-slate-500 font-semibold text-[10px] italic">
-                                        Libre / Peso Corporal
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="p-4 text-center pr-6">
-                                <div class="flex items-center justify-center gap-2">
+                            <td class="p-3.5 text-right pr-6">
+                                <div class="flex items-center justify-end gap-1.5">
                                     <button type="button" id="ex_detail_btn_{{ $exercise->id }}" onclick='openExerciseDetailModal({{ json_encode($exercise) }})' class="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/25 rounded-xl transition-all shadow-sm" title="Ver Detalle Completo">
                                         <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                                     </button>
 
-                                    <a id="ex_video_link_{{ $exercise->id }}" href="{{ $exercise->video_url ?? '#' }}" target="_blank" class="p-1.5 text-lime-400 hover:text-lime-300 transition-colors {{ $exercise->video_url ? '' : 'hidden' }}" title="Ver video demostrativo">
-                                        <i data-lucide="play-circle" class="w-4 h-4"></i>
-                                    </a>
-                                    
                                     <button type="button" id="ex_edit_btn_{{ $exercise->id }}" onclick='openEditExerciseModal({{ json_encode($exercise) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Ejercicio">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
-                                    
-                                    <button type="button" onclick="openDeleteExerciseModal({{ $exercise->id }}, '{{ addslashes($exercise->name) }}', {{ $exercise->is_active ? 1 : 0 }}, {{ $exercise->routines_count ?? 0 }})" 
+
+                                    <button type="button" onclick="openDeleteExerciseModal({{ $exercise->id }}, '{{ addslashes($exercise->name) }}', {{ $exercise->is_active ? 1 : 0 }})" 
                                             id="ex_toggle_btn_{{ $exercise->id }}"
                                             class="p-1.5 {{ $exercise->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
                                             title="{{ $exercise->is_active ? 'Inhabilitar Ejercicio' : 'Reactivar Ejercicio' }}">
@@ -189,16 +180,16 @@
                             </td>
                         </tr>
                     @empty
-                        <tr id="no_exercises_empty_row">
-                            <td colspan="7" class="p-8 text-center text-slate-550">
-                                No se ha registrado ningún ejercicio en el catálogo.
+                        <tr id="no_exercises_row">
+                            <td colspan="4" class="p-8 text-center text-slate-550">
+                                No hay ejercicios cargados en la biblioteca.
                             </td>
                         </tr>
                     @endforelse
 
                     <tr id="no_exercises_search_row" class="hidden">
-                        <td colspan="7" class="p-10 text-center text-slate-500">
-                            <i data-lucide="dumbbell" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+                        <td colspan="4" class="p-10 text-center text-slate-500">
+                            <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
                             No se encontraron ejercicios que coincidan con la búsqueda o filtro.
                         </td>
                     </tr>
@@ -206,16 +197,18 @@
             </table>
         </div>
 
-        <!-- Pagination Controls Footer -->
-        <div id="exercise_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <!-- Pagination Controls Footer (Max 10 per page) -->
+        <div id="exercise_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-slate-400">
             <span id="exercise_pagination_info">Mostrando ejercicios...</span>
             <div class="flex items-center gap-2">
-                <button type="button" id="prev_page_btn" onclick="changeExercisePage(-1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                <button type="button" id="prev_page_btn" onclick="changeExercisePage(-1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
                     Anterior
                 </button>
-                <span id="page_number_display" class="font-bold text-slate-200 px-2">Página 1</span>
-                <button type="button" id="next_page_btn" onclick="changeExercisePage(1)" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed font-semibold transition-colors">
+                <span id="page_number_display" class="px-3.5 py-1.5 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+                <button type="button" id="next_page_btn" onclick="changeExercisePage(1)" class="px-3.5 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1">
                     Siguiente
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
                 </button>
             </div>
         </div>
@@ -1322,16 +1315,18 @@
         const startIndex = (currentExercisePage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
 
-        rows.forEach(r => r.classList.add('hidden'));
+        // Hide all rows using inline style (100% reliable)
+        rows.forEach(r => r.style.display = 'none');
 
-        filtered.slice(startIndex, endIndex).forEach(r => r.classList.remove('hidden'));
+        // Show current page slice
+        filtered.slice(startIndex, endIndex).forEach(r => r.style.display = '');
 
         const noSearchRow = document.getElementById('no_exercises_search_row');
         if (noSearchRow) {
             if (totalFiltered === 0 && rows.length > 0) {
-                noSearchRow.classList.remove('hidden');
+                noSearchRow.style.display = '';
             } else {
-                noSearchRow.classList.add('hidden');
+                noSearchRow.style.display = 'none';
             }
         }
 
@@ -1354,6 +1349,8 @@
         if (pageSpan) pageSpan.textContent = `Página ${currentExercisePage} de ${totalPages}`;
         if (prevBtn) prevBtn.disabled = (currentExercisePage <= 1);
         if (nextBtn) nextBtn.disabled = (currentExercisePage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
     }
 
     function changeExercisePage(delta) {
@@ -1361,7 +1358,14 @@
         renderExercisePage();
     }
 
-    // Auto-trigger session flash messages on page load
+    function initExercisesPagination() {
+        updateCounters();
+        renderExercisePage();
+    }
+
+    // Run pagination immediately and on PJAX page swaps
+    setTimeout(initExercisesPagination, 0);
+
     document.addEventListener('DOMContentLoaded', function () {
         @if(session('success'))
             showToast("{{ session('success') }}", 'success');
@@ -1372,8 +1376,11 @@
             @endforeach
         @endif
 
-        updateCounters();
-        renderExercisePage();
+        initExercisesPagination();
+    });
+
+    window.addEventListener('page:loaded', function() {
+        setTimeout(initExercisesPagination, 0);
     });
 </script>
 @endsection

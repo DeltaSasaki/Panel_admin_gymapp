@@ -18,7 +18,7 @@ class NotificationController extends Controller
      */
     public function index(Request $request)
     {
-        $gymId = session('active_gym_id', 'all');
+        $gymId = $this->getActiveGymId();
 
         // Fetch notifications list
         $notificationsQuery = Notification::with('user.profile')

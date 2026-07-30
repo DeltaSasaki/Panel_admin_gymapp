@@ -42,7 +42,7 @@
         </div>
     </div>
 
-    <!-- Grid of Clients -->
+    <!-- Grid of Clients (Max 9 per page) -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @php
             $goalsMap = [
@@ -187,13 +187,33 @@
         </div>
 
     </div>
+
+    <!-- Interactive Grid Pagination Controls (Max 9 per page) -->
+    <div id="clients_pagination_container" class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/80 text-xs font-medium text-slate-400">
+        <span id="clients_pagination_info">Mostrando clientes...</span>
+        <div class="flex items-center gap-2">
+            <button type="button" id="clients_prev_btn" onclick="changeClientsGridPage(-1)" class="px-3.5 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1.5">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                Anterior
+            </button>
+            <span id="clients_page_display" class="px-3.5 py-2 bg-slate-950 rounded-xl font-bold text-lime-400 border border-slate-850">Página 1</span>
+            <button type="button" id="clients_next_btn" onclick="changeClientsGridPage(1)" class="px-3.5 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors font-bold flex items-center gap-1.5">
+                Siguiente
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
 </div>
 
 <script>
     let currentTabFilter = 'all';
+    let currentPage = 1;
+    const itemsPerPage = 9;
+    let matchingCards = [];
 
     function filterClients(filterType) {
         currentTabFilter = filterType;
+        currentPage = 1;
 
         // Update tab styles
         const tabs = document.querySelectorAll('.filter-tab-btn');
@@ -213,7 +233,7 @@
         const rawQuery = (document.getElementById('client_search_input')?.value || '').toLowerCase().trim();
         const cleanQuery = rawQuery.replace(/[^a-z0-9]/gi, '');
         const cards = document.querySelectorAll('[data-client-card]');
-        let visibleCount = 0;
+        matchingCards = [];
 
         cards.forEach(card => {
             const isActive = card.getAttribute('data-is-active') === '1';
@@ -243,27 +263,76 @@
             }
 
             if (matchesTab && matchesSearch) {
-                card.classList.remove('hidden');
-                visibleCount++;
+                matchingCards.push(card);
             } else {
                 card.classList.add('hidden');
             }
         });
 
+        renderPaginatedGrid();
+    }
+
+    function renderPaginatedGrid() {
+        const cards = document.querySelectorAll('[data-client-card]');
+        const totalMatching = matchingCards.length;
+        const totalPages = Math.ceil(totalMatching / itemsPerPage) || 1;
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+
+        // Hide all cards first
+        cards.forEach(card => card.classList.add('hidden'));
+
+        // Show only current page slice from matchingCards
+        const pageSlice = matchingCards.slice(startIndex, endIndex);
+        pageSlice.forEach(card => card.classList.remove('hidden'));
+
+        // Update UI controls
         const emptyMsg = document.getElementById('no_search_results_msg');
+        const paginationContainer = document.getElementById('clients_pagination_container');
+        const infoSpan = document.getElementById('clients_pagination_info');
+        const pageSpan = document.getElementById('clients_page_display');
+        const prevBtn = document.getElementById('clients_prev_btn');
+        const nextBtn = document.getElementById('clients_next_btn');
+
         if (emptyMsg) {
-            if (visibleCount === 0 && cards.length > 0) {
+            if (totalMatching === 0 && cards.length > 0) {
                 emptyMsg.classList.remove('hidden');
+                if (paginationContainer) paginationContainer.classList.add('hidden');
             } else {
                 emptyMsg.classList.add('hidden');
+                if (paginationContainer) paginationContainer.classList.remove('hidden');
             }
         }
+
+        if (infoSpan) {
+            if (totalMatching === 0) {
+                infoSpan.textContent = "No hay clientes para mostrar.";
+            } else {
+                const fromNum = startIndex + 1;
+                const toNum = Math.min(endIndex, totalMatching);
+                infoSpan.textContent = `Mostrando ${fromNum}-${toNum} de ${totalMatching} clientes`;
+            }
+        }
+
+        if (pageSpan) pageSpan.textContent = `Página ${currentPage} de ${totalPages}`;
+        if (prevBtn) prevBtn.disabled = (currentPage <= 1);
+        if (nextBtn) nextBtn.disabled = (currentPage >= totalPages);
 
         if (window.lucide) window.lucide.createIcons();
     }
 
+    function changeClientsGridPage(delta) {
+        currentPage += delta;
+        renderPaginatedGrid();
+    }
+
     window.filterClients = filterClients;
     window.applyClientFilters = applyClientFilters;
+    window.changeClientsGridPage = changeClientsGridPage;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', applyClientFilters);

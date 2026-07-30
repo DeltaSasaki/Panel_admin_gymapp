@@ -42,4 +42,9 @@ class InventoryProduct extends Model
     {
         return $this->hasMany(InventoryMovement::class, 'product_id');
     }
+
+    public function saleItems()
+    {
+        return $this->hasMany(SaleItem::class, 'product_id');
+    }
 }

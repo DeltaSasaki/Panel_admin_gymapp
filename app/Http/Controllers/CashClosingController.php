@@ -21,18 +21,53 @@ class CashClosingController extends Controller
     {
         $this->checkAdmin();
 
-        $gymId = session('active_gym_id', 'all');
+        $gymId = $this->getActiveGymId();
+        $period = $request->query('period', 'today');
         $targetDate = $request->query('date', Carbon::today()->format('Y-m-d'));
+        $startDateInput = $request->query('start_date');
+        $endDateInput = $request->query('end_date');
 
-        try {
-            $parsedDate = Carbon::parse($targetDate)->format('Y-m-d');
-        } catch (\Exception $e) {
-            $parsedDate = Carbon::today()->format('Y-m-d');
+        $periodLabel = 'Hoy';
+        $startDate = Carbon::today()->startOfDay();
+        $endDate = Carbon::today()->endOfDay();
+
+        if ($period === 'yesterday') {
+            $startDate = Carbon::yesterday()->startOfDay();
+            $endDate = Carbon::yesterday()->endOfDay();
+            $periodLabel = 'Ayer (' . $startDate->format('d/m/Y') . ')';
+        } elseif ($period === 'this_week') {
+            $startDate = Carbon::now()->startOfWeek()->startOfDay();
+            $endDate = Carbon::now()->endOfWeek()->endOfDay();
+            $periodLabel = 'Esta Semana (' . $startDate->format('d/m') . ' - ' . $endDate->format('d/m/Y') . ')';
+        } elseif ($period === 'last_week') {
+            $startDate = Carbon::now()->subWeek()->startOfWeek()->startOfDay();
+            $endDate = Carbon::now()->subWeek()->endOfWeek()->endOfDay();
+            $periodLabel = 'Semana Anterior (' . $startDate->format('d/m') . ' - ' . $endDate->format('d/m/Y') . ')';
+        } elseif ($period === 'this_month') {
+            $startDate = Carbon::now()->startOfMonth()->startOfDay();
+            $endDate = Carbon::now()->endOfMonth()->endOfDay();
+            $periodLabel = 'Mes Actual (' . $startDate->format('m/Y') . ')';
+        } elseif ($period === 'custom' && $startDateInput && $endDateInput) {
+            $startDate = Carbon::parse($startDateInput)->startOfDay();
+            $endDate = Carbon::parse($endDateInput)->endOfDay();
+            $periodLabel = 'Rango (' . $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y') . ')';
+        } elseif ($period === 'specific' || $request->has('date')) {
+            try {
+                $startDate = Carbon::parse($targetDate)->startOfDay();
+                $endDate = Carbon::parse($targetDate)->endOfDay();
+                $periodLabel = Carbon::parse($targetDate)->format('d/m/Y');
+            } catch (\Exception $e) {
+                $startDate = Carbon::today()->startOfDay();
+                $endDate = Carbon::today()->endOfDay();
+                $periodLabel = 'Hoy (' . $startDate->format('d/m/Y') . ')';
+            }
         }
+
+        $parsedDate = $startDate->format('Y-m-d');
 
         // 1. Membership Payments Query
         $mPaymentsQuery = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'receivedBy'])
-            ->whereDate('payment_date', $parsedDate);
+            ->whereBetween('payment_date', [$startDate, $endDate]);
 
         if ($gymId !== 'all') {
             $mPaymentsQuery->whereHas('membership', function ($q) use ($gymId) {
@@ -43,7 +78,7 @@ class CashClosingController extends Controller
 
         // 2. Product Sales Query (Tienda / POS)
         $pSalesQuery = ProductSale::with(['user.profile', 'soldBy', 'items.product'])
-            ->whereDate('sale_date', $parsedDate);
+            ->whereBetween('sale_date', [$startDate, $endDate]);
 
         if ($gymId !== 'all') {
             $pSalesQuery->where('gym_id', $gymId);
@@ -52,7 +87,7 @@ class CashClosingController extends Controller
 
         // 3. Registered / Renewed Memberships Query
         $membershipsQuery = UserMembership::with(['user.profile', 'plan'])
-            ->whereDate('createdAt', $parsedDate);
+            ->whereBetween('createdAt', [$startDate, $endDate]);
 
         if ($gymId !== 'all') {
             $membershipsQuery->where('gym_id', $gymId);
@@ -61,7 +96,7 @@ class CashClosingController extends Controller
 
         // 4. Attendance Logs Query
         $attendanceQuery = AttendanceLog::with(['user.profile'])
-            ->whereDate('check_in', $parsedDate);
+            ->whereBetween('check_in', [$startDate, $endDate]);
 
         if ($gymId !== 'all') {
             $attendanceQuery->where('gym_id', $gymId);
@@ -99,7 +134,6 @@ class CashClosingController extends Controller
         $gym = ($gymId !== 'all') ? Gym::find($gymId) : null;
 
         return view('cierre_caja.index', compact(
-            'parsedDate',
             'membershipPayments',
             'productSales',
             'newMemberships',
@@ -111,6 +145,9 @@ class CashClosingController extends Controller
             'cardTotal',
             'transferTotal',
             'otherTotal',
+            'parsedDate',
+            'period',
+            'periodLabel',
             'isClosed',
             'closingLog',
             'gym'
