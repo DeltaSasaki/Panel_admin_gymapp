@@ -1788,33 +1788,77 @@ class AdminController extends Controller
                 $activeGymId = session('superadmin_gym_id', auth()->user()->gym_id);
             }
 
+            $getGymActivePlanHelper = function($gId) {
+                if (!$gId || $gId === 'all') return null;
+                if (\Illuminate\Support\Facades\Schema::hasTable('gym_subscriptions')) {
+                    $sub = \DB::table('gym_subscriptions')
+                        ->where('gym_id', $gId)
+                        ->whereIn('status', ['active', 'trialing'])
+                        ->latest('id')
+                        ->first();
+                    if ($sub && $sub->plan_id) {
+                        $plan = \App\Models\SaasSubscriptionPlan::find($sub->plan_id);
+                        if ($plan) return $plan;
+                    }
+                }
+                $gymRec = Gym::find($gId);
+                if ($gymRec && $gymRec->current_plan_id) {
+                    return \App\Models\SaasSubscriptionPlan::find($gymRec->current_plan_id);
+                }
+                return null;
+            };
+
             if ($activeGymId === 'all') {
                 $currentUsers = User::where('role', 'member')->count();
-                $allGyms = Gym::with('plan')->get();
-                $maxUsers = 0;
+                $allGyms = Gym::all();
+                $maxUsersSum = 0;
+                $hasUnlimited = false;
                 foreach ($allGyms as $g) {
-                    $maxUsers += ($g->plan?->max_users ?? 50);
+                    $plan = $getGymActivePlanHelper($g->id);
+                    if ($plan) {
+                        if (is_null($plan->max_users)) {
+                            $hasUnlimited = true;
+                        } else {
+                            $maxUsersSum += (int)$plan->max_users;
+                        }
+                    } else {
+                        $maxUsersSum += 50;
+                    }
                 }
+                $maxUsers = $hasUnlimited ? null : ($maxUsersSum > 0 ? $maxUsersSum : 50);
             } else {
                 $currentUsers = User::where('gym_id', $activeGymId)->where('role', 'member')->count();
-                $gym = Gym::with('plan')->find($activeGymId);
-                $maxUsers = ($gym && $gym->plan) ? ($gym->plan->max_users ?? 50) : 50;
+                $plan = $getGymActivePlanHelper($activeGymId);
+                if ($plan) {
+                    $maxUsers = is_null($plan->max_users) ? null : (int)$plan->max_users;
+                } else {
+                    $maxUsers = 50;
+                }
             }
 
-            $percentage = $maxUsers > 0 ? round(($currentUsers / $maxUsers) * 100, 1) : 0;
-            $pctFormatted = (floor($percentage) == $percentage) ? (int)$percentage : $percentage;
+            if (is_null($maxUsers)) {
+                $percentage = 100;
+                $pctFormatted = '∞';
+                $countText = "{$currentUsers} / ∞";
+                $pctText = "Ilimitado";
+            } else {
+                $percentage = $maxUsers > 0 ? round(($currentUsers / $maxUsers) * 100, 1) : 0;
+                $pctFormatted = (floor($percentage) == $percentage) ? (int)$percentage : $percentage;
+                $countText = "{$currentUsers}/{$maxUsers}";
+                $pctText = "{$pctFormatted}%";
+            }
 
             $colorClass = 'text-lime-400';
             $badgeBgClass = 'bg-lime-500/10';
             $badgeBorderClass = 'border-lime-500/20';
             $gradientClass = 'from-lime-500 to-emerald-400';
 
-            if ($percentage >= 90) {
+            if ($percentage >= 90 && !is_null($maxUsers)) {
                 $colorClass = 'text-rose-400';
                 $badgeBgClass = 'bg-rose-500/10';
                 $badgeBorderClass = 'border-rose-500/20';
                 $gradientClass = 'from-rose-500 to-red-500';
-            } elseif ($percentage >= 75) {
+            } elseif ($percentage >= 75 && !is_null($maxUsers)) {
                 $colorClass = 'text-amber-400';
                 $badgeBgClass = 'bg-amber-500/10';
                 $badgeBorderClass = 'border-amber-500/20';
@@ -1823,12 +1867,12 @@ class AdminController extends Controller
 
             return response()->json([
                 'current' => $currentUsers,
-                'max' => $maxUsers,
+                'max' => $maxUsers ?? 'Ilimitado',
                 'percentage' => $percentage,
                 'percentage_formatted' => $pctFormatted,
-                'count_text' => "{$currentUsers}/{$maxUsers}",
-                'pct_text' => "{$pctFormatted}%",
-                'text' => "{$currentUsers}/{$maxUsers} ({$pctFormatted}%)",
+                'count_text' => $countText,
+                'pct_text' => $pctText,
+                'text' => "{$countText} ({$pctText})",
                 'color_class' => $colorClass,
                 'badge_bg_class' => $badgeBgClass,
                 'badge_border_class' => $badgeBorderClass,

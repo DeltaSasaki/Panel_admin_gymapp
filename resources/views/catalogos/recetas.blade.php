@@ -253,111 +253,152 @@
 </div>
 
 <!-- ================= MODAL: REGISTRAR RECETA ================= -->
-<div id="recipe-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+<div id="recipe-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 sm:p-6 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-4xl mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[92vh] overflow-y-auto custom-scrollbar">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-slate-100">Registrar Receta en Recetario</h3>
-            <button type="button" onclick="toggleModal('recipe-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 rounded-2xl">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-xl text-slate-100 tracking-tight">Registrar Receta en Recetario</h3>
+                    <p class="text-xs text-slate-400">Agrega un nuevo platillo con sus valores nutricionales e ingredientes.</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('recipe-modal')" class="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form id="create-recipe-form" action="{{ route('catalogos.store_recipe') }}" method="POST" enctype="multipart/form-data" onsubmit="submitCreateRecipe(event)" class="space-y-4 text-xs font-semibold">
+        <form id="create-recipe-form" action="{{ route('catalogos.store_recipe') }}" method="POST" enctype="multipart/form-data" onsubmit="submitCreateRecipe(event)" class="space-y-6 text-xs font-semibold">
             @csrf
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre del Plato *</label>
-                    <input type="text" name="name" required placeholder="Ej: Pollo al Limón con Papas" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Column: General Details & Macros (5 cols) -->
+                <div class="lg:col-span-5 space-y-4 bg-slate-950/50 p-4 sm:p-5 rounded-2xl border border-slate-850">
+                    <h4 class="text-xs uppercase font-extrabold text-lime-400 tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-850">
+                        <i data-lucide="info" class="w-4 h-4"></i> Información General
+                    </h4>
+
+                    <div>
+                        <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre del Plato *</label>
+                        <input type="text" name="name" required placeholder="Ej: Pollo al Limón con Papas" class="w-full px-4 py-2.5 text-sm bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Categoría *</label>
+                            <select name="category_id" id="create-category-select" required class="w-full px-3 py-2.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                                <option value="">Selecciona Categoría</option>
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Enfoque *</label>
+                            <select name="goal_type" required class="w-full px-3 py-2.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                                <option value="gain_muscle">Hipertrofia / Volumen</option>
+                                <option value="lose_weight" selected>Déficit / Definición</option>
+                                <option value="maintain">Recomposición</option>
+                                <option value="improve_endurance">Rendimiento</option>
+                                <option value="general">Salud General</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Porciones *</label>
+                            <input type="number" name="servings" required min="1" value="1" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 font-mono text-center focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Tiempo (Min) *</label>
+                            <input type="number" name="preparation_min" required min="1" value="20" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 font-mono text-center focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Macro Section Card -->
+                    <div class="pt-2">
+                        <label class="block text-slate-400 uppercase tracking-wider mb-2 font-extrabold text-[10px] flex items-center gap-1">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-lime-400"></i> Macronutrientes por Porción
+                        </label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-slate-400 uppercase">Calorías</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" name="calories_total" required min="0" value="350" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">kcal</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-emerald-400 uppercase">Proteínas</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="protein_g" required min="0" value="25" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-amber-400 uppercase">Carbohidratos</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="carbs_g" required min="0" value="30" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-rose-400 uppercase">Grasas</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="fat_g" required min="0" value="8" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Upload Card -->
+                    <div class="pt-2">
+                        <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Foto del Platillo (Opcional)</label>
+                        <input type="file" name="image" accept="image/*" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-400 focus:outline-none cursor-pointer">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Categoría *</label>
-                    <select name="category_id" id="create-category-select" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                        <option value="">Selecciona Categoría</option>
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                        @endforeach
-                    </select>
+
+                <!-- Right Column: Descriptions & Dynamic Ingredients (7 cols) -->
+                <div class="lg:col-span-7 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción Breve</label>
+                            <textarea name="description" placeholder="Pequeño resumen del platillo..." rows="2" class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Instrucciones de Cocción / Paso a Paso</label>
+                            <textarea name="instructions" placeholder="1. Calentar sartén. 2. Añadir verduras..." rows="3" class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                        </div>
+
+                        <!-- Ingredientes Sección -->
+                        <div class="space-y-3 pt-3 border-t border-slate-800">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-slate-200 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
+                                    <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
+                                </label>
+                                <button type="button" onclick="addIngredientRow('create-ingredients-container')" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Añadir Ingrediente
+                                </button>
+                            </div>
+                            <div id="create-ingredients-container" class="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                                <!-- Dynamic rows inserted by JS -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Enfoque Metabólico *</label>
-                    <select name="goal_type" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                        <option value="gain_muscle">Hipertrofia / Volumen</option>
-                        <option value="lose_weight" selected>Déficit / Definición</option>
-                        <option value="maintain">Recomposición / Balanceado</option>
-                        <option value="improve_endurance">Rendimiento / Resistencia</option>
-                        <option value="general">Salud / Nutrición Básica</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Porciones por Receta *</label>
-                    <input type="number" name="servings" required min="1" value="1" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Calorías (Kcal) *</label>
-                    <input type="number" name="calories_total" required min="0" value="350" class="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Proteínas (g) *</label>
-                    <input type="number" step="0.1" name="protein_g" required min="0" value="25" class="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Carbos (g) *</label>
-                    <input type="number" step="0.1" name="carbs_g" required min="0" value="30" class="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Grasas (g) *</label>
-                    <input type="number" step="0.1" name="fat_g" required min="0" value="8" class="w-full px-3 py-2 bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Tiempo de Preparación (Minutos) *</label>
-                    <input type="number" name="preparation_min" required min="1" value="20" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Foto del Plato (Opcional)</label>
-                    <input type="file" name="image" accept="image/*" class="w-full px-4 py-2 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-450 focus:outline-none cursor-pointer">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción Breve</label>
-                <textarea name="description" placeholder="Pequeño resumen del platillo..." rows="2" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
-            </div>
-
-            <div>
-                <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Instrucciones de Cocción</label>
-                <textarea name="instructions" placeholder="1. Calentar sartén. 2. Añadir verduras..." rows="3" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
-            </div>
-
-            <!-- Ingredientes de la Receta -->
-            <div class="space-y-3 pt-3 border-t border-slate-800">
-                <div class="flex items-center justify-between">
-                    <label class="block text-slate-300 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
-                        <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
-                    </label>
-                    <button type="button" onclick="addIngredientRow('create-ingredients-container')" class="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-850 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
-                        <i data-lucide="plus" class="w-3 h-3"></i> Añadir Ingrediente
-                    </button>
-                </div>
-                <div id="create-ingredients-container" class="space-y-2">
-                    <!-- Dynamic rows inserted by JS -->
-                </div>
-            </div>
-
+            <!-- Footer Buttons -->
             <div class="pt-4 flex gap-3 border-t border-slate-800">
-                <button type="button" onclick="toggleModal('recipe-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
+                <button type="button" onclick="toggleModal('recipe-modal')" class="flex-1 py-3 bg-slate-950 hover:bg-slate-850 text-xs font-bold rounded-xl border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" id="create-recipe-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
-                    Guardar Receta
+                <button type="submit" id="create-recipe-submit-btn" class="flex-1 py-3 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i> Guardar Receta
                 </button>
             </div>
         </form>
@@ -365,116 +406,157 @@
 </div>
 
 <!-- ================= MODAL: EDITAR RECETA ================= -->
-<div id="edit-recipe-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+<div id="edit-recipe-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 sm:p-6 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-4xl mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[92vh] overflow-y-auto custom-scrollbar">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
-            <h3 class="font-bold text-lg text-slate-100">Editar Receta</h3>
-            <button type="button" onclick="toggleModal('edit-recipe-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 rounded-2xl">
+                    <i data-lucide="utensils" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-xl text-slate-100 tracking-tight">Editar Receta</h3>
+                    <p class="text-xs text-slate-400">Modifica los detalles, macronutrientes e ingredientes del platillo.</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('edit-recipe-modal')" class="p-2 rounded-xl bg-slate-950 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-100 transition-colors">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <form id="edit-recipe-form" action="" method="POST" enctype="multipart/form-data" onsubmit="submitEditRecipe(event)" class="space-y-4 text-xs font-semibold">
+
+        <form id="edit-recipe-form" action="" method="POST" enctype="multipart/form-data" onsubmit="submitEditRecipe(event)" class="space-y-6 text-xs font-semibold">
             @csrf
             @method('PUT')
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre del Plato *</label>
-                    <input type="text" name="name" id="edit-name" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Column: General Details & Macros (5 cols) -->
+                <div class="lg:col-span-5 space-y-4 bg-slate-950/50 p-4 sm:p-5 rounded-2xl border border-slate-850">
+                    <h4 class="text-xs uppercase font-extrabold text-lime-400 tracking-wider flex items-center gap-1.5 pb-2 border-b border-slate-850">
+                        <i data-lucide="info" class="w-4 h-4"></i> Información General
+                    </h4>
+
+                    <div>
+                        <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre del Plato *</label>
+                        <input type="text" name="name" id="edit-name" required class="w-full px-4 py-2.5 text-sm bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Categoría *</label>
+                            <select name="category_id" id="edit-category_id" required class="w-full px-3 py-2.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-200 cursor-pointer focus:outline-none focus:border-lime-500/50">
+                                @foreach($categories as $category)
+                                    <option value="{{ $category->id }}">{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Enfoque *</label>
+                            <select name="goal_type" id="edit-goal_type" required class="w-full px-3 py-2.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-200 cursor-pointer focus:outline-none focus:border-lime-500/50">
+                                <option value="gain_muscle">Hipertrofia / Volumen</option>
+                                <option value="lose_weight">Déficit / Definición</option>
+                                <option value="maintain">Recomposición</option>
+                                <option value="improve_endurance">Rendimiento</option>
+                                <option value="general">Salud General</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Porciones *</label>
+                            <input type="number" name="servings" id="edit-servings" required min="1" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 font-mono text-center focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Tiempo (Min) *</label>
+                            <input type="number" name="preparation_min" id="edit-preparation_min" required min="1" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 font-mono text-center focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- Macro Section Card -->
+                    <div class="pt-2">
+                        <label class="block text-slate-400 uppercase tracking-wider mb-2 font-extrabold text-[10px] flex items-center gap-1">
+                            <i data-lucide="activity" class="w-3.5 h-3.5 text-lime-400"></i> Macronutrientes por Porción
+                        </label>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-slate-400 uppercase">Calorías</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" name="calories_total" id="edit-calories_total" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">kcal</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-emerald-400 uppercase">Proteínas</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="protein_g" id="edit-protein_g" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-amber-400 uppercase">Carbohidratos</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="carbs_g" id="edit-carbs_g" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                                <span class="block text-[10px] text-rose-400 uppercase">Grasas</span>
+                                <div class="flex items-center gap-1 mt-0.5">
+                                    <input type="number" step="0.1" name="fat_g" id="edit-fat_g" required min="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-slate-100 font-mono font-bold text-xs focus:outline-none">
+                                    <span class="text-[10px] text-slate-500 font-mono">g</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Photo Upload Card -->
+                    <div class="pt-2">
+                        <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Foto del Platillo (Opcional)</label>
+                        <input type="file" name="image" accept="image/*" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-400 focus:outline-none cursor-pointer">
+                        <div class="flex items-center gap-2 mt-2 hidden" id="current-image-container">
+                            <input type="checkbox" name="remove_image" id="edit-remove-image" value="1" class="rounded border-slate-800 bg-slate-950 text-lime-500 focus:ring-lime-500 cursor-pointer">
+                            <label for="edit-remove-image" class="text-xs text-rose-400 font-medium cursor-pointer">Eliminar foto actual</label>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Categoría *</label>
-                    <select name="category_id" id="edit-category_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-300 cursor-pointer">
-                        @foreach($categories as $category)
-                            <option value="{{ $category->id }}">{{ $category->name }}</option>
-                        @endforeach
-                    </select>
+
+                <!-- Right Column: Descriptions & Dynamic Ingredients (7 cols) -->
+                <div class="lg:col-span-7 space-y-4 flex flex-col justify-between">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción Breve</label>
+                            <textarea name="description" id="edit-description" rows="2" placeholder="Resumen del plato, sabor o presentación..." class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Instrucciones de Cocción / Paso a Paso</label>
+                            <textarea name="instructions" id="edit-instructions" rows="3" placeholder="1. Marinar pechuga... 2. Hornear a 180°C..." class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                        </div>
+
+                        <!-- Ingredientes Sección -->
+                        <div class="space-y-3 pt-3 border-t border-slate-800">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-slate-200 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
+                                    <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
+                                </label>
+                                <button type="button" onclick="addIngredientRow('edit-ingredients-container')" class="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-800 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Añadir Ingrediente
+                                </button>
+                            </div>
+                            <div id="edit-ingredients-container" class="space-y-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                                <!-- Dynamic rows inserted by JS -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Enfoque Metabólico *</label>
-                    <select name="goal_type" id="edit-goal_type" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-300 cursor-pointer">
-                        <option value="gain_muscle">Hipertrofia / Volumen</option>
-                        <option value="lose_weight">Déficit / Definición</option>
-                        <option value="maintain">Recomposición / Balanceado</option>
-                        <option value="improve_endurance">Rendimiento / Resistencia</option>
-                        <option value="general">Salud / Nutrición Básica</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Porciones por Receta *</label>
-                    <input type="number" name="servings" id="edit-servings" required min="1" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Calorías *</label>
-                    <input type="number" name="calories_total" id="edit-calories_total" required min="0" class="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Proteínas (g) *</label>
-                    <input type="number" step="0.1" name="protein_g" id="edit-protein_g" required min="0" class="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Carbos (g) *</label>
-                    <input type="number" step="0.1" name="carbs_g" id="edit-carbs_g" required min="0" class="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1">Grasas (g) *</label>
-                    <input type="number" step="0.1" name="fat_g" id="edit-fat_g" required min="0" class="w-full px-3 py-2 bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Tiempo de Preparación (Minutos) *</label>
-                    <input type="number" name="preparation_min" id="edit-preparation_min" required min="1" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100">
-                </div>
-                <div>
-                    <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Foto del Plato (Opcional)</label>
-                    <input type="file" name="image" accept="image/*" class="w-full px-4 py-2 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-450 focus:outline-none cursor-pointer">
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2 pt-1 hidden" id="current-image-container">
-                <input type="checkbox" name="remove_image" id="edit-remove-image" value="1" class="rounded border-slate-855 bg-slate-950 text-lime-500 focus:ring-lime-500 cursor-pointer">
-                <label for="edit-remove-image" class="text-xs text-rose-400 font-medium cursor-pointer">Eliminar foto actual</label>
-            </div>
-
-            <div>
-                <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción Breve</label>
-                <textarea name="description" id="edit-description" rows="2" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
-            </div>
-
-            <div>
-                <label class="block text-slate-400 uppercase tracking-wider mb-1.5">Instrucciones de Cocción</label>
-                <textarea name="instructions" id="edit-instructions" rows="3" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-855 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
-            </div>
-
-            <!-- Ingredientes de la Receta -->
-            <div class="space-y-3 pt-3 border-t border-slate-800">
-                <div class="flex items-center justify-between">
-                    <label class="block text-slate-300 uppercase tracking-wider font-extrabold text-[11px] flex items-center gap-1.5">
-                        <i data-lucide="apple" class="w-4 h-4 text-lime-400"></i> Ingredientes del Platillo
-                    </label>
-                    <button type="button" onclick="addIngredientRow('edit-ingredients-container')" class="px-2.5 py-1 bg-slate-950 hover:bg-slate-800 text-lime-400 border border-slate-850 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
-                        <i data-lucide="plus" class="w-3 h-3"></i> Añadir Ingrediente
-                    </button>
-                </div>
-                <div id="edit-ingredients-container" class="space-y-2">
-                    <!-- Dynamic rows inserted by JS -->
-                </div>
-            </div>
-
+            <!-- Footer Buttons -->
             <div class="pt-4 flex gap-3 border-t border-slate-800">
-                <button type="button" onclick="toggleModal('edit-recipe-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
+                <button type="button" onclick="toggleModal('edit-recipe-modal')" class="flex-1 py-3 bg-slate-950 hover:bg-slate-850 text-xs font-bold rounded-xl border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
                     Cancelar
                 </button>
-                <button type="submit" id="edit-recipe-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
-                    Guardar Cambios
+                <button type="submit" id="edit-recipe-submit-btn" class="flex-1 py-3 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Guardar Cambios
                 </button>
             </div>
         </form>
@@ -645,18 +727,24 @@
 
         const row = document.createElement('div');
         row.id = rowId;
-        row.className = 'flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-850 text-xs';
+        row.className = 'flex items-center gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-850 text-xs shadow-sm';
         row.innerHTML = `
-            <select name="ingredients[${index}][ingredient_id]" required class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-100 text-xs focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                ${optionsHtml}
-            </select>
-            <input type="number" step="0.1" min="0.1" name="ingredients[${index}][quantity]" value="${quantity}" placeholder="Cant." required class="w-20 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-100 text-xs focus:outline-none font-mono text-center">
-            <select name="ingredients[${index}][unit]" class="w-20 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-300 text-xs focus:outline-none cursor-pointer font-mono">
-                <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
-                <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
-                <option value="unidad" ${unit === 'unidad' || unit === 'unit' ? 'selected' : ''}>unidad</option>
-            </select>
-            <button type="button" onclick="document.getElementById('${rowId}').remove()" class="p-1.5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-lg transition-colors cursor-pointer" title="Eliminar Ingrediente">
+            <div class="flex-1 min-w-0">
+                <select name="ingredients[${index}][ingredient_id]" required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-xs focus:outline-none focus:border-lime-500/50 cursor-pointer truncate">
+                    ${optionsHtml}
+                </select>
+            </div>
+            <div class="w-24 shrink-0">
+                <input type="number" step="0.1" min="0.1" name="ingredients[${index}][quantity]" value="${quantity}" placeholder="Cant." required class="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-2 text-slate-100 text-xs focus:outline-none font-mono text-center">
+            </div>
+            <div class="w-24 shrink-0">
+                <select name="ingredients[${index}][unit]" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-2 text-slate-300 text-xs focus:outline-none cursor-pointer font-mono">
+                    <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
+                    <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
+                    <option value="unidad" ${unit === 'unidad' || unit === 'unit' ? 'selected' : ''}>unidad</option>
+                </select>
+            </div>
+            <button type="button" onclick="document.getElementById('${rowId}').remove()" class="p-2 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 rounded-xl transition-colors cursor-pointer shrink-0" title="Eliminar Ingrediente">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         `;

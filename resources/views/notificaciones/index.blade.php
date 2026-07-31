@@ -93,18 +93,42 @@
     <!-- TAB 1: Historial de Notificaciones -->
     <div id="tab-content-historial" class="space-y-4">
         <div class="bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-            <div class="p-5 border-b border-slate-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
-                    <i data-lucide="list" class="w-5 h-5 text-lime-400"></i> Registro de Notificaciones Recientes
-                </h3>
-
+            <!-- Card Header: Title, Search & Filters -->
+            <div class="p-5 border-b border-slate-850 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <form action="{{ route('notificaciones.mark_all_read') }}" method="POST">
-                        @csrf
-                        <button type="submit" class="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-850 text-slate-300 text-xs font-bold rounded-xl border border-slate-800 transition-colors">
-                            Marcar Todas como Leídas
+                    <div class="p-2.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 rounded-2xl">
+                        <i data-lucide="list" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-base text-slate-100">Registro de Notificaciones Recientes</h3>
+                        <p class="text-xs text-slate-400">Histórico de notificaciones emitidas y su estado de lectura.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <!-- Status Filter Tabs -->
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+                        <button type="button" onclick="setNotifStatusFilter('all')" id="notif-filter-btn-all" class="notif-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-extrabold bg-slate-900 text-lime-400 border border-slate-800 transition-all cursor-pointer">
+                            Todas ({{ $notifications->count() }})
                         </button>
-                    </form>
+                        <button type="button" onclick="setNotifStatusFilter('unread')" id="notif-filter-btn-unread" class="notif-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
+                            Pendientes ({{ $unreadCount }})
+                        </button>
+                        <button type="button" onclick="setNotifStatusFilter('read')" id="notif-filter-btn-read" class="notif-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all cursor-pointer">
+                            Leídas ({{ $readCount }})
+                        </button>
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-56">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" id="notif_search_input" oninput="onNotifSearchInput()" placeholder="Buscar por título, socio..." class="w-full pl-9 pr-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 font-medium">
+                    </div>
+
+                    <!-- Redesigned Mark All as Read Button -->
+                    <button type="button" onclick="toggleModal('mark-all-read-modal')" class="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95">
+                        <i data-lucide="check-check" class="w-4 h-4"></i> Marcar Todas como Leídas
+                    </button>
                 </div>
             </div>
 
@@ -119,14 +143,18 @@
                             <th class="p-4 pr-6 text-right">Estado</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-850">
+                    <tbody id="notifications_table_body" class="divide-y divide-slate-850">
                         @forelse($notifications as $notif)
                             @php
                                 $member = $notif->user;
                                 $memberName = $member ? trim(($member->profile->first_name ?? '') . ' ' . ($member->profile->last_name ?? '')) : 'Socio ID #' . $notif->user_id;
                                 if (empty($memberName)) $memberName = $member->email ?? 'Socio';
+                                $searchText = strtolower($notif->title . ' ' . $notif->body . ' ' . $memberName);
                             @endphp
-                            <tr class="hover:bg-slate-900/40 transition-colors">
+                            <tr data-notif-row 
+                                data-status="{{ $notif->is_read ? 'read' : 'unread' }}" 
+                                data-search="{{ $searchText }}" 
+                                class="hover:bg-slate-900/40 transition-colors {{ $loop->index >= 10 ? 'hidden' : '' }}">
                                 <td class="p-4 pl-6 font-bold text-slate-200">
                                     {{ \Carbon\Carbon::parse($notif->createdAt)->format('d/m/Y H:i A') }}
                                 </td>
@@ -144,9 +172,9 @@
                                 <td class="p-4 font-bold text-slate-100">
                                     {{ $memberName }}
                                 </td>
-                                <td class="p-4 max-w-md">
+                                <td class="p-4 max-w-md whitespace-normal">
                                     <span class="block font-bold text-slate-100 text-xs">{{ $notif->title }}</span>
-                                    <span class="text-slate-400 text-[11px] line-clamp-1">{{ $notif->body }}</span>
+                                    <span class="text-slate-400 text-[11px] line-clamp-2 mt-0.5">{{ $notif->body }}</span>
                                 </td>
                                 <td class="p-4 pr-6 text-right">
                                     @if($notif->is_read)
@@ -163,8 +191,29 @@
                                 </td>
                             </tr>
                         @endforelse
+
+                        <tr id="no_notifications_search_row" class="hidden">
+                            <td colspan="5" class="p-12 text-center text-slate-500 font-semibold">
+                                <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-700 mb-2"></i>
+                                <p class="font-bold text-slate-400 text-sm">No se encontraron notificaciones que coincidan con la búsqueda.</p>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Footer Controls -->
+            <div id="notif_pagination_container" class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 bg-slate-950/40">
+                <span id="notif_pagination_info">Mostrando notificaciones...</span>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="notif_prev_btn" onclick="changeNotifPage(-1)" class="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition-colors">
+                        Anterior
+                    </button>
+                    <span id="notif_page_number_display" class="font-bold text-lime-400 px-3 py-1.5 bg-slate-950 rounded-xl border border-slate-850">Página 1</span>
+                    <button type="button" id="notif_next_btn" onclick="changeNotifPage(1)" class="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-850 rounded-xl text-slate-300 hover:text-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold transition-colors">
+                        Siguiente
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -325,8 +374,8 @@
 </div>
 
 <!-- Modal: Redacción Rápida / Envío Manual -->
-<div id="send-manual-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden transition-opacity">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg space-y-5 shadow-2xl relative">
+<div id="send-manual-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl p-6 sm:p-7 space-y-5">
         <div class="flex items-center justify-between border-b border-slate-850 pb-3">
             <h3 class="font-extrabold text-base text-slate-100 flex items-center gap-2">
                 <i data-lucide="send" class="w-5 h-5 text-lime-400"></i> Notificación Manual Rápida
@@ -364,7 +413,60 @@
     </div>
 </div>
 
+<!-- Modal: Confirmar Marcar Todas como Leídas -->
+<div id="mark-all-read-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl p-6 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-850 pb-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl">
+                    <i data-lucide="check-check" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base text-slate-100">Marcar Notificaciones</h3>
+                    <p class="text-xs text-slate-400">Confirmación de acción en lote</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('mark-all-read-modal')" class="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-850 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed">
+            ¿Estás seguro de que deseas marcar <strong class="text-emerald-400 font-extrabold">todas las notificaciones pendientes como leídas</strong>? Esta acción actualizará el estado del historial.
+        </p>
+
+        <form action="{{ route('notificaciones.mark_all_read') }}" method="POST" class="flex items-center gap-3 pt-2">
+            @csrf
+            <button type="button" onclick="toggleModal('mark-all-read-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-850 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl border border-slate-800 transition-colors cursor-pointer">
+                Cancelar
+            </button>
+            <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <i data-lucide="check" class="w-4 h-4"></i> Sí, Marcar Todas
+            </button>
+        </form>
+    </div>
+</div>
+
 <script>
+    // Centered Static Modal Handler (relocates element to document.body and freezes scroll)
+    function toggleModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        if (modal.parentElement !== document.body) {
+            document.body.appendChild(modal);
+        }
+
+        const isOpening = modal.classList.contains('hidden');
+        modal.classList.toggle('hidden');
+
+        if (isOpening) {
+            document.body.classList.add('overflow-hidden');
+        } else {
+            document.body.classList.remove('overflow-hidden');
+        }
+    }
+
     function switchNotifTab(tabName) {
         document.getElementById('tab-content-historial').classList.add('hidden');
         document.getElementById('tab-content-broadcast').classList.add('hidden');
@@ -473,5 +575,108 @@
             console.error(err);
         }
     }
+
+    // Notifications History Filtering & Pagination (Max 10 per page)
+    let currentNotifPage = 1;
+    let currentNotifStatusFilter = 'all';
+    const notifPerPage = 10;
+
+    function setNotifStatusFilter(status) {
+        currentNotifStatusFilter = status;
+        document.querySelectorAll('.notif-status-tab-btn').forEach(btn => {
+            btn.className = "notif-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all cursor-pointer";
+        });
+        const activeBtn = document.getElementById('notif-filter-btn-' + status);
+        if (activeBtn) {
+            activeBtn.className = "notif-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-extrabold bg-slate-900 text-lime-400 border border-slate-800 transition-all cursor-pointer";
+        }
+        currentNotifPage = 1;
+        renderNotifPage();
+    }
+
+    function renderNotifPage() {
+        const query = (document.getElementById('notif_search_input')?.value || '').toLowerCase().trim();
+        const allRows = Array.from(document.querySelectorAll('[data-notif-row]'));
+
+        const matchingRows = allRows.filter(row => {
+            const status = row.getAttribute('data-status') || '';
+            const search = row.getAttribute('data-search') || '';
+
+            let matchesStatus = true;
+            if (currentNotifStatusFilter === 'read') matchesStatus = (status === 'read');
+            else if (currentNotifStatusFilter === 'unread') matchesStatus = (status === 'unread');
+
+            let matchesSearch = true;
+            if (query) matchesSearch = search.includes(query);
+
+            return matchesStatus && matchesSearch;
+        });
+
+        const totalMatching = matchingRows.length;
+        const totalPages = Math.ceil(totalMatching / notifPerPage) || 1;
+
+        if (currentNotifPage > totalPages) currentNotifPage = totalPages;
+        if (currentNotifPage < 1) currentNotifPage = 1;
+
+        allRows.forEach(row => row.classList.add('hidden'));
+
+        const startIndex = (currentNotifPage - 1) * notifPerPage;
+        const endIndex = startIndex + notifPerPage;
+        const pageRows = matchingRows.slice(startIndex, endIndex);
+
+        pageRows.forEach(row => row.classList.remove('hidden'));
+
+        const emptySearchRow = document.getElementById('no_notifications_search_row');
+        if (emptySearchRow) {
+            if (totalMatching === 0 && allRows.length > 0) emptySearchRow.classList.remove('hidden');
+            else emptySearchRow.classList.add('hidden');
+        }
+
+        const infoSpan = document.getElementById('notif_pagination_info');
+        if (infoSpan) {
+            const from = totalMatching === 0 ? 0 : startIndex + 1;
+            const to = Math.min(endIndex, totalMatching);
+            infoSpan.textContent = `Mostrando ${from} a ${to} de ${totalMatching} notificaciones`;
+        }
+
+        const pageDisplay = document.getElementById('notif_page_number_display');
+        if (pageDisplay) pageDisplay.textContent = `Página ${currentNotifPage} de ${totalPages}`;
+
+        const prevBtn = document.getElementById('notif_prev_btn');
+        if (prevBtn) prevBtn.disabled = (currentNotifPage <= 1);
+
+        const nextBtn = document.getElementById('notif_next_btn');
+        if (nextBtn) nextBtn.disabled = (currentNotifPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function onNotifSearchInput() {
+        currentNotifPage = 1;
+        renderNotifPage();
+    }
+
+    function changeNotifPage(delta) {
+        currentNotifPage += delta;
+        renderNotifPage();
+    }
+
+    function initNotifPagination() {
+        renderNotifPage();
+    }
+
+    initNotifPagination();
+
+    if (document.readyState !== 'loading') {
+        initNotifPagination();
+    } else {
+        document.addEventListener('DOMContentLoaded', initNotifPagination);
+    }
+
+    window.addEventListener('load', initNotifPagination);
+    window.addEventListener('pageshow', initNotifPagination);
+    window.addEventListener('page:loaded', initNotifPagination);
+    document.addEventListener('livewire:navigated', initNotifPagination);
+    document.addEventListener('turbo:load', initNotifPagination);
 </script>
 @endsection

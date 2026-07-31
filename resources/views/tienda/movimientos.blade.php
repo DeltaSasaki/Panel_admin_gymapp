@@ -84,7 +84,7 @@
                                 data-product="{{ strtolower($mov->product->name ?? '') }}"
                                 data-reason="{{ strtolower($mov->reason ?? 'carga de stock') }}"
                                 data-performer="{{ strtolower($performerName) }}"
-                                class="hover:bg-slate-900/20 text-slate-200 transition-colors">
+                                class="hover:bg-slate-900/20 text-slate-200 transition-colors {{ $loop->index >= 10 ? 'hidden' : '' }}">
                                 <td class="p-4 pl-6">
                                     <div class="flex items-center gap-3">
                                         <img src="{{ $mov->product && $mov->product->image_url ? asset($mov->product->image_url) : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop' }}" class="w-9 h-9 rounded-xl object-cover border border-slate-800 shrink-0">
@@ -229,7 +229,7 @@
                                 data-product="{{ strtolower($itemName) }}"
                                 data-reason="{{ strtolower($detail) }}"
                                 data-performer="{{ strtolower($performerName) }}"
-                                class="hover:bg-slate-900/20 text-slate-200 transition-colors">
+                                class="hover:bg-slate-900/20 text-slate-200 transition-colors {{ $loop->index >= 10 ? 'hidden' : '' }}">
                                 <td class="p-4 pl-6">
                                     <div class="flex items-center gap-3">
                                         <div class="w-9 h-9 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 text-slate-400">
@@ -411,8 +411,23 @@
         renderMovementPage();
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function initMovementPagination() {
         renderMovementPage();
-    });
+    }
+
+    // Execute immediately on script evaluation and handle all ready states & page transitions
+    initMovementPagination();
+
+    if (document.readyState !== 'loading') {
+        initMovementPagination();
+    } else {
+        document.addEventListener('DOMContentLoaded', initMovementPagination);
+    }
+
+    window.addEventListener('load', initMovementPagination);
+    window.addEventListener('pageshow', initMovementPagination);
+    window.addEventListener('page:loaded', initMovementPagination);
+    document.addEventListener('livewire:navigated', initMovementPagination);
+    document.addEventListener('turbo:load', initMovementPagination);
 </script>
 @endsection

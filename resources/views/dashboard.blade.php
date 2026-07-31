@@ -1123,8 +1123,8 @@
         renderClientsTablePage();
     }
 
-    // Initialize module on page load
-    document.addEventListener('DOMContentLoaded', function () {
+    function initDashboardPage() {
+        currentClientsPage = 1;
         const initialLabels = @json($dailyRadarLabels);
         const initialCounts = @json($dailyRadarCounts);
         const initialActiveMembers = {{ $activeMembersCount }};
@@ -1136,6 +1136,13 @@
         renderHourlyTrafficChart(initialTrafficLabels, initialTrafficCounts, initialTrafficColors);
 
         renderClientsTablePage();
-    });
+    }
+
+    // Initialize module both on full reload and on PJAX navigation
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDashboardPage);
+    } else {
+        initDashboardPage();
+    }
 </script>
 @endsection

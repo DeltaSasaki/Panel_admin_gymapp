@@ -168,7 +168,7 @@
                             data-membership-row
                             data-status="{{ $m->payment_status }}"
                             data-search="{{ $searchKey }}"
-                            class="hover:bg-slate-900/20 text-slate-200 transition-colors">
+                            class="hover:bg-slate-900/20 text-slate-200 transition-colors {{ $loop->index >= 9 ? 'hidden' : '' }}">
                             <td class="p-4 pl-6 flex items-center gap-3">
                                 <img src="{{ ($m->user && $m->user->profile && $m->user->profile->profile_photo) ? asset($m->user->profile->profile_photo) : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop' }}" class="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-800">
                                 <div>
@@ -2301,11 +2301,26 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        updateMembershipCounters();
-        updatePlanCounters();
-        updatePromoTabCounters();
-        switchFinanceTab('membresias');
-    });
+    function initFinanzasPage() {
+        if (typeof updateMembershipCounters === 'function') updateMembershipCounters();
+        if (typeof updatePlanCounters === 'function') updatePlanCounters();
+        if (typeof updatePromoTabCounters === 'function') updatePromoTabCounters();
+        if (typeof switchFinanceTab === 'function') switchFinanceTab(currentFinanceTab || 'membresias');
+        if (typeof renderMembershipPage === 'function') renderMembershipPage();
+    }
+
+    initFinanzasPage();
+
+    if (document.readyState !== 'loading') {
+        initFinanzasPage();
+    } else {
+        document.addEventListener('DOMContentLoaded', initFinanzasPage);
+    }
+
+    window.addEventListener('load', initFinanzasPage);
+    window.addEventListener('pageshow', initFinanzasPage);
+    window.addEventListener('page:loaded', initFinanzasPage);
+    document.addEventListener('livewire:navigated', initFinanzasPage);
+    document.addEventListener('turbo:load', initFinanzasPage);
 </script>
 @endsection

@@ -1130,8 +1130,22 @@
         renderProductPage();
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function initProductPagination() {
         renderProductPage();
-    });
+    }
+
+    initProductPagination();
+
+    if (document.readyState !== 'loading') {
+        initProductPagination();
+    } else {
+        document.addEventListener('DOMContentLoaded', initProductPagination);
+    }
+
+    window.addEventListener('load', initProductPagination);
+    window.addEventListener('pageshow', initProductPagination);
+    window.addEventListener('page:loaded', initProductPagination);
+    document.addEventListener('livewire:navigated', initProductPagination);
+    document.addEventListener('turbo:load', initProductPagination);
 </script>
 @endsection

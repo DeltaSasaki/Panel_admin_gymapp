@@ -185,7 +185,7 @@
                             <td class="py-4 px-4 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <!-- Edit Button -->
-                                    <button type="button" onclick='openEditGymModal({{ json_encode($gym) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Sucursal">
+                                    <button type="button" onclick='openEditGymModal({{ json_encode($gym) }})' id="gym_edit_btn_{{ $gym->id }}" class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Sucursal">
                                         <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </button>
 
@@ -779,7 +779,7 @@
 
             const data = await response.json();
 
-            if (data.success) {
+            if (response.ok && data.success) {
                 const g = data.gym;
                 const row = document.getElementById(`gym_row_${g.id}`);
                 const planName = g.plan ? g.plan.name : 'Sin Plan Asignado';
@@ -822,6 +822,13 @@
                     if (logoImg && g.logo_url && logoImg.tagName === 'IMG') {
                         logoImg.src = `/${g.logo_url}`;
                     }
+
+                    // Update edit button onclick attribute with the latest gym data object
+                    const editBtn = document.getElementById(`gym_edit_btn_${g.id}`);
+                    if (editBtn) {
+                        const gJsonStr = JSON.stringify(g).replace(/'/g, "&#39;");
+                        editBtn.setAttribute('onclick', `openEditGymModal(${gJsonStr})`);
+                    }
                 }
 
                 if (window.lucide) window.lucide.createIcons();
@@ -829,9 +836,16 @@
                 toggleModal('modal-edit-gym');
                 updateCounters();
                 renderGymPage();
+                if (typeof fetchAforoData === 'function') {
+                    fetchAforoData();
+                }
                 showToast(data.message, 'success');
             } else {
-                showToast(data.message || 'Error al actualizar la sucursal.', 'error');
+                let errText = data.message || 'Error al actualizar la sucursal.';
+                if (data.errors) {
+                    errText = Object.values(data.errors).flat().join(' ');
+                }
+                showToast(errText, 'error');
             }
         } catch (err) {
             console.error(err);

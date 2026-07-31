@@ -77,6 +77,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Cierre de Caja y Balance Diario
     Route::get('/cierre-caja', [CashClosingController::class, 'index'])->name('cierre_caja.index');
+    Route::get('/cierre-caja/pdf', [CashClosingController::class, 'exportPdf'])->name('cierre_caja.export_pdf');
     Route::post('/cierre-caja/cerrar', [CashClosingController::class, 'closeDay'])->name('cierre_caja.close_day');
 
     // Tienda & Inventario (POS open to trainers/admins, catalog and sales history restricted to admins)

@@ -363,14 +363,21 @@
             @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
             <!-- Membership & Payments Section (Visible to Admins/Superadmins only) -->
             <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 space-y-6">
-                <div class="flex items-center justify-between">
-                    <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
-                        <i data-lucide="credit-card" class="w-5 h-5 text-lime-400"></i> Membresía y Auditoría Financiera
-                    </h3>
+                <!-- Section Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-850/80">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 bg-lime-500/10 rounded-2xl border border-lime-500/20 text-lime-400">
+                            <i data-lucide="credit-card" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-100">Membresía y Auditoría Financiera</h3>
+                            <p class="text-xs text-slate-400">Estado del contrato activo y registro de movimientos</p>
+                        </div>
+                    </div>
 
                     <!-- Saldo a Favor Badge -->
-                    <div class="flex items-center gap-2 bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-850 shadow-sm">
-                        <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                    <div class="flex items-center gap-2 bg-slate-950 px-4 py-2 rounded-2xl border border-slate-850 shadow-sm shrink-0">
+                        <i data-lucide="coins" class="w-4.5 h-4.5 text-amber-400"></i>
                         <span class="text-xs text-slate-400 font-semibold">Saldo a Favor:</span>
                         <span class="text-sm font-black text-amber-400">${{ number_format($cliente->credit_balance ?? 0, 2) }}</span>
                     </div>
@@ -384,10 +391,13 @@
 
                         if ($cliente->activeMembership->status === 'active') {
                             $statusBadge = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                            $statusLabel = 'Activa';
                         } elseif ($cliente->activeMembership->status === 'expired') {
                             $statusBadge = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                            $statusLabel = 'Vencida';
                         } else {
                             $statusBadge = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                            $statusLabel = ucfirst($cliente->activeMembership->status);
                         }
 
                         if ($paymentStatus === 'paid') {
@@ -405,85 +415,134 @@
                         $mPrice = $mPlan->price ?? 0;
                         $mDays = max(1, $mPlan->duration_days ?? 30);
                         $mDailyRate = $mDays > 0 ? ($mPrice / $mDays) : 0;
+
+                        $startDate = \Carbon\Carbon::parse($cliente->activeMembership->start_date);
+                        $endDate = \Carbon\Carbon::parse($cliente->activeMembership->end_date);
+                        $daysLeft = (int) max(0, \Carbon\Carbon::now()->diffInDays($endDate, false));
                     @endphp
-                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-950/40 p-5 rounded-2xl border border-slate-850">
-                        <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Plan Contratado</span>
-                            <span class="font-extrabold text-sm text-slate-100">{{ $cliente->activeMembership->plan->name }}</span>
-                            <span class="block text-xs text-slate-400 mt-0.5">${{ number_format($mPrice, 2) }} {{ $mPlan->currency }}</span>
+
+                    <!-- Responsive 3-Column Membership Card Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Sub-Card 1: Plan & Pricing -->
+                        <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-850/80 flex flex-col justify-between space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Plan Contratado</span>
+                                <span class="px-2 py-0.5 text-[10px] font-bold bg-slate-900 text-slate-300 rounded-md border border-slate-800">
+                                    {{ $mDays }} días vigencia
+                                </span>
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-base text-slate-100">{{ $cliente->activeMembership->plan->name }}</h4>
+                                <p class="text-xs font-semibold text-slate-400 mt-0.5">${{ number_format($mPrice, 2) }} {{ $mPlan->currency }}</p>
+                            </div>
+                            <div class="pt-2 border-t border-slate-850/50 flex items-center justify-between text-xs">
+                                <span class="text-slate-400">Tarifa Diaria:</span>
+                                <span class="font-bold text-amber-400">${{ number_format($mDailyRate, 2) }} / día</span>
+                            </div>
                         </div>
-                        <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Tarifa Diaria</span>
-                            <span class="font-black text-amber-400 text-sm">${{ number_format($mDailyRate, 2) }} / día</span>
-                            <span class="block text-[10px] text-slate-500 mt-0.5">({{ $mDays }} días vigencia)</span>
+
+                        <!-- Sub-Card 2: Vigencia & Dates -->
+                        <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-850/80 flex flex-col justify-between space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Período de Vigencia</span>
+                                <span class="px-2 py-0.5 text-[10px] font-bold bg-slate-900 text-slate-300 rounded-md border border-slate-800">
+                                    {{ $daysLeft }} días restantes
+                                </span>
+                            </div>
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="text-slate-500 font-semibold w-12">Desde:</span>
+                                    <span class="font-bold text-slate-200">{{ $startDate->format('d/m/Y') }}</span>
+                                </div>
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="text-slate-500 font-semibold w-12">Hasta:</span>
+                                    <span class="font-bold text-slate-200">{{ $endDate->format('d/m/Y') }}</span>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-850/50 flex items-center justify-between text-[11px] text-slate-400">
+                                <span>Estado Temporal:</span>
+                                <span class="font-semibold text-slate-300">{{ $endDate->isPast() ? 'Vencido' : 'En Curso' }}</span>
+                            </div>
                         </div>
-                        <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Vigencia</span>
-                            <span class="font-bold text-xs text-slate-300">
-                                {{ \Carbon\Carbon::parse($cliente->activeMembership->start_date)->format('d/m/Y') }} al 
-                                {{ \Carbon\Carbon::parse($cliente->activeMembership->end_date)->format('d/m/Y') }}
-                            </span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado Membresía</span>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $statusBadge }}">
-                                {{ __($cliente->activeMembership->status) }}
-                            </span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] text-slate-500 font-bold uppercase mb-1">Estado Pago</span>
-                            <span class="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full inline-block {{ $paymentBadge }}">
-                                {{ $statusText }}
-                            </span>
+
+                        <!-- Sub-Card 3: Badges & Action -->
+                        <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-850/80 flex flex-col justify-between space-y-3">
+                            <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Estado & Auditoría</span>
+                            
+                            <div class="flex items-center justify-around gap-2 bg-slate-900/60 p-2.5 rounded-xl border border-slate-850">
+                                <div class="text-center">
+                                    <span class="block text-[9px] text-slate-500 font-bold uppercase mb-1">Membresía</span>
+                                    <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-full inline-block {{ $statusBadge }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                </div>
+                                <div class="w-px h-7 bg-slate-800"></div>
+                                <div class="text-center">
+                                    <span class="block text-[9px] text-slate-500 font-bold uppercase mb-1">Pago</span>
+                                    <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase rounded-full inline-block {{ $paymentBadge }}">
+                                        {{ $statusText }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button type="button" onclick="toggleModal('client-abono-modal')" class="w-full py-2 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                <i data-lucide="coins" class="w-4 h-4"></i>
+                                <span>Registrar Abono</span>
+                            </button>
                         </div>
                     </div>
                 @else
-                    <div class="py-6 text-center text-slate-500 text-sm">
+                    <div class="py-8 text-center text-slate-500 text-sm bg-slate-950/40 rounded-2xl border border-slate-850">
                         <i data-lucide="alert-circle" class="w-8 h-8 text-slate-700 mb-2 mx-auto"></i>
                         No tiene ninguna membresía activa registrada en este gimnasio.
                     </div>
                 @endif
 
                 <!-- Historial de Abonos y Pagos (Bitácora Auditora del Socio) -->
-                <div class="pt-4 border-t border-slate-850">
-                    <h4 class="font-bold text-sm text-slate-200 mb-3 flex items-center justify-between">
-                        <span class="flex items-center gap-1.5">
+                <div class="pt-4 border-t border-slate-850 space-y-3">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <h4 class="font-bold text-sm text-slate-200 flex items-center gap-2">
                             <i data-lucide="history" class="w-4 h-4 text-amber-400"></i> Bitácora de Transacciones y Abonos
-                        </span>
-                        <span class="text-xs text-slate-400 font-normal">Auditoría completa de movimientos de caja</span>
-                    </h4>
+                        </h4>
+                        <span class="text-xs text-slate-400 font-medium">Auditoría completa de movimientos de caja</span>
+                    </div>
 
                     @if($cliente->membershipPayments && $cliente->membershipPayments->count() > 0)
-                        <div class="max-h-72 overflow-y-auto overflow-x-auto rounded-2xl border border-slate-850 bg-slate-950/30 shadow-inner">
-                            <table class="w-full text-left text-xs text-slate-300">
-                                <thead class="sticky top-0 bg-slate-950 text-slate-400 uppercase text-[10px] border-b border-slate-850 z-10 shadow-sm">
+                        <div class="max-h-72 overflow-y-auto rounded-2xl border border-slate-850 bg-slate-950/40 shadow-inner">
+                            <table class="w-full text-left border-collapse text-xs text-slate-300 min-w-[650px]">
+                                <thead class="sticky top-0 bg-slate-950 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-850 z-10 shadow-sm">
                                     <tr>
-                                        <th class="p-3 pl-4">Fecha / Hora</th>
-                                        <th class="p-3">Monto Abonado</th>
-                                        <th class="p-3">Método</th>
-                                        <th class="p-3">Referencia</th>
-                                        <th class="p-3 pr-4">Detalle y Auditoría</th>
+                                        <th class="py-3 px-4 w-36">Fecha / Hora</th>
+                                        <th class="py-3 px-4 w-36">Monto Abonado</th>
+                                        <th class="py-3 px-4 w-28">Método</th>
+                                        <th class="py-3 px-4 w-40">Referencia</th>
+                                        <th class="py-3 px-4">Detalle y Auditoría</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-850/60 bg-slate-950/20">
+                                <tbody class="divide-y divide-slate-850/60">
                                     @foreach($cliente->membershipPayments->sortByDesc('id') as $pmt)
-                                        <tr class="hover:bg-slate-900/30 transition-colors">
-                                            <td class="p-3 pl-4 font-semibold text-slate-200">
+                                        <tr class="hover:bg-slate-900/50 transition-colors">
+                                            <td class="py-3.5 px-4 font-semibold text-slate-200 whitespace-nowrap">
                                                 {{ \Carbon\Carbon::parse($pmt->payment_date)->format('d/m/Y H:i') }}
                                             </td>
-                                            <td class="p-3 font-black text-emerald-400">
-                                                +${{ number_format($pmt->amount, 2) }} {{ $pmt->currency }}
+                                            <td class="py-3.5 px-4 font-black text-emerald-400 whitespace-nowrap">
+                                                +${{ number_format($pmt->amount, 2) }} <span class="text-[10px] text-slate-400">{{ $pmt->currency }}</span>
                                             </td>
-                                            <td class="p-3 uppercase text-[10px] font-bold text-slate-400">
-                                                @if($pmt->payment_method === 'cash') Efectivo
-                                                @elseif($pmt->payment_method === 'transfer') Transferencia
-                                                @elseif($pmt->payment_method === 'card') Tarjeta
-                                                @else {{ $pmt->payment_method }} @endif
+                                            <td class="py-3.5 px-4 uppercase text-[10px] font-bold text-slate-400 whitespace-nowrap">
+                                                @if($pmt->payment_method === 'cash')
+                                                    <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">Efectivo</span>
+                                                @elseif($pmt->payment_method === 'transfer')
+                                                    <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">Transferencia</span>
+                                                @elseif($pmt->payment_method === 'card')
+                                                    <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">Tarjeta</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">{{ $pmt->payment_method }}</span>
+                                                @endif
                                             </td>
-                                            <td class="p-3 font-mono text-[11px] text-slate-400">
+                                            <td class="py-3.5 px-4 font-mono text-[11px] text-slate-300 whitespace-nowrap">
                                                 {{ $pmt->reference_code ?: 'N/A' }}
                                             </td>
-                                            <td class="p-3 pr-4 text-[11px] text-slate-350">
+                                            <td class="py-3.5 px-4 text-[11px] text-slate-400">
                                                 {{ $pmt->notes ?: 'Cobro de membresía procesado.' }}
                                             </td>
                                         </tr>
@@ -492,7 +551,7 @@
                             </table>
                         </div>
                     @else
-                        <div class="p-4 bg-slate-950/30 rounded-xl border border-slate-850 text-slate-500 text-xs italic text-center">
+                        <div class="p-4 bg-slate-950/40 rounded-xl border border-slate-850 text-slate-500 text-xs italic text-center">
                             No se han registrado abonos ni cobros para este cliente todavía.
                         </div>
                     @endif
@@ -574,14 +633,14 @@
         </div>
 
     </div>
-</div>
 
+@push('modals')
 <!-- ================= MODAL: ASIGNAR RUTINA ================= -->
-<div id="routine-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
+<div id="routine-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Asignar Rutina de Entrenamiento</h3>
-            <button onclick="toggleModal('routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+            <button onclick="toggleModal('routine-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -589,7 +648,7 @@
             @csrf
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Rutina</label>
-                <select name="routine_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <select name="routine_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
                     <option value="" disabled selected>Selecciona una plantilla...</option>
                     @foreach($routines as $routine)
                         <option value="{{ $routine->id }}">{{ $routine->name }} ({{ $routine->duration_weeks }} sem / {{ $routine->days_per_week }}x por sem)</option>
@@ -601,10 +660,10 @@
                 <input type="date" name="start_date" required value="{{ date('Y-m-d') }}" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
             </div>
             <div class="pt-4 flex gap-3">
-                <button type="button" onclick="toggleModal('routine-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
+                <button type="button" onclick="toggleModal('routine-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors cursor-pointer">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer">
                     Asignar Plan
                 </button>
             </div>
@@ -613,11 +672,11 @@
 </div>
 
 <!-- ================= MODAL: ASIGNAR NUTRICION ================= -->
-<div id="meal-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
+<div id="meal-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Asignar Plan de Nutrición</h3>
-            <button onclick="toggleModal('meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+            <button onclick="toggleModal('meal-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -625,7 +684,7 @@
             @csrf
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Dieta</label>
-                <select name="meal_plan_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <select name="meal_plan_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
                     <option value="" disabled selected>Selecciona una dieta...</option>
                     @foreach($mealPlans as $plan)
                         <option value="{{ $plan->id }}">{{ $plan->name }} ({{ number_format($plan->daily_calories, 0) }} kcal)</option>
@@ -637,10 +696,10 @@
                 <input type="date" name="start_date" required value="{{ date('Y-m-d') }}" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
             </div>
             <div class="pt-4 flex gap-3">
-                <button type="button" onclick="toggleModal('meal-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors">
+                <button type="button" onclick="toggleModal('meal-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 text-slate-400 transition-colors cursor-pointer">
                     Cancelar
                 </button>
-                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer">
                     Asignar Dieta
                 </button>
             </div>
@@ -649,8 +708,8 @@
 </div>
 
 <!-- ================= MODAL: ASIGNAR ENTRENADOR ================= -->
-<div id="trainer-assignment-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-4 animate-scale-up space-y-6">
+<div id="trainer-assignment-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <h3 class="font-bold text-lg text-slate-100">Asignar Entrenador Personal</h3>
             <button onclick="toggleModal('trainer-assignment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
@@ -661,7 +720,7 @@
             @csrf
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Entrenador</label>
-                <select name="trainer_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <select name="trainer_id" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
                     <option value="" disabled selected>Selecciona un entrenador...</option>
                     @foreach($trainers as $trainer)
                         @php
@@ -691,8 +750,8 @@
 
 @if($cliente->activeMembership)
 <!-- ================= MODAL: REGISTRAR ABONO (PERFIL SOCIO) ================= -->
-<div id="client-abono-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+<div id="client-abono-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div class="flex items-center gap-2.5">
                 <div class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -703,7 +762,7 @@
                     <p class="text-[11px] text-slate-400">Plan: {{ $cliente->activeMembership->plan->name ?? 'Membresía' }}</p>
                 </div>
             </div>
-            <button type="button" onclick="toggleModal('client-abono-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+            <button type="button" onclick="toggleModal('client-abono-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
@@ -765,7 +824,7 @@
             </div>
 
             <div class="pt-4 flex gap-3 border-t border-slate-800">
-                <button type="button" onclick="toggleModal('client-abono-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
+                <button type="button" onclick="toggleModal('client-abono-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors cursor-pointer">
                     Cancelar
                 </button>
                 <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
@@ -777,6 +836,7 @@
     </div>
 </div>
 @endif
+@endpush
 
 <script>
     function toggleModal(modalId) {

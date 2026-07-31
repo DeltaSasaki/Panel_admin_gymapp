@@ -55,9 +55,9 @@
 
             <!-- Action Buttons Group (Imprimir & Cierre de Caja) -->
             <div class="flex items-center gap-2">
-                <button type="button" onclick="window.print()" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-200 border border-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
-                    <i data-lucide="printer" class="w-4 h-4 text-slate-400"></i> Imprimir Cierre
-                </button>
+                <a href="{{ route('cierre_caja.export_pdf', request()->all()) }}" target="_blank" class="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-200 border border-slate-800 font-bold text-xs rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-sm">
+                    <i data-lucide="file-text" class="w-4 h-4 text-lime-400"></i> Imprimir Cierre (PDF)
+                </a>
 
                 @if(!$isClosed)
                     <button type="button" onclick="toggleModal('close-cash-modal')" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-lime-500/10 active:scale-95 transition-all flex items-center gap-2 cursor-pointer">

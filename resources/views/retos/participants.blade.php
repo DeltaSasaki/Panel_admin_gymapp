@@ -217,7 +217,7 @@
                                     data-name="{{ strtolower($clientName) }}"
                                     data-email="{{ strtolower($clientEmail) }}"
                                     data-status="{{ $p->status }}"
-                                    class="hover:bg-slate-850/40 transition-colors">
+                                    class="hover:bg-slate-850/40 transition-colors {{ $loop->index >= 8 ? 'hidden' : '' }}">
                                     <td class="py-4 px-4">
                                         <div class="flex items-center gap-3">
                                             <img src="{{ $photoUrl }}" class="w-8 h-8 rounded-full object-cover border border-slate-700 shrink-0">
@@ -863,6 +863,26 @@
         renderParticipantsPage();
     }
 
+    function initParticipantsPagination() {
+        updateCountsUI();
+        renderParticipantsPage();
+    }
+
+    // Execute immediately on script evaluation and handle all ready states & page transitions
+    initParticipantsPagination();
+
+    if (document.readyState !== 'loading') {
+        initParticipantsPagination();
+    } else {
+        document.addEventListener('DOMContentLoaded', initParticipantsPagination);
+    }
+
+    window.addEventListener('load', initParticipantsPagination);
+    window.addEventListener('pageshow', initParticipantsPagination);
+    window.addEventListener('page:loaded', initParticipantsPagination);
+    document.addEventListener('livewire:navigated', initParticipantsPagination);
+    document.addEventListener('turbo:load', initParticipantsPagination);
+
     document.addEventListener('DOMContentLoaded', function () {
         @if(session('success'))
             showToast("{{ session('success') }}", 'success');
@@ -872,9 +892,6 @@
                 showToast("{{ $error }}", 'error');
             @endforeach
         @endif
-
-        updateCountsUI();
-        renderParticipantsPage();
     });
 </script>
 @endsection

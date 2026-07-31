@@ -91,7 +91,7 @@
                         <select name="gender" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
                             <option value="male" {{ old('gender') === 'male' ? 'selected' : '' }}>Masculino</option>
                             <option value="female" {{ old('gender') === 'female' ? 'selected' : '' }}>Femenino</option>
-                            <option value="other" {{ old('gender') === 'other' ? 'selected' : '' }}>Otro</option>
+                            
                         </select>
                     </div>
                     <div>

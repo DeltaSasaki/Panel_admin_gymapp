@@ -19,6 +19,45 @@ class CashClosingController extends Controller
      */
     public function index(Request $request)
     {
+        $data = $this->getCashClosingData($request);
+        return view('cierre_caja.index', $data);
+    }
+
+    /**
+     * Export professional Cash Closing PDF using mPDF.
+     */
+    public function exportPdf(Request $request)
+    {
+        $data = $this->getCashClosingData($request);
+
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'margin_left' => 12,
+            'margin_right' => 12,
+            'margin_top' => 12,
+            'margin_bottom' => 15,
+            'margin_header' => 5,
+            'margin_footer' => 5
+        ]);
+
+        $html = view('cierre_caja.pdf', $data)->render();
+        $mpdf->WriteHTML($html);
+
+        $slugPeriod = \Illuminate\Support\Str::slug($data['periodLabel']);
+        $filename = 'Cierre_Caja_' . $slugPeriod . '_' . date('Ymd_His') . '.pdf';
+
+        return response($mpdf->Output($filename, 'I'), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"'
+        ]);
+    }
+
+    /**
+     * Fetch & process all financial metrics and queries for cash closing.
+     */
+    private function getCashClosingData(Request $request)
+    {
         $this->checkAdmin();
 
         $gymId = $this->getActiveGymId();
@@ -133,7 +172,7 @@ class CashClosingController extends Controller
 
         $gym = ($gymId !== 'all') ? Gym::find($gymId) : null;
 
-        return view('cierre_caja.index', compact(
+        return compact(
             'membershipPayments',
             'productSales',
             'newMemberships',
@@ -151,7 +190,7 @@ class CashClosingController extends Controller
             'isClosed',
             'closingLog',
             'gym'
-        ));
+        );
     }
 
     /**

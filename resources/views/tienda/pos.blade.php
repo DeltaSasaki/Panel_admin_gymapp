@@ -14,28 +14,29 @@
         </div>
 
         <!-- Cashier Category & Search Quick Filter Bar -->
-        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-            <!-- Category Filter Pills -->
-            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                <button type="button" onclick="filterByCategory('all', this)" id="cat-btn-all" class="pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 shrink-0 transition-colors cursor-pointer">
-                    Todos ({{ $products->count() }})
-                </button>
-                @foreach($categories as $cat)
-                    @php
-                        $catCount = $products->where('category_id', $cat->id)->count();
-                    @endphp
-                    @if($catCount > 0)
-                        <button type="button" onclick="filterByCategory('{{ strtolower($cat->name) }}', this)" class="pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-850 shrink-0 transition-colors cursor-pointer">
-                            {{ $cat->name }} ({{ $catCount }})
-                        </button>
-                    @endif
-                @endforeach
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+            <!-- Category Filter Dropdown -->
+            <div class="flex items-center gap-2 flex-1 sm:max-w-xs">
+                <div class="p-2 rounded-xl bg-slate-950 border border-slate-850 text-lime-400 shrink-0">
+                    <i data-lucide="filter" class="w-4 h-4"></i>
+                </div>
+                <select id="category-select-filter" onchange="filterByCategorySelect(this.value)" class="w-full px-3.5 py-2.5 text-xs font-bold bg-slate-950 border border-slate-850 rounded-xl text-slate-200 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="all">Todas las Categorías ({{ $products->count() }})</option>
+                    @foreach($categories as $cat)
+                        @php
+                            $catCount = $products->where('category_id', $cat->id)->count();
+                        @endphp
+                        @if($catCount > 0)
+                            <option value="{{ strtolower($cat->name) }}">{{ $cat->name }} ({{ $catCount }})</option>
+                        @endif
+                    @endforeach
+                </select>
             </div>
 
             <!-- Search Bar -->
-            <div class="relative w-full md:w-56 shrink-0">
+            <div class="relative w-full sm:w-64 shrink-0">
                 <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
             </div>
         </div>
 
@@ -61,6 +62,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="products-container">
             @forelse($products as $product)
                 <div class="product-card bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-lime-500/40 transition-colors cursor-pointer select-none active:scale-[0.98]" 
+                     style="{{ $loop->index >= 9 ? 'display: none;' : '' }}"
                      data-id="{{ $product->id }}" 
                      data-name="{{ $product->name }}" 
                      data-category="{{ $product->category->name ?? '' }}"
@@ -223,19 +225,8 @@
     let matchingPosCards = [];
     let selectedCategoryFilter = 'all';
 
-    function filterByCategory(catName, btnEl) {
-        selectedCategoryFilter = catName.toLowerCase();
-
-        // Update button active styles
-        const btns = document.querySelectorAll('.pos-cat-btn');
-        btns.forEach(b => {
-            b.className = "pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-850 shrink-0 transition-colors cursor-pointer";
-        });
-
-        if (btnEl) {
-            btnEl.className = "pos-cat-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-lime-500/10 text-lime-400 border border-lime-500/20 shrink-0 transition-colors cursor-pointer";
-        }
-
+    function filterByCategorySelect(catValue) {
+        selectedCategoryFilter = (catValue || 'all').toLowerCase();
         filterProducts();
     }
 
@@ -568,11 +559,25 @@
         }, 3500);
     }
 
-    // Initialize pagination on load
-    document.addEventListener('DOMContentLoaded', function() {
+    // Initialize pagination on load and navigation events
+    function initPosPagination() {
         const cards = document.querySelectorAll('.product-card');
         matchingPosCards = Array.from(cards);
         renderPosPaginatedGrid();
-    });
+    }
+
+    initPosPagination();
+
+    if (document.readyState !== 'loading') {
+        initPosPagination();
+    } else {
+        document.addEventListener('DOMContentLoaded', initPosPagination);
+    }
+
+    window.addEventListener('load', initPosPagination);
+    window.addEventListener('pageshow', initPosPagination);
+    window.addEventListener('page:loaded', initPosPagination);
+    document.addEventListener('livewire:navigated', initPosPagination);
+    document.addEventListener('turbo:load', initPosPagination);
 </script>
 @endsection

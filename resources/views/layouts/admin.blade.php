@@ -21,22 +21,77 @@
         }
     }
 
-    // Calculate real Aforo / Gym Capacity based on SaaS Plan max_users
+    // Calculate real Aforo / Gym Capacity based on SaaS Plan max_users from gym_subscriptions & saas_subscription_plans
+    $getGymActivePlanHelper = function($gId) {
+        if (!$gId || $gId === 'all') return null;
+        if (\Illuminate\Support\Facades\Schema::hasTable('gym_subscriptions')) {
+            $sub = \DB::table('gym_subscriptions')
+                ->where('gym_id', $gId)
+                ->whereIn('status', ['active', 'trialing'])
+                ->latest('id')
+                ->first();
+            if ($sub && $sub->plan_id) {
+                $plan = \App\Models\SaasSubscriptionPlan::find($sub->plan_id);
+                if ($plan) return $plan;
+            }
+        }
+        $gym = \App\Models\Gym::find($gId);
+        if ($gym && $gym->current_plan_id) {
+            return \App\Models\SaasSubscriptionPlan::find($gym->current_plan_id);
+        }
+        return null;
+    };
+
     if ($activeGymId === 'all') {
         $aforoCurrentUsers = \App\Models\User::where('role', 'member')->count();
-        $allGymsList = \App\Models\Gym::with('plan')->get();
-        $aforoMaxUsers = 0;
+        $allGymsList = \App\Models\Gym::all();
+        $aforoMaxUsersSum = 0;
+        $hasUnlimitedPlan = false;
         foreach ($allGymsList as $g) {
-            $aforoMaxUsers += ($g->plan?->max_users ?? 50);
+            $plan = $getGymActivePlanHelper($g->id);
+            if ($plan) {
+                if (is_null($plan->max_users)) {
+                    $hasUnlimitedPlan = true;
+                } else {
+                    $aforoMaxUsersSum += (int)$plan->max_users;
+                }
+            } else {
+                $aforoMaxUsersSum += 50;
+            }
+        }
+        if ($hasUnlimitedPlan) {
+            $aforoMaxUsersNum = null;
+            $aforoMaxUsers = 'Ilimitado';
+        } else {
+            $aforoMaxUsersNum = $aforoMaxUsersSum > 0 ? $aforoMaxUsersSum : 50;
+            $aforoMaxUsers = $aforoMaxUsersNum;
         }
     } else {
         $aforoCurrentUsers = \App\Models\User::where('gym_id', $activeGymId)->where('role', 'member')->count();
-        $selectedGymForAforo = \App\Models\Gym::with('plan')->find($activeGymId);
-        $aforoMaxUsers = $selectedGymForAforo ? ($selectedGymForAforo->plan?->max_users ?? 50) : 50;
+        $plan = $getGymActivePlanHelper($activeGymId);
+        if ($plan) {
+            if (is_null($plan->max_users)) {
+                $aforoMaxUsersNum = null;
+                $aforoMaxUsers = 'Ilimitado';
+            } else {
+                $aforoMaxUsersNum = (int)$plan->max_users;
+                $aforoMaxUsers = $aforoMaxUsersNum;
+            }
+        } else {
+            $aforoMaxUsersNum = 50;
+            $aforoMaxUsers = 50;
+        }
     }
 
-    $aforoPercentage = $aforoMaxUsers > 0 ? round(($aforoCurrentUsers / $aforoMaxUsers) * 100, 1) : 0;
-    $aforoPctFormatted = (floor($aforoPercentage) == $aforoPercentage) ? (int)$aforoPercentage : $aforoPercentage;
+    if (is_null($aforoMaxUsersNum)) {
+        $aforoPercentage = 100;
+        $aforoPctFormatted = '∞';
+        $aforoCountText = "{$aforoCurrentUsers} / ∞";
+    } else {
+        $aforoPercentage = $aforoMaxUsersNum > 0 ? round(($aforoCurrentUsers / $aforoMaxUsersNum) * 100, 1) : 0;
+        $aforoPctFormatted = (floor($aforoPercentage) == $aforoPercentage) ? (int)$aforoPercentage : $aforoPercentage;
+        $aforoCountText = "{$aforoCurrentUsers}/{$aforoMaxUsersNum}";
+    }
 @endphp
 <!DOCTYPE html>
 <html lang="es" class="h-full bg-slate-950 text-slate-100">
@@ -343,8 +398,8 @@
                 <nav class="space-y-4">
                     @php
                         $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*') || Request::is('asistencia*');
-                        $isCajaActive = Request::is('tienda*') || Request::is('finanzas*');
-                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('recetas*') || Request::is('ejercicios*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*');
+                        $isCajaActive = Request::is('tienda*') || Request::is('finanzas*') || Request::is('cierre-caja*');
+                        $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('recetas*') || Request::is('ejercicios*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*') || Request::is('notificaciones*');
                         $isSaaSActive = Request::is('staff*');
                         $isSuperadminActive = Request::is('superadmin*');
                     @endphp
@@ -594,9 +649,9 @@
                                 <i data-lucide="gauge" class="w-3.5 h-3.5 text-slate-500"></i> Aforo del Gym
                             </span>
                             <span class="flex items-center gap-1.5 ml-auto">
-                                <span class="aforo-count-val text-slate-300 font-extrabold text-[11px] whitespace-nowrap tracking-tight">{{ $aforoCurrentUsers }}/{{ $aforoMaxUsers }}</span>
+                                <span class="aforo-count-val text-slate-300 font-extrabold text-[11px] whitespace-nowrap tracking-tight">{{ $aforoCountText }}</span>
                                 <span class="aforo-pct-badge-val {{ $badgeBg }} {{ $textColor }} px-1.5 py-0.5 rounded-md text-[10px] font-black tracking-wide border {{ $badgeBorder }} whitespace-nowrap">
-                                    {{ $aforoPctFormatted }}%
+                                    {{ is_null($aforoMaxUsersNum) ? 'Ilimitado' : $aforoPctFormatted . '%' }}
                                 </span>
                             </span>
                         </div>
@@ -761,14 +816,36 @@
                 if (isOpen) {
                     content.classList.remove('open');
                     if (chevron) chevron.classList.add('-rotate-90');
+                    localStorage.setItem('sidebar_group_' + groupId, 'closed');
                 } else {
                     content.classList.add('open');
                     if (chevron) chevron.classList.remove('-rotate-90');
+                    localStorage.setItem('sidebar_group_' + groupId, 'open');
                 }
             }
         }
 
+        function syncSidebarGroupStates() {
+            ['group-principal', 'group-caja', 'group-entrenamiento', 'group-saas', 'group-superadmin'].forEach(groupId => {
+                const content = document.getElementById(groupId);
+                const chevron = document.getElementById('chevron-' + groupId);
+                if (!content) return;
+
+                const savedState = localStorage.getItem('sidebar_group_' + groupId);
+                const hasActiveLink = content.querySelector('.active-nav-link') !== null;
+
+                if (hasActiveLink || savedState === 'open') {
+                    content.classList.add('open');
+                    if (chevron) chevron.classList.remove('-rotate-90');
+                } else if (savedState === 'closed' && !hasActiveLink) {
+                    content.classList.remove('open');
+                    if (chevron) chevron.classList.add('-rotate-90');
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            syncSidebarGroupStates();
             // Initializing Lucide icons
             lucide.createIcons();
 
@@ -1153,6 +1230,9 @@
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
 
+                    if (typeof syncSidebarGroupStates === 'function') {
+                        syncSidebarGroupStates();
+                    }
                     updateSidebarActiveLinks(url);
 
                     if (window.lucide) {

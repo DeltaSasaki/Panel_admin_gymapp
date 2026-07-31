@@ -314,18 +314,38 @@ class AttendanceController extends Controller
             ];
         });
 
-        // Calculate real capacity stats
+        $getGymActivePlanHelper = function($gId) {
+            if (!$gId || $gId === 'all') return null;
+            if (\Illuminate\Support\Facades\Schema::hasTable('gym_subscriptions')) {
+                $sub = \DB::table('gym_subscriptions')
+                    ->where('gym_id', $gId)
+                    ->whereIn('status', ['active', 'trialing'])
+                    ->latest('id')
+                    ->first();
+                if ($sub && $sub->plan_id) {
+                    $plan = SaasSubscriptionPlan::find($sub->plan_id);
+                    if ($plan) return $plan;
+                }
+            }
+            $gym = Gym::find($gId);
+            if ($gym && $gym->current_plan_id) {
+                return SaasSubscriptionPlan::find($gym->current_plan_id);
+            }
+            return null;
+        };
+
         if ($gymId === 'all') {
             $aforoCurrentUsers = User::where('role', 'member')->count();
-            $allGymsList = Gym::with('plan')->get();
+            $allGymsList = Gym::all();
             $aforoMaxUsers = 0;
             foreach ($allGymsList as $g) {
-                $aforoMaxUsers += ($g->plan?->max_users ?? 50);
+                $plan = $getGymActivePlanHelper($g->id);
+                $aforoMaxUsers += ($plan ? ($plan->max_users ?? 50) : 50);
             }
         } else {
             $aforoCurrentUsers = User::where('gym_id', $gymId)->where('role', 'member')->count();
-            $selectedGymForAforo = Gym::with('plan')->find($gymId);
-            $aforoMaxUsers = $selectedGymForAforo ? ($selectedGymForAforo->plan?->max_users ?? 50) : 50;
+            $plan = $getGymActivePlanHelper($gymId);
+            $aforoMaxUsers = $plan ? ($plan->max_users ?? 50) : 50;
         }
 
         return response()->json([

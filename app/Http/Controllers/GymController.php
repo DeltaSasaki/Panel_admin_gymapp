@@ -50,13 +50,17 @@ class GymController extends Controller
     public function store(Request $request)
     {
         $this->checkSuperadmin();
+        if ($request->has('current_plan_id') && $request->input('current_plan_id') === '') {
+            $request->merge(['current_plan_id' => null]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:150',
             'slug' => 'nullable|string|max:50|unique:gyms,slug',
             'current_plan_id' => 'nullable|exists:saas_subscription_plans,id',
             'subscription_status' => 'nullable|in:active,past_due,canceled,trialing',
             'address' => 'nullable|string',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:150',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
             'primary_color' => 'nullable|string|max:7',
@@ -85,9 +89,21 @@ class GymController extends Controller
             'logo_url' => $logoUrl,
             'primary_color' => $request->primary_color ?? '#000000',
             'secondary_color' => $request->secondary_color ?? '#FFFFFF',
-            'timezone' => $request->timezone ?? 'Europe/Madrid',
+            'timezone' => $request->timezone ?? 'America/Lima',
             'is_active' => 1,
         ]);
+
+        if ($request->current_plan_id && \Illuminate\Support\Facades\Schema::hasTable('gym_subscriptions')) {
+            \DB::table('gym_subscriptions')->updateOrInsert(
+                ['gym_id' => $gym->id],
+                [
+                    'plan_id' => $request->current_plan_id,
+                    'status' => $request->subscription_status ?? 'active',
+                    'start_date' => now()->toDateString(),
+                    'end_date' => now()->addYear()->toDateString(),
+                ]
+            );
+        }
 
         AdminAuditLog::logAction('INSERT', 'gyms', $gym->id, null, $gym->toArray(), $gym->id);
 
@@ -128,13 +144,17 @@ class GymController extends Controller
         $this->checkSuperadmin();
         $gym = Gym::findOrFail($id);
 
+        if ($request->has('current_plan_id') && $request->input('current_plan_id') === '') {
+            $request->merge(['current_plan_id' => null]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:150',
             'slug' => 'nullable|string|max:50|unique:gyms,slug,' . $id,
             'current_plan_id' => 'nullable|exists:saas_subscription_plans,id',
             'subscription_status' => 'nullable|in:active,past_due,canceled,trialing',
             'address' => 'nullable|string',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:150',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg,gif,webp|max:2048',
             'primary_color' => 'nullable|string|max:7',
@@ -155,7 +175,7 @@ class GymController extends Controller
             'email' => $request->email,
             'primary_color' => $request->primary_color ?? '#000000',
             'secondary_color' => $request->secondary_color ?? '#FFFFFF',
-            'timezone' => $request->timezone ?? 'Europe/Madrid',
+            'timezone' => $request->timezone ?? 'America/Lima',
         ];
 
         if ($request->hasFile('logo')) {
@@ -177,6 +197,21 @@ class GymController extends Controller
         }
 
         $gym->update($data);
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('gym_subscriptions')) {
+            if ($request->current_plan_id) {
+                \DB::table('gym_subscriptions')->updateOrInsert(
+                    ['gym_id' => $gym->id],
+                    [
+                        'plan_id' => $request->current_plan_id,
+                        'status' => $request->subscription_status ?? 'active',
+                        'start_date' => now()->toDateString(),
+                        'end_date' => now()->addYear()->toDateString(),
+                    ]
+                );
+            }
+        }
+
         AdminAuditLog::logAction('UPDATE', 'gyms', $gym->id, $oldGym, $gym->fresh()->toArray(), $gym->id);
 
         $message = 'Sucursal de gimnasio actualizada exitosamente.';
