@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -672,6 +673,98 @@ class AdminController extends Controller
     public function crearCliente()
     {
         return view('clientes.crear');
+    }
+
+    /**
+     * Consultar CNE por número de DNI / Cédula.
+     */
+    public function consultarCne(Request $request)
+    {
+        $rawDni = trim($request->input('dni', $request->input('cedula', '')));
+        if (empty($rawDni)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Por favor ingresa un número de DNI o cédula.'
+            ], 422);
+        }
+
+        // Extract nationality prefix if present (e.g. V-12345678, E-12345678, V12345678)
+        $nacionalidad = 'V';
+        $cedula = $rawDni;
+
+        if (preg_match('/^([VEve])[-_\s]*(\d+)$/', $rawDni, $matches)) {
+            $nacionalidad = strtoupper($matches[1]);
+            $cedula = $matches[2];
+        } else {
+            // Strip any non-digit characters
+            $cedula = preg_replace('/\D/', '', $rawDni);
+        }
+
+        if (empty($cedula)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Número de cédula inválido.'
+            ], 422);
+        }
+
+        $appId = env('CNE_API_APP_ID', '2118');
+        $token = env('CNE_API_TOKEN', 'ad3e6e46e42e96adba76c92c23755b54');
+
+        try {
+            $response = Http::withoutVerifying()->timeout(10)->get('https://api.cedula.com.ve/api/v1', [
+                'app_id' => $appId,
+                'token' => $token,
+                'nacionalidad' => $nacionalidad,
+                'cedula' => $cedula,
+            ]);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error de conexión con el servicio CNE.'
+                ], 502);
+            }
+
+            $data = $response->json();
+
+            if (!isset($data['error']) || $data['error'] === true || empty($data['data'])) {
+                $errorStr = $data['error_str'] ?? 'No se encontraron datos para la cédula ingresada.';
+                return response()->json([
+                    'success' => false,
+                    'message' => is_string($errorStr) ? $errorStr : 'Cédula no encontrada en la base de datos CNE.'
+                ], 404);
+            }
+
+            $info = $data['data'];
+            $primerNombre = trim($info['primer_nombre'] ?? '');
+            $segundoNombre = trim($info['segundo_nombre'] ?? '');
+            $primerApellido = trim($info['primer_apellido'] ?? '');
+            $segundoApellido = trim($info['segundo_apellido'] ?? '');
+
+            $firstName = trim($primerNombre . ' ' . $segundoNombre);
+            $lastName = trim($primerApellido . ' ' . $segundoApellido);
+
+            // Format nicely (Title Case) if string is uppercase
+            if (mb_strtoupper($firstName) === $firstName) {
+                $firstName = mb_convert_case($firstName, MB_CASE_TITLE, 'UTF-8');
+            }
+            if (mb_strtoupper($lastName) === $lastName) {
+                $lastName = mb_convert_case($lastName, MB_CASE_TITLE, 'UTF-8');
+            }
+
+            return response()->json([
+                'success' => true,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'data' => $info
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Excepción al consultar el servicio CNE: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
