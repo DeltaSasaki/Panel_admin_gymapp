@@ -171,19 +171,26 @@
                                 </div>
                             </td>
 
+                            <!-- ESTADO (Read-Only Info Cell) -->
                             <td class="py-4 px-4 text-center whitespace-nowrap">
-                                <button type="button" onclick="toggleGatewayStatus({{ $gw->id }})" id="status_btn_{{ $gw->id }}" class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider transition-all cursor-pointer {{ $gw->is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20' }}">
+                                <span id="status_badge_{{ $gw->id }}" class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider {{ $gw->is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20' }}">
                                     {{ $gw->is_active ? 'Activa' : 'Inhabilitada' }}
-                                </button>
+                                </span>
                             </td>
 
                             <td class="py-4 px-6 text-right whitespace-nowrap">
                                 <div class="flex items-center justify-end gap-1.5">
+                                    <!-- Edit Button -->
                                     <button type="button" onclick='openEditGatewayModal(@json($gw))' id="edit_btn_{{ $gw->id }}" class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Pasarela">
                                         <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </button>
-                                    <button type="button" onclick="deleteGateway({{ $gw->id }}, '{{ addslashes($gw->title) }}')" class="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Eliminar Pasarela">
-                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+
+                                    <!-- Toggle Active / Inhabilitar Status Action Button -->
+                                    <button type="button" onclick="openToggleGatewayModal({{ $gw->id }}, '{{ addslashes($gw->title) }}', {{ $gw->is_active ? 1 : 0 }})" 
+                                            id="toggle_btn_{{ $gw->id }}" 
+                                            class="p-2 {{ $gw->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
+                                            title="{{ $gw->is_active ? 'Inhabilitar Pasarela' : 'Habilitar Pasarela' }}">
+                                        <i data-lucide="{{ $gw->is_active ? 'power' : 'check-circle' }}" class="w-4 h-4"></i>
                                     </button>
                                 </div>
                             </td>
@@ -291,6 +298,42 @@
     </div>
 </div>
 
+<!-- ================= MODAL: CAMBIAR ESTADO (HABILITAR / INHABILITAR) ================= -->
+<div id="modal-toggle-gateway" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto space-y-5 animate-scale-up shadow-2xl">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+                <div id="toggle-modal-icon-bg" class="p-2.5 rounded-2xl border bg-rose-500/10 text-rose-400 border-rose-500/20">
+                    <i id="toggle-modal-icon" data-lucide="power" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 id="toggle-modal-title" class="font-extrabold text-sm text-slate-100 uppercase tracking-widest">
+                        Inhabilitar Pasarela
+                    </h3>
+                    <p class="text-[10px] text-slate-400">Confirmación de cambio de estado</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('modal-toggle-gateway')" class="text-slate-400 hover:text-slate-100 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <p id="toggle-modal-desc" class="text-xs text-slate-300 leading-relaxed">
+            ¿Estás seguro de cambiar el estado de la pasarela de pago?
+        </p>
+
+        <form id="toggle-gateway-form" onsubmit="submitToggleGateway(event)" class="flex items-center justify-end gap-3 pt-2">
+            <input type="hidden" id="toggle_gateway_id" value="">
+            <button type="button" onclick="toggleModal('modal-toggle-gateway')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-900 border border-slate-855 text-slate-300 hover:text-slate-100 text-xs font-semibold rounded-xl transition-all">
+                Cancelar
+            </button>
+            <button type="submit" id="toggle-gateway-submit-btn" class="px-5 py-2.5 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5">
+                Confirmar
+            </button>
+        </form>
+    </div>
+</div>
+
 <!-- ================= MODAL: API REST TESTER FOR MOBILE APP ================= -->
 <div id="modal-api-tester" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl">
@@ -348,9 +391,15 @@
             : `<span class="px-2 py-0.5 text-[9px] font-extrabold uppercase rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">⚡ Pruebas (Sandbox)</span>`;
 
         const statusBadgeClass = gw.is_active 
-            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-            : "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20";
+            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+            : "bg-rose-500/10 text-rose-400 border-rose-500/20";
         const statusBadgeText = gw.is_active ? "Activa" : "Inhabilitada";
+
+        const toggleBtnClass = gw.is_active
+            ? "p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm"
+            : "p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm";
+        const toggleBtnTitle = gw.is_active ? "Inhabilitar Pasarela" : "Habilitar Pasarela";
+        const toggleBtnIcon = gw.is_active ? "power" : "check-circle";
 
         const emailHTML = email 
             ? `<span class="text-slate-300 font-semibold text-xs flex items-center gap-1.5"><i data-lucide="mail" class="w-3.5 h-3.5 text-lime-400"></i> ${escapeHtml(email)}</span>`
@@ -390,17 +439,17 @@
                 </div>
             </td>
             <td class="py-4 px-4 text-center whitespace-nowrap">
-                <button type="button" onclick="toggleGatewayStatus(${gw.id})" id="status_btn_${gw.id}" class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider transition-all cursor-pointer ${statusBadgeClass}">
+                <span id="status_badge_${gw.id}" class="px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider ${statusBadgeClass}">
                     ${statusBadgeText}
-                </button>
+                </span>
             </td>
             <td class="py-4 px-6 text-right whitespace-nowrap">
                 <div class="flex items-center justify-end gap-1.5">
                     <button type="button" onclick='openEditGatewayModal(${gwJsonStr})' id="edit_btn_${gw.id}" class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Pasarela">
                         <i data-lucide="edit-3" class="w-4 h-4"></i>
                     </button>
-                    <button type="button" onclick="deleteGateway(${gw.id}, '${escapeHtml(gw.title.replace(/'/g, "\\'"))}')" class="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Eliminar Pasarela">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <button type="button" onclick="openToggleGatewayModal(${gw.id}, '${escapeHtml(gw.title.replace(/'/g, "\\'"))}', ${gw.is_active ? 1 : 0})" id="toggle_btn_${gw.id}" class="${toggleBtnClass}" title="${toggleBtnTitle}">
+                        <i data-lucide="${toggleBtnIcon}" class="w-4 h-4"></i>
                     </button>
                 </div>
             </td>
@@ -586,7 +635,41 @@
         }
     }
 
-    async function toggleGatewayStatus(id) {
+    function openToggleGatewayModal(id, title, isActive) {
+        document.getElementById('toggle_gateway_id').value = id;
+        const titleEl = document.getElementById('toggle-modal-title');
+        const descEl = document.getElementById('toggle-modal-desc');
+        const iconBg = document.getElementById('toggle-modal-icon-bg');
+        const iconEl = document.getElementById('toggle-modal-icon');
+        const submitBtn = document.getElementById('toggle-gateway-submit-btn');
+
+        if (isActive) {
+            titleEl.textContent = 'Inhabilitar Pasarela';
+            descEl.innerHTML = `¿Estás seguro de que deseas inhabilitar la pasarela <strong class="text-slate-100">${escapeHtml(title)}</strong>? Dejará de aparecer en las opciones de cobro para tus clientes.`;
+            iconBg.className = "p-2.5 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20";
+            if (iconEl) iconEl.setAttribute('data-lucide', 'power');
+            submitBtn.className = "px-5 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all";
+            submitBtn.textContent = "Sí, Inhabilitar";
+        } else {
+            titleEl.textContent = 'Habilitar Pasarela';
+            descEl.innerHTML = `¿Deseas reactivar y habilitar la pasarela <strong class="text-slate-100">${escapeHtml(title)}</strong> para restaurar la opción de pago a tus clientes?`;
+            iconBg.className = "p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+            if (iconEl) iconEl.setAttribute('data-lucide', 'check-circle');
+            submitBtn.className = "px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-lime-500 hover:from-emerald-400 hover:to-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all";
+            submitBtn.textContent = "Sí, Habilitar";
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+        toggleModal('modal-toggle-gateway');
+    }
+
+    async function submitToggleGateway(e) {
+        e.preventDefault();
+        const id = document.getElementById('toggle_gateway_id').value;
+        const submitBtn = document.getElementById('toggle-gateway-submit-btn');
+
+        setBtnLoading(submitBtn, true, 'Procesando...');
+
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const response = await fetch(`/finanzas/pasarelas/${id}/toggle`, {
@@ -598,60 +681,44 @@
                 }
             });
             const data = await response.json();
-            if (data.success) {
-                const btn = document.getElementById(`status_btn_${id}`);
-                if (btn) {
+            if (response.ok && data.success) {
+                const badge = document.getElementById(`status_badge_${id}`);
+                const toggleBtn = document.getElementById(`toggle_btn_${id}`);
+                const gwTitle = data.gateway_title || '';
+
+                if (badge) {
                     if (data.is_active) {
-                        btn.className = "px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider transition-all cursor-pointer bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20";
-                        btn.textContent = "Activa";
+                        badge.className = "px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                        badge.textContent = "Activa";
                     } else {
-                        btn.className = "px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider transition-all cursor-pointer bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20";
-                        btn.textContent = "Inhabilitada";
+                        badge.className = "px-2.5 py-1 text-[9px] font-black uppercase rounded-lg border tracking-wider bg-rose-500/10 text-rose-400 border-rose-500/20";
+                        badge.textContent = "Inhabilitada";
                     }
                 }
+
+                if (toggleBtn) {
+                    const titleText = data.is_active ? 'Inhabilitar Pasarela' : 'Habilitar Pasarela';
+                    const iconName = data.is_active ? 'power' : 'check-circle';
+                    const btnClass = data.is_active
+                        ? "p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm"
+                        : "p-2 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm";
+                    
+                    toggleBtn.className = btnClass;
+                    toggleBtn.title = titleText;
+                    toggleBtn.innerHTML = `<i data-lucide="${iconName}" class="w-4 h-4"></i>`;
+                    toggleBtn.setAttribute('onclick', `openToggleGatewayModal(${id}, '${escapeHtml(gwTitle.replace(/'/g, "\\'"))}', ${data.is_active ? 1 : 0})`);
+                }
+
+                if (window.lucide) window.lucide.createIcons();
+                toggleModal('modal-toggle-gateway');
                 showToast(data.message, 'success');
             } else {
                 showToast(data.message || 'Error al cambiar estado.', 'error');
             }
         } catch (err) {
-            showToast('Error de conexión.', 'error');
-        }
-    }
-
-    async function deleteGateway(id, title) {
-        if (!confirm(`¿Estás seguro de inhabilitar y eliminar la pasarela '${title}'?`)) return;
-
-        try {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            const response = await fetch(`/finanzas/pasarelas/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken,
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            });
-            const data = await response.json();
-            if (data.success) {
-                const row = document.getElementById(`gw_row_${id}`);
-                if (row) row.remove();
-
-                updateGatewaysCount();
-
-                const tbody = document.getElementById('gateways-tbody');
-                if (tbody && tbody.children.length === 0) {
-                    const emptyContainer = document.getElementById('gateways-empty-state');
-                    const tableContainer = document.getElementById('gateways-table-container');
-                    if (emptyContainer) emptyContainer.classList.remove('hidden');
-                    if (tableContainer) tableContainer.classList.add('hidden');
-                }
-
-                showToast(data.message, 'success');
-            } else {
-                showToast(data.message || 'Error al eliminar.', 'error');
-            }
-        } catch (err) {
-            showToast('Error de conexión.', 'error');
+            showToast('Error de conexión con el servidor.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
         }
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\GymPaymentGateway;
 use App\Models\Gym;
+use App\Models\AdminAuditLog;
 
 class PaymentGatewayController extends Controller
 {
@@ -171,6 +172,15 @@ class PaymentGatewayController extends Controller
             'sort_order' => (int)($request->sort_order ?? 0),
         ]);
 
+        AdminAuditLog::logAction(
+            'INSERT',
+            'gym_payment_gateways',
+            $gateway->id,
+            null,
+            $gateway->toArray(),
+            $activeGymId
+        );
+
         $message = "Pasarela de pago '{$gateway->title}' configurada exitosamente.";
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -207,6 +217,7 @@ class PaymentGatewayController extends Controller
             'credentials' => 'nullable|array',
         ]);
 
+        $oldData = $gateway->toArray();
         $existingCreds = $gateway->credentials ?? [];
         $newCreds = $request->credentials ?? [];
         
@@ -233,6 +244,15 @@ class PaymentGatewayController extends Controller
             'sort_order' => (int)($request->sort_order ?? 0),
         ]);
 
+        AdminAuditLog::logAction(
+            'UPDATE',
+            'gym_payment_gateways',
+            $gateway->id,
+            $oldData,
+            $gateway->fresh()->toArray(),
+            $gateway->gym_id
+        );
+
         $message = "Pasarela '{$gateway->title}' actualizada exitosamente.";
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -257,15 +277,26 @@ class PaymentGatewayController extends Controller
         }
 
         $gateway = GymPaymentGateway::findOrFail($id);
+        $oldData = ['is_active' => $gateway->is_active];
         $newStatus = $gateway->is_active ? 0 : 1;
         $gateway->update(['is_active' => $newStatus]);
 
-        $statusLabel = $newStatus ? 'activada' : 'desactivada';
+        AdminAuditLog::logAction(
+            'UPDATE',
+            'gym_payment_gateways',
+            $gateway->id,
+            $oldData,
+            ['is_active' => $newStatus],
+            $gateway->gym_id
+        );
+
+        $statusLabel = $newStatus ? 'habilitada' : 'inhabilitada';
         $message = "Pasarela '{$gateway->title}' {$statusLabel} con éxito.";
 
         return response()->json([
             'success' => true,
             'message' => $message,
+            'gateway_title' => $gateway->title,
             'is_active' => $newStatus
         ]);
     }
@@ -281,8 +312,19 @@ class PaymentGatewayController extends Controller
         }
 
         $gateway = GymPaymentGateway::findOrFail($id);
+        $oldData = $gateway->toArray();
+        $gymId = $gateway->gym_id;
         $name = $gateway->title;
         $gateway->delete();
+
+        AdminAuditLog::logAction(
+            'DELETE',
+            'gym_payment_gateways',
+            $id,
+            $oldData,
+            null,
+            $gymId
+        );
 
         $message = "Pasarela '{$name}' eliminada correctamente.";
 
