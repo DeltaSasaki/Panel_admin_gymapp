@@ -9,6 +9,7 @@ use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\CashClosingController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PaymentGatewayController;
 
 // Public Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -70,6 +71,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/finanzas/promos/{id}/toggle', [FinanceController::class, 'togglePromoCode'])->name('finanzas.toggle_promo');
     Route::get('/api/promos/validate', [FinanceController::class, 'validatePromo'])->name('api.promos.validate');
 
+    // Pasarelas de Pago de Gimnasios (gym_payment_gateways)
+    Route::get('/finanzas/pasarelas', [PaymentGatewayController::class, 'index'])->name('pasarelas.index');
+    Route::post('/finanzas/pasarelas', [PaymentGatewayController::class, 'store'])->name('pasarelas.store');
+    Route::put('/finanzas/pasarelas/{id}', [PaymentGatewayController::class, 'update'])->name('pasarelas.update');
+    Route::post('/finanzas/pasarelas/{id}/toggle', [PaymentGatewayController::class, 'toggleStatus'])->name('pasarelas.toggle');
+    Route::delete('/finanzas/pasarelas/{id}', [PaymentGatewayController::class, 'destroy'])->name('pasarelas.destroy');
+
     // Promociones del Gym (Paquetes y descuentos por meses seguidos)
     Route::post('/finanzas/promociones-gym', [FinanceController::class, 'storeGymPromotion'])->name('finanzas.store_gym_promo');
     Route::post('/finanzas/promociones-gym/{id}/toggle', [FinanceController::class, 'toggleGymPromotion'])->name('finanzas.toggle_gym_promo');
@@ -115,6 +123,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/recetas/categorias', [CatalogController::class, 'storeRecipeCategory'])->name('catalogos.store_recipe_category');
 
     // Notificaciones routes
+    Route::get('/api/v1/gyms/{gym_id}/payment-gateways', [PaymentGatewayController::class, 'apiGetGymGateways'])->name('api.v1.gym_payment_gateways');
     Route::get('/api/notifications/unread', [AdminController::class, 'getUnreadNotifications'])->name('api.notifications.unread');
     Route::get('/api/aforo', [AdminController::class, 'getAforoApi'])->name('api.aforo');
     Route::get('/notificaciones', [AdminController::class, 'notificationsHistory'])->name('notificaciones.index');

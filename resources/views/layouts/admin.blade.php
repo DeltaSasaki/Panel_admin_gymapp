@@ -479,6 +479,11 @@
                                         <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Finanzas & Pagos</span>
                                     </a>
+                                    <a href="{{ url('/finanzas/pasarelas') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('finanzas/pasarelas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="qr-code" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Pasarelas de Pago</span>
+                                    </a>
                                     <a href="{{ url('/cierre-caja') }}" 
                                        class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('cierre-caja*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
                                         <i data-lucide="calculator" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>

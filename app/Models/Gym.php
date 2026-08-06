@@ -35,4 +35,9 @@ class Gym extends Model
     {
         return $this->belongsTo(SaasSubscriptionPlan::class, 'current_plan_id');
     }
+
+    public function paymentGateways()
+    {
+        return $this->hasMany(GymPaymentGateway::class, 'gym_id');
+    }
 }
