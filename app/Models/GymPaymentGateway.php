@@ -51,6 +51,11 @@ class GymPaymentGateway extends Model
             unset($creds[$key]);
         }
 
+        // Transform qr_code_image relative path to full absolute URL if present
+        if (!empty($creds['qr_code_image']) && str_starts_with($creds['qr_code_image'], '/')) {
+            $creds['qr_code_image_url'] = url($creds['qr_code_image']);
+        }
+
         return $creds;
     }
 }

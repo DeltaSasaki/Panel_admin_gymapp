@@ -150,9 +150,23 @@ class PaymentGatewayController extends Controller
             'min_amount' => 'nullable|numeric|min:0',
             'instructions_post_payment' => 'nullable|string',
             'credentials' => 'nullable|array',
+            'qr_code_file' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
         ]);
 
         $activeGymId = $this->resolveCurrentGymId($request);
+        $credentials = $request->credentials ?? [];
+
+        // Handle QR Code Image Upload
+        if ($request->hasFile('qr_code_file')) {
+            $file = $request->file('qr_code_file');
+            $uploadDir = public_path('uploads/payment');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = 'qr_gym_' . $activeGymId . '_' . strtolower($request->provider) . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            $credentials['qr_code_image'] = '/uploads/payment/' . $filename;
+        }
 
         $extraConfig = [
             'fee_percent' => (float)($request->fee_percent ?? 0),
@@ -167,7 +181,7 @@ class PaymentGatewayController extends Controller
             'description' => $request->description,
             'is_active' => $request->has('is_active') ? 1 : 0,
             'environment' => $request->environment,
-            'credentials' => $request->credentials ?? [],
+            'credentials' => $credentials,
             'extra_config' => $extraConfig,
             'sort_order' => (int)($request->sort_order ?? 0),
         ]);
@@ -215,6 +229,7 @@ class PaymentGatewayController extends Controller
             'min_amount' => 'nullable|numeric|min:0',
             'instructions_post_payment' => 'nullable|string',
             'credentials' => 'nullable|array',
+            'qr_code_file' => 'nullable|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
         ]);
 
         $oldData = $gateway->toArray();
@@ -226,6 +241,23 @@ class PaymentGatewayController extends Controller
             if (empty($v) && isset($existingCreds[$k]) && in_array($k, ['secret_key', 'api_secret', 'access_token', 'webhook_secret'])) {
                 $newCreds[$k] = $existingCreds[$k];
             }
+        }
+
+        // Preserve existing qr_code_image if no new file uploaded
+        if (isset($existingCreds['qr_code_image'])) {
+            $newCreds['qr_code_image'] = $existingCreds['qr_code_image'];
+        }
+
+        // Handle QR Code Image Upload
+        if ($request->hasFile('qr_code_file')) {
+            $file = $request->file('qr_code_file');
+            $uploadDir = public_path('uploads/payment');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = 'qr_gym_' . $gateway->gym_id . '_' . strtolower($gateway->provider) . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            $newCreds['qr_code_image'] = '/uploads/payment/' . $filename;
         }
 
         $extraConfig = [

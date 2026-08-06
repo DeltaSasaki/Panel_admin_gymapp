@@ -108,6 +108,7 @@
                             ];
                             $extra = $gw->extra_config ?? [];
                             $emailVal = null;
+                            $qrImg = $gw->credentials['qr_code_image'] ?? null;
                             if (is_array($gw->credentials)) {
                                 foreach (['account_email', 'merchant_email', 'email'] as $eKey) {
                                     if (!empty($gw->credentials[$eKey])) {
@@ -124,7 +125,14 @@
                                         <i data-lucide="{{ $tmpl['icon'] }}" class="w-5 h-5"></i>
                                     </div>
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-slate-100 text-sm group-hover:text-lime-400 transition-colors truncate">{{ $gw->title }}</h3>
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="font-bold text-slate-100 text-sm group-hover:text-lime-400 transition-colors truncate">{{ $gw->title }}</h3>
+                                            @if($qrImg)
+                                                <button type="button" onclick="openViewQrModal('{{ $qrImg }}', '{{ addslashes($gw->title) }}')" class="p-1 bg-slate-950 border border-slate-800 hover:border-lime-500/50 rounded-lg transition-all" title="Ver Código QR">
+                                                    <img src="{{ $qrImg }}" alt="QR" class="w-4 h-4 object-cover rounded">
+                                                </button>
+                                            @endif
+                                        </div>
                                         <div class="flex items-center gap-2 mt-0.5">
                                             <span class="px-1.5 py-0.5 bg-slate-950 border border-slate-800 text-[9px] font-mono font-bold text-slate-400 rounded uppercase">
                                                 {{ $gw->provider }}
@@ -214,7 +222,7 @@
             </button>
         </div>
 
-        <form id="gateway-config-form" action="{{ route('pasarelas.store') }}" method="POST" onsubmit="submitGatewayForm(event)" class="p-6 space-y-4 text-xs font-semibold">
+        <form id="gateway-config-form" action="{{ route('pasarelas.store') }}" method="POST" enctype="multipart/form-data" onsubmit="submitGatewayForm(event)" class="p-6 space-y-4 text-xs font-semibold">
             @csrf
             <input type="hidden" name="_method" id="gateway-form-method" value="POST">
             <input type="hidden" name="gateway_id" id="gateway_id" value="">
@@ -265,6 +273,20 @@
                 </h4>
                 <div id="dynamic-credentials-container" class="grid grid-cols-1 gap-3">
                     <!-- Dynamic inputs injected by JS -->
+                </div>
+
+                <!-- QR Code Image Upload Box -->
+                <div class="pt-3 border-t border-slate-850">
+                    <label for="qr_code_file" class="block text-slate-400 text-[10px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                        <i data-lucide="qr-code" class="w-3.5 h-3.5 text-lime-400"></i> Imagen de Código QR para Pago (Opcional)
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <input type="file" name="qr_code_file" id="qr_code_file" accept="image/*" onchange="previewQrCodeSelected(this)" class="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-850 file:text-slate-200 hover:file:bg-slate-800 cursor-pointer">
+                        <div id="qr_preview_container" class="hidden shrink-0">
+                            <img id="qr_preview_img" src="" alt="Vista previa QR" class="w-12 h-12 object-cover rounded-xl border border-slate-750 bg-slate-950 p-1 shadow">
+                        </div>
+                    </div>
+                    <p class="text-[9px] text-slate-500 mt-1">Formato PNG, JPG, WEBP. Guardado en <code class="text-slate-400 font-mono">public/uploads/payment</code> para la APP Móvil.</p>
                 </div>
             </div>
 
@@ -334,6 +356,33 @@
     </div>
 </div>
 
+<!-- ================= MODAL: VER CÓDIGO QR EN GRANDE ================= -->
+<div id="modal-view-qr" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm mx-auto my-auto space-y-4 animate-scale-up shadow-2xl text-center">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h3 id="qr-view-title" class="font-extrabold text-sm text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                <i data-lucide="qr-code" class="w-4 h-4 text-lime-400"></i> Código QR de Pago
+            </h3>
+            <button type="button" onclick="toggleModal('modal-view-qr')" class="text-slate-400 hover:text-slate-100 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-2xl border border-slate-850 inline-block mx-auto shadow-inner">
+            <img id="qr-view-img" src="" alt="Código QR" class="max-w-full max-h-64 object-contain rounded-xl mx-auto">
+        </div>
+
+        <div class="flex items-center justify-center gap-2 pt-2">
+            <a id="qr-download-link" href="" target="_blank" download class="px-4 py-2 bg-slate-850 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5">
+                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Abrir en Pestaña
+            </a>
+            <button type="button" onclick="toggleModal('modal-view-qr')" class="px-4 py-2 bg-lime-500/10 hover:bg-lime-500/20 text-lime-400 border border-lime-500/30 rounded-xl text-xs font-bold transition-all">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- ================= MODAL: API REST TESTER FOR MOBILE APP ================= -->
 <div id="modal-api-tester" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl">
@@ -382,6 +431,7 @@
         };
         const extra = gw.extra_config || {};
         const email = extractGatewayEmail(gw);
+        const qrImg = gw.credentials ? gw.credentials.qr_code_image : null;
         const feePct = (parseFloat(extra.fee_percent) || 0).toFixed(1);
         const minAmt = (parseFloat(extra.min_amount) || 0).toFixed(2);
         const gwJsonStr = JSON.stringify(gw).replace(/'/g, "&#39;");
@@ -405,6 +455,10 @@
             ? `<span class="text-slate-300 font-semibold text-xs flex items-center gap-1.5"><i data-lucide="mail" class="w-3.5 h-3.5 text-lime-400"></i> ${escapeHtml(email)}</span>`
             : `<span class="text-slate-500 text-[10px] italic">Sin Correo</span>`;
 
+        const qrBtnHTML = qrImg 
+            ? `<button type="button" onclick="openViewQrModal('${qrImg}', '${escapeHtml(gw.title.replace(/'/g, "\\'"))}')" class="p-1 bg-slate-950 border border-slate-800 hover:border-lime-500/50 rounded-lg transition-all" title="Ver Código QR"><img src="${qrImg}" alt="QR" class="w-4 h-4 object-cover rounded"></button>`
+            : '';
+
         return `
             <td class="py-4 px-6">
                 <div class="flex items-center gap-3">
@@ -412,7 +466,10 @@
                         <i data-lucide="${tmpl.icon}" class="w-5 h-5"></i>
                     </div>
                     <div class="min-w-0">
-                        <h3 class="font-bold text-slate-100 text-sm group-hover:text-lime-400 transition-colors truncate">${escapeHtml(gw.title)}</h3>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-slate-100 text-sm group-hover:text-lime-400 transition-colors truncate">${escapeHtml(gw.title)}</h3>
+                            ${qrBtnHTML}
+                        </div>
                         <div class="flex items-center gap-2 mt-0.5">
                             <span class="px-1.5 py-0.5 bg-slate-950 border border-slate-800 text-[9px] font-mono font-bold text-slate-400 rounded uppercase">
                                 ${escapeHtml(gw.provider)}
@@ -463,6 +520,27 @@
             countHeader.innerHTML = `<i data-lucide="credit-card" class="w-4 h-4 text-lime-400"></i> Pasarelas Habilitadas (${tbody.children.length})`;
             if (window.lucide) window.lucide.createIcons();
         }
+    }
+
+    function previewQrCodeSelected(input) {
+        const container = document.getElementById('qr_preview_container');
+        const img = document.getElementById('qr_preview_img');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (img) img.src = e.target.result;
+                if (container) container.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function openViewQrModal(imgUrl, title) {
+        document.getElementById('qr-view-title').innerHTML = `<i data-lucide="qr-code" class="w-4 h-4 text-lime-400"></i> QR - ${escapeHtml(title)}`;
+        document.getElementById('qr-view-img').src = imgUrl;
+        document.getElementById('qr-download-link').href = imgUrl;
+        if (window.lucide) window.lucide.createIcons();
+        toggleModal('modal-view-qr');
     }
 
     function toggleModal(modalId) {
@@ -533,6 +611,11 @@
             provSelect.disabled = false;
         }
 
+        const qrContainer = document.getElementById('qr_preview_container');
+        const qrFileInput = document.getElementById('qr_code_file');
+        if (qrFileInput) qrFileInput.value = '';
+        if (qrContainer) qrContainer.classList.add('hidden');
+
         onProviderChange(providerKey);
         toggleModal('modal-gateway-config');
         if (window.lucide) window.lucide.createIcons();
@@ -562,6 +645,18 @@
         document.getElementById('gw_instructions_post_payment').value = extra.instructions_post_payment || '';
 
         document.getElementById('gw_is_active').checked = !!gw.is_active;
+
+        const qrContainer = document.getElementById('qr_preview_container');
+        const qrImg = document.getElementById('qr_preview_img');
+        const qrFileInput = document.getElementById('qr_code_file');
+        if (qrFileInput) qrFileInput.value = '';
+
+        if (gw.credentials && gw.credentials.qr_code_image) {
+            if (qrImg) qrImg.src = gw.credentials.qr_code_image;
+            if (qrContainer) qrContainer.classList.remove('hidden');
+        } else {
+            if (qrContainer) qrContainer.classList.add('hidden');
+        }
 
         onProviderChange(gw.provider, gw.credentials || {});
         toggleModal('modal-gateway-config');
