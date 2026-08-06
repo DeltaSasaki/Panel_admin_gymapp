@@ -412,6 +412,27 @@ CREATE TABLE `gym_classes` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `gym_payment_gateways`
+--
+
+CREATE TABLE `gym_payment_gateways` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) NOT NULL COMMENT 'ID del gimnasio al que pertenece el método',
+  `provider` varchar(50) NOT NULL COMMENT 'Ej: paypal, stripe, mercadopago, zelle, pago_movil, binance, cash',
+  `title` varchar(100) NOT NULL COMMENT 'Nombre visible para el cliente (Ej: PayPal Express, Pago Móvil Banesco)',
+  `description` text DEFAULT NULL COMMENT 'Instrucciones mostradas al cliente antes/durante el checkout',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1 = Activo, 0 = Inactivo',
+  `environment` enum('sandbox','production') NOT NULL DEFAULT 'sandbox' COMMENT 'Entorno de pruebas o producción para pasarelas API',
+  `credentials` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Credenciales en JSON (API keys, secrets, cuentas bancarias, etc.)',
+  `extra_config` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'Configuraciones adicionales (comisiones %, montos mínimos, etc.)',
+  `sort_order` int(11) NOT NULL DEFAULT 0 COMMENT 'Orden de aparición en la interfaz del cliente',
+  `createdAt` datetime NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `gym_promotions`
 --
 
@@ -1596,6 +1617,13 @@ ALTER TABLE `gym_classes`
   ADD KEY `gym_id` (`gym_id`);
 
 --
+-- Indices de la tabla `gym_payment_gateways`
+--
+ALTER TABLE `gym_payment_gateways`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `gym_id` (`gym_id`);
+
+--
 -- Indices de la tabla `gym_promotions`
 --
 ALTER TABLE `gym_promotions`
@@ -2025,6 +2053,12 @@ ALTER TABLE `gym_classes`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `gym_payment_gateways`
+--
+ALTER TABLE `gym_payment_gateways`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `gym_promotions`
 --
 ALTER TABLE `gym_promotions`
@@ -2360,6 +2394,12 @@ ALTER TABLE `gyms`
 --
 ALTER TABLE `gym_classes`
   ADD CONSTRAINT `gclass_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE;
+
+--
+-- Filtros para la tabla `gym_payment_gateways`
+--
+ALTER TABLE `gym_payment_gateways`
+  ADD CONSTRAINT `gym_payment_gateways_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `gym_promotions`
