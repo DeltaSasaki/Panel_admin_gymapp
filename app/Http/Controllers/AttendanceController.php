@@ -59,12 +59,14 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Register manual check-in.
+     * Register manual or QR check-in.
      */
     public function checkIn(Request $request)
     {
         $request->validate([
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'nullable|exists:users,id',
+            'dni' => 'nullable|string',
+            'entry_method' => 'nullable|string',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -76,8 +78,26 @@ class AttendanceController extends Controller
             return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
-        // Get targeted user
-        $user = User::with('profile')->findOrFail($request->user_id);
+        // Retrieve target user either by user_id or DNI/QR
+        if ($request->filled('user_id')) {
+            $user = User::with('profile')->find($request->user_id);
+        } elseif ($request->filled('dni')) {
+            $cleanDni = preg_replace('/[^a-zA-Z0-9]/', '', $request->dni);
+            $user = User::whereHas('profile', function($q) use ($request, $cleanDni) {
+                $q->where('dni', $request->dni)
+                  ->orWhere('dni', $cleanDni);
+            })->with('profile')->first();
+        } else {
+            $user = null;
+        }
+
+        if (!$user) {
+            $msg = 'Socio no encontrado para la cédula o código QR ingresado.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 404);
+            }
+            return redirect()->back()->withInput()->withErrors(['error' => $msg]);
+        }
 
         // Prevent checking in if already checked in and not checked out today
         $alreadyCheckedIn = AttendanceLog::where('user_id', $user->id)
@@ -95,18 +115,30 @@ class AttendanceController extends Controller
             return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
+        $entryMethod = $request->input('entry_method', 'admin');
+
         try {
             $log = AttendanceLog::create([
                 'gym_id' => $gymId,
                 'user_id' => $user->id,
                 'check_in' => Carbon::now(),
-                'entry_method' => 'admin',
+                'entry_method' => $entryMethod,
                 'status' => 'valid',
             ]);
 
             AdminAuditLog::record('INSERT', 'attendance_logs', $log->id, null, $log->toArray(), $gymId);
 
+            if (function_exists('activity')) {
+                activity()
+                    ->performedOn($log)
+                    ->causedBy(auth()->user())
+                    ->withProperties(['gym_id' => $gymId, 'user_id' => $user->id, 'entry_method' => $entryMethod])
+                    ->log("Check-in ({$entryMethod}) registrado para socio #{$user->id}");
+            }
+
             $userName = trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? ''));
+            $userPhoto = $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+            $userDni = $user->profile->dni ?? 'Sin DNI';
             $msg = "¡Check-in exitoso para {$userName}!";
 
             if ($request->ajax() || $request->wantsJson()) {
@@ -114,6 +146,9 @@ class AttendanceController extends Controller
                     'success' => true,
                     'message' => $msg,
                     'log_id' => $log->id,
+                    'user_name' => $userName,
+                    'user_photo' => $userPhoto,
+                    'user_dni' => $userDni,
                 ]);
             }
 
@@ -172,6 +207,14 @@ class AttendanceController extends Controller
         ]);
 
         AdminAuditLog::record('UPDATE', 'attendance_logs', $log->id, $oldData, $log->fresh()->toArray(), $gymId);
+
+        if (function_exists('activity')) {
+            activity()
+                ->performedOn($log)
+                ->causedBy(auth()->user())
+                ->withProperties(['gym_id' => $gymId, 'user_id' => $log->user_id])
+                ->log("Check-out registrado para socio #{$log->user_id}");
+        }
 
         $userName = trim(($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? ''));
         $msg = "¡Salida registrada con éxito para {$userName}!";

@@ -79,7 +79,7 @@
             <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
                 <h3 class="font-extrabold text-base text-slate-100 uppercase tracking-wider border-b border-slate-800 pb-3 flex items-center gap-2">
                     <i data-lucide="qr-code" class="text-lime-400 w-5 h-5"></i>
-                    Check-in Manual
+                    Check-in Presencial / QR
                 </h3>
 
                 @if($activeGymId === 'all')
@@ -90,9 +90,22 @@
                         </p>
                     </div>
                 @else
+                    <!-- LIVE QR SCANNER LAUNCH BUTTON -->
+                    <button type="button" onclick="openQrScannerModal()" class="w-full py-3 bg-slate-950 border border-lime-500/40 hover:bg-lime-500/10 text-lime-400 font-bold rounded-2xl shadow-lg hover:shadow-lime-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 group">
+                        <i data-lucide="camera" class="w-5 h-5 text-lime-400 group-hover:scale-110 transition-transform"></i>
+                        <span>Escanear Carnet QR en Vivo</span>
+                    </button>
+
+                    <div class="flex items-center gap-3 my-2">
+                        <div class="h-px bg-slate-800 flex-1"></div>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">O BÚSQUEDA MANUAL</span>
+                        <div class="h-px bg-slate-800 flex-1"></div>
+                    </div>
+
                     <form id="checkin_form" action="{{ route('asistencia.check_in') }}" method="POST" onsubmit="submitCheckIn(event)" class="space-y-4 text-xs font-semibold">
                         @csrf
                         <input type="hidden" name="user_id" id="selected_user_id" value="{{ old('user_id') }}">
+                        <input type="hidden" name="entry_method" id="selected_entry_method" value="admin">
 
                         <!-- Real-time DNI / Name Search -->
                         <div class="relative">
@@ -580,11 +593,42 @@
             const data = await response.json();
 
             if (data.success) {
-                showToast(data.message, 'success');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Acceso Concedido!',
+                        html: `
+                            <div class="flex flex-col items-center space-y-3 py-2">
+                                <img src="${data.user_photo || ''}" class="w-24 h-24 rounded-full object-cover border-4 border-lime-400 shadow-2xl">
+                                <h3 class="text-xl font-extrabold text-slate-100">${escapeHtml(data.user_name || '')}</h3>
+                                <span class="px-3 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 text-xs font-mono font-bold rounded-lg">DNI: ${escapeHtml(data.user_dni || '')}</span>
+                                <span class="text-xs text-lime-400 font-semibold mt-1">✔ ${data.message}</span>
+                            </div>
+                        `,
+                        icon: 'success',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#84cc16',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    showToast(data.message, 'success');
+                }
                 clearSelectedClient();
                 reloadAttendanceData();
             } else {
-                showToast(data.message || 'Error al procesar check-in.', 'error');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Acceso Denegado',
+                        html: `<p class="text-slate-300 text-sm mt-2">${escapeHtml(data.message || 'Membresía inactiva o no pagada.')}</p>`,
+                        icon: 'error',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#f43f5e',
+                        confirmButtonText: 'Entendido'
+                    });
+                } else {
+                    showToast(data.message || 'Error al procesar check-in.', 'error');
+                }
             }
         } catch (err) {
             console.error(err);
@@ -617,7 +661,19 @@
             const data = await response.json();
 
             if (data.success) {
-                showToast(data.message, 'success');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Salida Registrada',
+                        text: data.message,
+                        icon: 'info',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#a855f7',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    showToast(data.message, 'success');
+                }
                 reloadAttendanceData();
             } else {
                 showToast(data.message || 'Error al marcar salida.', 'error');
@@ -627,6 +683,125 @@
             console.error(err);
             showToast('Error de conexión al marcar salida.', 'error');
             setBtnLoading(btn, false);
+        }
+    }
+
+    // LIVE QR SCANNER MODAL HANDLERS (html5-qrcode)
+    let html5QrInstance = null;
+
+    function openQrScannerModal() {
+        const modal = document.getElementById('qr_scanner_modal');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (typeof Html5Qrcode !== 'undefined') {
+                html5QrInstance = new Html5Qrcode("qr_reader_viewport");
+                html5QrInstance.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    (decodedText) => {
+                        onQrCodeScanned(decodedText);
+                    },
+                    (error) => {}
+                ).catch(err => {
+                    console.error("Camera error:", err);
+                    showToast("No se pudo iniciar la cámara para el escáner QR.", "error");
+                });
+            } else {
+                showToast("Librería QR cargándose, intenta de nuevo.", "info");
+            }
+        }, 300);
+    }
+
+    function closeQrScannerModal() {
+        const modal = document.getElementById('qr_scanner_modal');
+        if (modal) modal.classList.add('hidden');
+
+        if (html5QrInstance) {
+            html5QrInstance.stop().then(() => {
+                html5QrInstance.clear();
+                html5QrInstance = null;
+            }).catch(err => console.error(err));
+        }
+    }
+
+    function onQrCodeScanned(decodedText) {
+        closeQrScannerModal();
+
+        let cleanVal = decodedText.trim();
+        if (cleanVal.includes('MEMBER:')) {
+            cleanVal = cleanVal.split('MEMBER:')[1];
+        } else if (cleanVal.includes('DNI:')) {
+            cleanVal = cleanVal.split('DNI:')[1];
+        }
+
+        performQrCheckIn(cleanVal);
+    }
+
+    async function performQrCheckIn(value) {
+        const actionUrl = "{{ route('asistencia.check_in') }}";
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('entry_method', 'qr');
+
+        if (/^\d+$/.test(value) && value.length <= 6) {
+            formData.append('user_id', value);
+        } else {
+            formData.append('dni', value);
+        }
+
+        try {
+            const response = await fetch(actionUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Acceso Concedido!',
+                        html: `
+                            <div class="flex flex-col items-center space-y-3 py-2">
+                                <img src="${data.user_photo || ''}" class="w-24 h-24 rounded-full object-cover border-4 border-lime-400 shadow-2xl">
+                                <h3 class="text-xl font-extrabold text-slate-100">${escapeHtml(data.user_name || '')}</h3>
+                                <span class="px-3 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 text-xs font-mono font-bold rounded-lg">DNI: ${escapeHtml(data.user_dni || '')}</span>
+                                <span class="text-xs text-lime-400 font-semibold mt-1">✔ ${data.message}</span>
+                            </div>
+                        `,
+                        icon: 'success',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#84cc16',
+                        confirmButtonText: 'Continuar'
+                    });
+                } else {
+                    showToast(data.message, 'success');
+                }
+                reloadAttendanceData();
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Acceso Denegado',
+                        html: `<p class="text-slate-300 text-sm mt-2">${escapeHtml(data.message || 'Membresía inactiva o rechazada.')}</p>`,
+                        icon: 'error',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#f43f5e',
+                        confirmButtonText: 'Entendido'
+                    });
+                } else {
+                    showToast(data.message || 'Error al procesar QR.', 'error');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Error de conexión al procesar QR.', 'error');
         }
     }
 
@@ -810,7 +985,46 @@
             @endforeach
         @endif
 
+        if (typeof TomSelect !== 'undefined') {
+            const selectEl = document.getElementById('user_id_select');
+            if (selectEl) {
+                new TomSelect(selectEl, {
+                    create: false,
+                    placeholder: 'Buscar atleta con DNI...'
+                });
+            }
+        }
+
         reloadAttendanceData();
     });
 </script>
+
+<!-- LIVE QR SCANNER MODAL -->
+<div id="qr_scanner_modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden p-4 animate-fade-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-4">
+        <button type="button" onclick="closeQrScannerModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="text-center">
+            <h3 class="text-lg font-extrabold text-slate-100 flex items-center justify-center gap-2">
+                <i data-lucide="camera" class="w-5 h-5 text-lime-400"></i>
+                Escanear Código QR
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Coloca el carnet digital del socio frente a la cámara.</p>
+        </div>
+        <div id="qr_reader_viewport" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 min-h-[260px] flex items-center justify-center">
+            <!-- Html5Qrcode renders video viewport here -->
+        </div>
+        <div class="text-center">
+            <button type="button" onclick="closeQrScannerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
+                Cancelar Escaneo
+            </button>
+        </div>
+    </div>
+</div>
+<!-- CDN FALLBACKS FOR LIBRARIES -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 @endsection
