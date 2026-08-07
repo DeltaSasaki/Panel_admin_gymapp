@@ -128,7 +128,7 @@ class AttendanceController extends Controller
 
             AdminAuditLog::record('INSERT', 'attendance_logs', $log->id, null, $log->toArray(), $gymId);
 
-            if (function_exists('activity')) {
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
                 activity()
                     ->performedOn($log)
                     ->causedBy(auth()->user())

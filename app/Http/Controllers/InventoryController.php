@@ -162,11 +162,32 @@ class InventoryController extends Controller
 
             AdminAuditLog::record('INSERT', 'product_sales', $sale->id, null, $sale->toArray(), $gymId);
 
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                activity()
+                    ->performedOn($sale)
+                    ->causedBy(auth()->user())
+                    ->withProperties(['gym_id' => $gymId, 'total_amount' => $totalAmount, 'payment_method' => $request->payment_method])
+                    ->log("Venta POS #{$sale->id} registrada por $" . number_format($totalAmount, 2));
+            }
+
             DB::commit();
 
             $successMsg = 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2);
             if ($promoId) {
                 $successMsg .= ' (Descuento aplicado, total original: $' . number_format($originalTotal, 2) . ')';
+            }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMsg,
+                    'sale_id' => $sale->id,
+                    'total_amount' => $totalAmount,
+                    'total_formatted' => '$' . number_format($totalAmount, 2),
+                    'sale_date' => Carbon::now()->format('d/m/Y H:i'),
+                    'payment_method' => $request->payment_method,
+                    'items_count' => count($itemsToCreate)
+                ]);
             }
 
             return redirect()->route('tienda.pos')->with('success', $successMsg);
@@ -179,10 +200,37 @@ class InventoryController extends Controller
             } else {
                 $errorText = 'Error al registrar venta: ' . $errorMessage;
             }
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errorText], 422);
+            }
             return redirect()->back()->withInput()->withErrors(['cart' => $errorText]);
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
             return redirect()->back()->withInput()->withErrors(['cart' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Generate Barcode SVG for product tags using picqer/php-barcode-generator.
+     */
+    public function getProductBarcode($id)
+    {
+        $product = InventoryProduct::findOrFail($id);
+        $code = !empty($product->sku) ? $product->sku : ('PRD-' . str_pad($product->id, 6, '0', STR_PAD_LEFT));
+
+        try {
+            $generator = new \Picqer\Barcode\BarcodeGeneratorSVG();
+            $barcodeSvg = $generator->getBarcode($code, $generator::TYPE_CODE_128, 2, 60);
+
+            return response($barcodeSvg, 200, [
+                'Content-Type' => 'image/svg+xml',
+                'Cache-Control' => 'no-cache, private',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 

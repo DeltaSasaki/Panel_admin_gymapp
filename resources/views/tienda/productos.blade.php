@@ -146,6 +146,11 @@
                                         +Stock
                                     </button>
 
+                                    <!-- Barcode Button (Blue) -->
+                                    <button type="button" onclick="showProductBarcodeModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $p->sku ?? ('PRD-'.str_pad($p->id, 6, '0', STR_PAD_LEFT)) }}')" class="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-slate-950 border border-blue-500/25 rounded-xl transition-all shadow-sm" title="Ver / Imprimir Código de Barras">
+                                        <i data-lucide="barcode" class="w-3.5 h-3.5"></i>
+                                    </button>
+
                                     <!-- Edit Button (Yellow/Amber) -->
                                     <button onclick="openEditModal({{ json_encode($p) }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
@@ -1144,6 +1149,101 @@
 
     window.addEventListener('load', initProductPagination);
     window.addEventListener('pageshow', initProductPagination);
+
+    // BARCODE MODAL FUNCTIONS
+    let currentBarcodeId = null;
+
+    function showProductBarcodeModal(id, name, code) {
+        currentBarcodeId = id;
+        document.getElementById('barcode_product_name').textContent = name;
+        document.getElementById('barcode_product_code').textContent = code;
+
+        const container = document.getElementById('barcode_svg_container');
+        container.innerHTML = `<span class="text-xs text-slate-400 font-mono animate-pulse">Cargando código de barras...</span>`;
+
+        const modal = document.getElementById('product-barcode-modal');
+        if (modal) modal.classList.remove('hidden');
+
+        fetch(`/tienda/productos/${id}/barcode`)
+            .then(res => res.text())
+            .then(svgText => {
+                container.innerHTML = svgText;
+            })
+            .catch(err => {
+                console.error(err);
+                container.innerHTML = `<span class="text-xs text-rose-500 font-bold">Error al generar código de barras.</span>`;
+            });
+    }
+
+    function closeProductBarcodeModal() {
+        const modal = document.getElementById('product-barcode-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function printBarcodeLabel() {
+        const container = document.getElementById('barcode_svg_container');
+        const name = document.getElementById('barcode_product_name').textContent;
+        const code = document.getElementById('barcode_product_code').textContent;
+
+        const labelHtml = `
+            <div style="font-family: monospace; text-align: center; width: 200px; padding: 10px; border: 1px border #000;">
+                <h4 style="margin: 0 0 5px 0; font-size: 11px; text-transform: uppercase;">${name}</h4>
+                <div style="margin: 5px 0;">${container.innerHTML}</div>
+                <span style="font-size: 10px; font-weight: bold;">${code}</span>
+            </div>
+        `;
+
+        if (typeof printJS !== 'undefined') {
+            printJS({
+                printable: labelHtml,
+                type: 'raw-html',
+                style: '@page { margin: 0; }'
+            });
+        } else {
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title>Barcode ${code}</title></head><body>${labelHtml}</body></html>`);
+            win.document.close();
+            win.focus();
+            win.print();
+            win.close();
+        }
+    }
+</script>
+
+<!-- BARCODE VIEWER & PRINT MODAL -->
+<div id="product-barcode-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden p-4 animate-fade-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative space-y-4 text-center">
+        <button type="button" onclick="closeProductBarcodeModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+
+        <h3 class="text-base font-extrabold text-slate-100 flex items-center justify-center gap-2">
+            <i data-lucide="barcode" class="w-5 h-5 text-lime-400"></i>
+            Código de Barras 1D
+        </h3>
+        
+        <p id="barcode_product_name" class="text-xs text-slate-300 font-bold truncate"></p>
+        <span id="barcode_product_code" class="inline-block px-2.5 py-0.5 bg-slate-950 text-lime-400 border border-slate-800 font-mono text-[11px] font-bold rounded-md"></span>
+
+        <div id="barcode_svg_container" class="bg-white p-4 rounded-2xl border border-slate-800 flex justify-center items-center min-h-[100px] shadow-inner">
+            <!-- Dynamic SVG loaded via AJAX / SVG endpoint -->
+        </div>
+
+        <div class="flex items-center gap-2 pt-2">
+            <button type="button" onclick="printBarcodeLabel()" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Etiqueta
+            </button>
+            <button type="button" onclick="closeProductBarcodeModal()" class="px-4 py-2.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl hover:bg-slate-700 transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+<!-- CDN FOR PRINTJS -->
+<script src="https://printjs-4de6.kxcdn.com/print.min.js"></script>
+<link rel="stylesheet" href="https://printjs-4de6.kxcdn.com/print.min.css">
+
+<script>
     window.addEventListener('page:loaded', initProductPagination);
     document.addEventListener('livewire:navigated', initProductPagination);
     document.addEventListener('turbo:load', initProductPagination);

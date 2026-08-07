@@ -98,6 +98,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tienda/movimientos', [InventoryController::class, 'stockMovements'])->name('tienda.stock_movements');
     Route::post('/tienda/categorias', [InventoryController::class, 'storeCategory'])->name('tienda.store_category');
     Route::post('/tienda/productos/{id}/stock', [InventoryController::class, 'addStock'])->name('tienda.add_stock');
+    Route::get('/tienda/productos/{id}/barcode', [InventoryController::class, 'getProductBarcode'])->name('tienda.product_barcode');
     Route::get('/tienda/ventas', [InventoryController::class, 'salesHistory'])->name('tienda.sales_history');
 
     // Equipamiento & Catálogos (open to trainers/admins for logistics/programming)

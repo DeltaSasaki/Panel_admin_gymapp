@@ -33,10 +33,16 @@
                 </select>
             </div>
 
-            <!-- Search Bar -->
-            <div class="relative w-full sm:w-64 shrink-0">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+            <!-- Search Bar & Barcode Scanner Button -->
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <button type="button" onclick="openPosBarcodeScannerModal()" class="px-3 py-2.5 bg-slate-950 border border-lime-500/40 hover:bg-lime-500/10 text-lime-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shrink-0">
+                    <i data-lucide="barcode" class="w-4 h-4 text-lime-400"></i>
+                    <span class="hidden sm:inline">Escanear Código</span>
+                </button>
+                <div class="relative w-full sm:w-56 shrink-0">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                    <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                </div>
             </div>
         </div>
 
@@ -487,19 +493,317 @@
         }
     }
 
-    function prepareSubmit(e) {
+    async function prepareSubmit(e) {
+        if (e) e.preventDefault();
+
         if (cart.length === 0) {
-            e.preventDefault();
+            showPosToast('El carrito de venta está vacío.', 'danger');
             return;
         }
-        
-        // Load JSON into input
+
+        const paymentMethod = document.getElementById('payment-method-select')?.value || 'cash';
+        const userId = document.getElementById('pos-user-id-input')?.value || '';
+        const promoCode = document.getElementById('pos_promo_code')?.value || '';
+        const notes = document.getElementById('pos_notes')?.value || '';
+
         const cartJson = JSON.stringify(cart.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity
         })));
-        
-        document.getElementById('cart-json-input').value = cartJson;
+
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('payment_method', paymentMethod);
+        if (userId) formData.append('user_id', userId);
+        if (promoCode) formData.append('promo_code', promoCode);
+        if (notes) formData.append('notes', notes);
+        formData.append('cart', cartJson);
+
+        const btn = document.getElementById('checkout-submit-btn');
+        if (btn) btn.disabled = true;
+
+        try {
+            const response = await fetch("{{ route('tienda.register_sale') }}", {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const saleDetails = {
+                    sale_id: data.sale_id,
+                    total: data.total_formatted,
+                    date: data.sale_date,
+                    payment: data.payment_method,
+                    items: [...cart]
+                };
+
+                // SweetAlert2 Confirmation & Print Option
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Venta Registrada!',
+                        html: `
+                            <div class="space-y-3 text-center text-slate-200 py-2">
+                                <p class="text-xs text-slate-400">Venta POS #${data.sale_id} procesada con éxito.</p>
+                                <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
+                                    <span class="block text-[10px] uppercase text-slate-500 font-extrabold tracking-wider">Total Cobrado</span>
+                                    <span class="text-3xl font-black text-lime-400 mt-0.5 block">${data.total_formatted}</span>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonColor: '#84cc16',
+                        cancelButtonColor: '#475569',
+                        confirmButtonText: 'Imprimir Ticket POS',
+                        cancelButtonText: 'Cerrar',
+                        background: '#0f172a',
+                        color: '#f8fafc'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            printPosReceipt(saleDetails);
+                        }
+                    });
+                } else {
+                    showPosToast(data.message, 'success');
+                }
+
+                // Reset Cart
+                cart = [];
+                renderCart();
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'Error en Transacción',
+                        text: data.message || 'No se pudo completar la venta.',
+                        icon: 'error',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#f43f5e'
+                    });
+                } else {
+                    showPosToast(data.message || 'Error al procesar venta.', 'danger');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            showPosToast('Error de conexión al procesar venta.', 'danger');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    function printPosReceipt(sale) {
+        const paymentLabel = {
+            'cash': 'Efectivo',
+            'card': 'Tarjeta Débito / Crédito',
+            'transfer': 'Transferencia / Pago Móvil',
+            'other': 'Otro Método'
+        }[sale.payment] || (sale.payment || 'Efectivo');
+
+        const itemsRows = sale.items.map(i => `
+            <tr style="border-bottom: 1px dashed #e2e8f0;">
+                <td style="padding: 6px 0; vertical-align: top;">
+                    <strong style="font-size: 11px; color: #0f172a; display: block; line-height: 1.2;">${i.name}</strong>
+                    <span style="font-size: 9px; color: #64748b;">${i.quantity} unidad(es) x $${parseFloat(i.price).toFixed(2)}</span>
+                </td>
+                <td style="padding: 6px 0; text-align: right; font-weight: bold; font-size: 11px; color: #0f172a; vertical-align: top;">
+                    $${(i.price * i.quantity).toFixed(2)}
+                </td>
+            </tr>
+        `).join('');
+
+        const receiptCss = `
+            @page {
+                size: portrait;
+                margin: 0mm !important;
+            }
+            @media print {
+                @page {
+                    margin: 0mm !important;
+                }
+                html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                #receipt-wrapper {
+                    padding: 15px 0 !important;
+                }
+                #receipt-container {
+                    box-shadow: none !important;
+                    border: 1.5px solid #0f172a !important;
+                }
+            }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            #receipt-wrapper {
+                width: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                padding: 15px 0;
+                box-sizing: border-box;
+            }
+            #receipt-container {
+                width: 320px;
+                max-width: 100%;
+                margin: 0 auto;
+                padding: 16px;
+                background: #ffffff;
+                border: 1px solid #cbd5e1;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                box-sizing: border-box;
+            }
+        `;
+
+        const receiptHtml = `
+            <div id="receipt-wrapper">
+                <div id="receipt-container">
+                    
+                    <!-- HEADER -->
+                    <div style="text-align: center; padding-bottom: 10px; border-bottom: 2px solid #0f172a; margin-bottom: 12px;">
+                        <h1 style="margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #0f172a;">BIGWORLD FITNESS</h1>
+                        <p style="margin: 3px 0 0 0; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569;">Gimnasio & Centro de Entrenamiento</p>
+                        <p style="margin: 2px 0 0 0; font-size: 8px; color: #64748b;">Comprobante No Fiscal | Ticket POS</p>
+                    </div>
+
+                    <!-- METADATA BOX -->
+                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 10px; line-height: 1.5;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">N° Ticket:</span>
+                            <strong style="color: #0f172a; font-family: monospace; font-size: 11px;">#${sale.sale_id}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">Fecha y Hora:</span>
+                            <strong style="color: #0f172a;">${sale.date}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">Forma de Pago:</span>
+                            <strong style="color: #0f172a;">${paymentLabel}</strong>
+                        </div>
+                    </div>
+
+                    <!-- ITEMS TABLE -->
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+                        <thead>
+                            <tr style="border-bottom: 1.5px solid #0f172a; text-transform: uppercase; font-size: 9px; color: #475569;">
+                                <th style="text-align: left; padding-bottom: 4px;">Ítem / Cant.</th>
+                                <th style="text-align: right; padding-bottom: 4px;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsRows}
+                        </tbody>
+                    </table>
+
+                    <!-- TOTAL BANNER -->
+                    <div style="background: #0f172a; color: #ffffff; border-radius: 8px; padding: 10px 12px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; -webkit-print-color-adjust: exact;">
+                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">TOTAL COBRADO</span>
+                        <span style="font-size: 17px; font-weight: 900; font-family: monospace; color: #a3e635;">${sale.total}</span>
+                    </div>
+
+                    <!-- FOOTER -->
+                    <div style="text-align: center; margin-top: 14px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 8px; color: #64748b;">
+                        <p style="margin: 0; font-weight: 700; color: #334155; font-size: 9px;">¡Gracias por entrenar en BigWorldFitness!</p>
+                        <p style="margin: 2px 0 0 0; color: #94a3b8;">Conserva este ticket para cualquier consulta o reclamo.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (typeof printJS !== 'undefined') {
+            printJS({
+                printable: receiptHtml,
+                type: 'raw-html',
+                style: receiptCss,
+                documentTitle: ''
+            });
+        } else {
+            const win = window.open('', '_blank');
+            win.document.write(`<html><head><title></title><style>${receiptCss}</style></head><body>${receiptHtml}</body></html>`);
+            win.document.close();
+            win.focus();
+            win.print();
+            win.close();
+        }
+    }
+
+    // POS BARCODE SCANNER HANDLER
+    let posBarcodeQrInstance = null;
+
+    function openPosBarcodeScannerModal() {
+        const modal = document.getElementById('pos_barcode_modal');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            if (typeof Html5Qrcode !== 'undefined') {
+                posBarcodeQrInstance = new Html5Qrcode("pos_barcode_viewport");
+                posBarcodeQrInstance.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 160 } },
+                    (scannedCode) => {
+                        onPosBarcodeScanned(scannedCode);
+                    },
+                    (error) => {}
+                ).catch(err => {
+                    console.error("Camera error:", err);
+                    showPosToast("No se pudo acceder a la cámara para escanear código de barras.", "danger");
+                });
+            } else {
+                showPosToast("Librería de escáner cargándose...", "info");
+            }
+        }, 300);
+    }
+
+    function closePosBarcodeScannerModal() {
+        const modal = document.getElementById('pos_barcode_modal');
+        if (modal) modal.classList.add('hidden');
+
+        if (posBarcodeQrInstance) {
+            posBarcodeQrInstance.stop().then(() => {
+                posBarcodeQrInstance.clear();
+                posBarcodeQrInstance = null;
+            }).catch(err => console.error(err));
+        }
+    }
+
+    function onPosBarcodeScanned(scannedCode) {
+        closePosBarcodeScannerModal();
+
+        const codeStr = scannedCode.trim().toLowerCase();
+        // Try finding matching product in grid cards by ID, name or SKU
+        const cards = document.querySelectorAll('.product-card');
+        let matchedCard = null;
+
+        cards.forEach(card => {
+            const pid = card.dataset.id;
+            const pname = (card.dataset.name || '').toLowerCase();
+            if (pid === codeStr || pname.includes(codeStr) || codeStr.includes(pid)) {
+                matchedCard = card;
+            }
+        });
+
+        if (matchedCard) {
+            addToCart(matchedCard);
+            showPosToast(`¡Producto agregado al carrito: ${matchedCard.dataset.name}!`, 'success');
+        } else {
+            showPosToast(`No se encontró ningún producto para el código: ${scannedCode}`, 'danger');
+        }
     }
 
     // Custom Toast Notification System for POS
@@ -576,8 +880,35 @@
 
     window.addEventListener('load', initPosPagination);
     window.addEventListener('pageshow', initPosPagination);
-    window.addEventListener('page:loaded', initPosPagination);
-    document.addEventListener('livewire:navigated', initPosPagination);
-    document.addEventListener('turbo:load', initPosPagination);
 </script>
+
+<!-- POS BARCODE SCANNER MODAL -->
+<div id="pos_barcode_modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden p-4 animate-fade-in">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-4">
+        <button type="button" onclick="closePosBarcodeScannerModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <div class="text-center">
+            <h3 class="text-lg font-extrabold text-slate-100 flex items-center justify-center gap-2">
+                <i data-lucide="barcode" class="w-5 h-5 text-lime-400"></i>
+                Escanear Código de Barras
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Apunta con la cámara al código de barras del producto.</p>
+        </div>
+        <div id="pos_barcode_viewport" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 min-h-[220px] flex items-center justify-center">
+            <!-- Html5Qrcode viewport -->
+        </div>
+        <div class="text-center">
+            <button type="button" onclick="closePosBarcodeScannerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- LIBRARIES CDNs -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://printjs-4de6.kxcdn.com/print.min.js"></script>
+<link rel="stylesheet" href="https://printjs-4de6.kxcdn.com/print.min.css">
 @endsection
