@@ -1,0 +1,127 @@
+===================================================================
+   BIGWORLDFITNESS - INVENTARIO DE LIBRERÍAS Y DEPENDENCIAS
+===================================================================
+Fecha de Actualización: 07 de Agosto de 2026
+Estado del Proyecto: Librerías instaladas exitosamente (Sin modificación de código/pantallas)
+
+-------------------------------------------------------------------
+1. LIBRERÍAS Y PAQUETES BACKEND (PHP / COMPOSER)
+-------------------------------------------------------------------
+
+* laravel/framework (^12.0)
+  - Categoría: Framework Core
+  - Utilidad: Núcleo del sistema web. Proporciona enrutamiento, Eloquent ORM, controladores, middleware de autenticación, plantillas Blade y gestión de sesiones.
+
+* spatie/laravel-activitylog (*)
+  - Categoría: Auditoría Automática de Modelos
+  - Utilidad: Registra automáticamente cualquier creación, edición o eliminación en los modelos Eloquent (`User`, `UserMembership`, `ProductSale`, `Gym`), guardando un historial exacto del estado previo y posterior en JSON sin requerir código manual en controladores.
+
+* picqer/php-barcode-generator (*)
+  - Categoría: Generación Servidor de Códigos de Barras (1D)
+  - Utilidad: Genera etiquetas de código de barras (CODE128, EAN13) en formato SVG/PNG directamente en PHP para imprimir etiquetas de suplementos o tickets físicos de venta en el POS.
+
+* spatie/laravel-medialibrary (*)
+  - Categoría: Gestión Avanzada de Archivos Multimedia
+  - Utilidad: Vincula colecciones de imágenes/vídeos a modelos Eloquent, maneja conversión automática a WebP, genera miniaturas/thumbnails y limpia los archivos antiguos al actualizar.
+
+* intervention/image (*)
+  - Categoría: Optimización y Procesamiento de Imágenes
+  - Utilidad: Redimensiona, comprime y optimiza automáticamente fotos de socios, productos del POS y demostraciones de ejercicios cargadas al servidor.
+
+* mike42/escpos-php (*)
+  - Categoría: Impresión Directa POS
+  - Utilidad: Envía comandos de impresión física directa a impresoras térmicas de recibos (58mm / 80mm) para emitir tickets de compra del POS y comprobantes de membresía.
+
+* simplesoftwareio/simple-qrcode (*)
+  - Categoría: Generación Servidor de Códigos QR
+  - Utilidad: Genera imágenes de códigos QR (PNG / SVG) desde el servidor para carnets digitales de socios, pases de cortesía temporales y enlaces de pago dinámicos.
+
+* spatie/laravel-health (*)
+  - Categoría: Monitoreo y Diagnóstico de Salud del Sistema
+  - Utilidad: Panel de diagnóstico para el Superadmin que supervisa en tiempo real el espacio libre en disco, estado de la base de datos MySQL, latencia y servidor SMTP de correo Gmail.
+
+* maatwebsite/excel (*)
+  - Categoría: Exportación e Importación de Datos
+  - Utilidad: Genera reportes masivos en formato Excel (.xlsx) y CSV para listados de socios, cobros, cierres de caja, inventarios y asistencias.
+
+* spatie/laravel-permission (*)
+  - Categoría: Seguridad y Control de Acceso
+  - Utilidad: Gestiona roles y permisos granulares de usuarios (Superadmin, Admin de Sucursal, Recepción, Entrenador).
+
+* laravel/sanctum (*)
+  - Categoría: Autenticación por Token (API)
+  - Utilidad: Genera tokens API seguros para integración con Aplicaciones Móviles (iOS/Android/PWA) y webhooks externos.
+
+* spatie/laravel-backup (*)
+  - Categoría: Mantenimiento y Respaldos Automáticos
+  - Utilidad: Automatiza copias de seguridad de la base de datos MySQL y la carpeta multimedia (public/uploads/) hacia la nube o correo.
+
+* mpdf/mpdf (^8.3)
+  - Categoría: Generación de Documentos PDF
+  - Utilidad: Renderiza comprobantes de pago, facturas electrónicas, fichas médicas y cierres de caja en PDF.
+
+* laravel/tinker (^2.10.1)
+  - Categoría: Consola de Depuración
+  - Utilidad: Consola REPL interactiva de Laravel para pruebas rápidas.
+
+
+-------------------------------------------------------------------
+2. LIBRERÍAS Y DEPENDENCIAS FRONTEND (JAVASCRIPT / NPM)
+-------------------------------------------------------------------
+
+* @fullcalendar/core, daygrid, timegrid, interaction (*)
+  - Categoría: Calendario Interactivo de Clases Grupales
+  - Utilidad: Proporciona una interfaz de calendario interactiva (vista semanal/diaria) para el módulo de clases grupales (`ClassController.php`), permitiendo visualizar cupos en vivo y reservar clases.
+
+* print-js (^1.6.0)
+  - Categoría: Impresión Rápida desde el Navegador
+  - Utilidad: Permite imprimir PDFs, comprobantes o tablas directamente desde la interfaz sin recargar la página.
+
+* tom-select (^2.6.2)
+  - Categoría: UI / Selectores con Autocompletado Inteligente
+  - Utilidad: Transforma los menús desplegables en buscadores en vivo con autocompletado en tiempo real para ejercicios, clientes o productos.
+
+* apexcharts (^6.7.0)
+  - Categoría: Visualización de Datos y Métricas
+  - Utilidad: Genera gráficos interactivos para dashboards de ingresos, aforo y avance antropométrico.
+
+* html5-qrcode (^2.3.8)
+  - Categoría: Escaneo de Códigos QR y Códigos de Barras
+  - Utilidad: Check-in/Check-out rápido de socios por código QR y escaneo de productos en el POS.
+
+* signature_pad (^5.1.4)
+  - Categoría: Captura de Firma Digital
+  - Utilidad: Captura de firmas digitales en pantalla para exoneraciones médicas y contratos de socios.
+
+* sortablejs (^1.15.7)
+  - Categoría: Interfaz Drag-and-Drop
+  - Utilidad: Reordena listas de ejercicios en rutinas y alimentos en planes nutricionales mediante arrastrar y soltar.
+
+* sweetalert2 (^11.26.25)
+  - Categoría: Modales y Avisos Interactivos
+  - Utilidad: Modales y alertas de confirmación con diseño premium.
+
+* flatpickr (^4.6.13)
+  - Categoría: Selector de Fechas y Rangos Temporales
+  - Utilidad: Calendario con filtro de fechas para reportes de ventas y cierres de caja.
+
+* axios (^1.11.0)
+  - Categoría: Cliente HTTP / Peticiones AJAX
+  - Utilidad: Peticiones asíncronas en vivo (CNE, cupones, aforo).
+
+* tailwindcss (^4.0.0) & @tailwindcss/vite (^4.0.0)
+  - Categoría: Framework CSS de Utilidades
+  - Utilidad: Motor de diseño visual responsive y dark mode premium.
+
+* vite (^7.0.7) & laravel-vite-plugin (^2.0.0)
+  - Categoría: Compilador de Recursos Frontend
+  - Utilidad: Compila y optimiza activos JS/CSS con recarga en vivo.
+
+* concurrently (^9.0.1)
+  - Categoría: Automatización de Entorno
+  - Utilidad: Ejecución simultánea de servidores PHP, Queue Listener y Vite (`npm run dev`).
+
+-------------------------------------------------------------------
+NOTAS DE MANTENIMIENTO:
+- Todas las dependencias listadas han sido registradas formalmente en composer.json y package.json.
+- Los archivos en vendor/ y node_modules/ se encuentran listos para ser invocados cuando se decida implementar las nuevas interfaces.

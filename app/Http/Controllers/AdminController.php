@@ -707,11 +707,12 @@ class AdminController extends Controller
             ], 422);
         }
 
-        $appId = env('CNE_API_APP_ID', '2118');
-        $token = env('CNE_API_TOKEN', 'ad3e6e46e42e96adba76c92c23755b54');
+        $appId = config('services.cne.app_id', env('CNE_API_APP_ID', '2118'));
+        $token = config('services.cne.token', env('CNE_API_TOKEN', 'ad3e6e46e42e96adba76c92c23755b54'));
+        $apiUrl = config('services.cne.url', env('CNE_API_URL', 'https://api.cedula.com.ve/api/v1'));
 
         try {
-            $response = Http::withoutVerifying()->timeout(10)->get('https://api.cedula.com.ve/api/v1', [
+            $response = Http::withoutVerifying()->timeout(10)->get($apiUrl, [
                 'app_id' => $appId,
                 'token' => $token,
                 'nacionalidad' => $nacionalidad,

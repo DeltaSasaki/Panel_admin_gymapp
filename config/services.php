@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'cne' => [
+        'app_id' => env('CNE_API_APP_ID', '2118'),
+        'token' => env('CNE_API_TOKEN', 'ad3e6e46e42e96adba76c92c23755b54'),
+        'url' => env('CNE_API_URL', 'https://api.cedula.com.ve/api/v1'),
+    ],
+
 ];
