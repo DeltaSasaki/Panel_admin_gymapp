@@ -2680,6 +2680,11 @@ ALTER TABLE `workout_routines`
 ALTER TABLE `workout_sessions`
   ADD CONSTRAINT `workout_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `workout_sessions_ibfk_2` FOREIGN KEY (`routine_id`) REFERENCES `workout_routines` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
+
+-- --------------------------------------------------------
+-- Actualización: Campo para Firma Digital en Expediente del Socio
+ALTER TABLE `user_profiles` ADD COLUMN IF NOT EXISTS `signature_url` TEXT DEFAULT NULL AFTER `profile_photo`;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

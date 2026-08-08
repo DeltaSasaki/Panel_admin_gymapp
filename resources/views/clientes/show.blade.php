@@ -173,17 +173,41 @@
                         <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
                     </button>
                 @endif
-                <button onclick="toggleModal('routine-modal')" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
-                    <i data-lucide="dumbbell" class="w-4 h-4"></i> Asignar Rutina
-                </button>
-                <button onclick="toggleModal('meal-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2">
-                    <i data-lucide="apple" class="w-4 h-4"></i> Asignar Nutrición
-                </button>
-                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
-                    <button onclick="toggleModal('trainer-assignment-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer">
-                        <i data-lucide="user-check" class="w-4 h-4"></i> Asignar Entrenador
+                
+                <!-- Firma Digital Preview -->
+                <div class="pt-4 border-t border-slate-800/60">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500">Firma Digital del Socio</span>
+                        <button type="button" onclick="openUpdateSignatureModal()" class="text-[11px] font-bold text-lime-400 hover:underline">
+                            {{ !empty($cliente->profile->signature_url) ? 'Actualizar' : 'Firmar' }}
+                        </button>
+                    </div>
+                    <div class="p-3 bg-slate-950 border border-slate-850 rounded-2xl flex items-center justify-center min-h-[70px]">
+                        @if(!empty($cliente->profile->signature_url))
+                            <img src="{{ $cliente->profile->signature_url }}" alt="Firma Digital" class="max-h-12 object-contain filter invert opacity-90">
+                        @else
+                            <span class="text-xs text-slate-500 italic">Pendiente por registrar firma digital</span>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-2 pt-4 border-t border-slate-800/60">
+                    <a href="{{ route('clientes.carnet', $cliente->id) }}" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i> Ver Carnet Digital QR
+                    </a>
+                    <button onclick="toggleModal('routine-assignment-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="dumbbell" class="w-4 h-4"></i> Asignar Rutina
                     </button>
-                @endif
+                    <button onclick="toggleModal('mealplan-assignment-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="apple" class="w-4 h-4"></i> Asignar Nutrición
+                    </button>
+                    @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                        <button onclick="toggleModal('trainer-assignment-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                            <i data-lucide="user-check" class="w-4 h-4"></i> Asignar Entrenador
+                        </button>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -872,6 +896,144 @@
                 if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year}`;
             }
         @endif
+    }
+</script>
+
+<!-- Modal Actualizar Firma Digital -->
+<div id="update-signature-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
+                <i data-lucide="pen-tool" class="w-5 h-5 text-lime-400"></i> Firma Digital del Socio
+            </h3>
+            <button type="button" onclick="closeUpdateSignatureModal()" class="text-slate-400 hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <p class="text-xs text-slate-400">Dibuja la firma del socio en el recuadro para registrarla en su carnet digital y expediente:</p>
+
+        <div class="bg-slate-950 border border-slate-850 rounded-2xl p-2 relative">
+            <canvas id="modal-signature-canvas" width="500" height="180" class="w-full h-44 rounded-xl bg-slate-950 touch-none cursor-crosshair border border-slate-800"></canvas>
+            <div id="modal-sig-placeholder" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-600 text-xs font-semibold">
+                Firme aquí táctilmente o con el mouse
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+            <button type="button" onclick="clearModalSignature()" class="px-3 py-1.5 bg-slate-950 border border-slate-800 text-xs font-bold text-slate-400 hover:text-rose-400 rounded-xl transition-colors flex items-center gap-1">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Borrar Canvas
+            </button>
+
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="closeUpdateSignatureModal()" class="px-4 py-2 bg-slate-950 border border-slate-800 text-xs font-bold text-slate-400 rounded-xl">
+                    Cancelar
+                </button>
+                <button type="button" onclick="saveModalSignature()" class="px-5 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 text-xs font-extrabold rounded-xl shadow-lg">
+                    Guardar Firma
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+
+<script>
+    let modalSigPad = null;
+
+    function openUpdateSignatureModal() {
+        const modal = document.getElementById('update-signature-modal');
+        if (modal) modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            const canvas = document.getElementById('modal-signature-canvas');
+            if (canvas && typeof SignaturePad !== 'undefined') {
+                if (!modalSigPad) {
+                    modalSigPad = new SignaturePad(canvas, {
+                        penColor: '#a3e635',
+                        backgroundColor: 'rgba(15, 23, 42, 0)',
+                        minWidth: 1.5,
+                        maxWidth: 3.5
+                    });
+                    modalSigPad.addEventListener("beginStroke", () => {
+                        const placeholder = document.getElementById('modal-sig-placeholder');
+                        if (placeholder) placeholder.classList.add('hidden');
+                    });
+                } else {
+                    modalSigPad.clear();
+                    const placeholder = document.getElementById('modal-sig-placeholder');
+                    if (placeholder) placeholder.classList.remove('hidden');
+                }
+            }
+        }, 100);
+    }
+
+    function closeUpdateSignatureModal() {
+        const modal = document.getElementById('update-signature-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function clearModalSignature() {
+        if (modalSigPad) {
+            modalSigPad.clear();
+            const placeholder = document.getElementById('modal-sig-placeholder');
+            if (placeholder) placeholder.classList.remove('hidden');
+        }
+    }
+
+    function saveModalSignature() {
+        if (!modalSigPad || modalSigPad.isEmpty()) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Canvas Vacío',
+                    text: 'Debes firmar dentro del recuadro antes de guardar.',
+                    icon: 'warning',
+                    background: '#0f172a',
+                    color: '#f8fafc',
+                    confirmButtonColor: '#0ea5e9'
+                });
+            }
+            return;
+        }
+
+        const dataUrl = modalSigPad.toDataURL('image/png');
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('signature_base64', dataUrl);
+
+        fetch("{{ route('clientes.update_signature', $cliente->id) }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeUpdateSignatureModal();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '¡Firma Guardada!',
+                        text: data.message,
+                        icon: 'success',
+                        background: '#0f172a',
+                        color: '#f8fafc',
+                        confirmButtonColor: '#84cc16'
+                    }).then(() => window.location.reload());
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                showPosToast(data.message || 'Error al guardar firma.', 'danger');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            showPosToast('Error de conexión.', 'danger');
+        });
     }
 </script>
 

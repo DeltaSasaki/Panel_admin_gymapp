@@ -804,7 +804,7 @@ class AdminController extends Controller
             ]);
 
             // Create UserProfile
-            UserProfile::create([
+            $profile = UserProfile::create([
                 'user_id' => $user->id,
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
@@ -815,8 +815,37 @@ class AdminController extends Controller
                 'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
             ]);
 
+            // Save Digital Signature Base64 Image if provided
+            if ($request->filled('signature_base64')) {
+                $base64Sig = $request->signature_base64;
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64Sig)) {
+                    $data = substr($base64Sig, strpos($base64Sig, ',') + 1);
+                    $decodedSig = base64_decode($data);
+                    if ($decodedSig !== false) {
+                        $sigDirectory = public_path('uploads/signatures');
+                        if (!file_exists($sigDirectory)) {
+                            mkdir($sigDirectory, 0755, true);
+                        }
+                        $sigFileName = 'sig_user_' . $user->id . '_' . time() . '.png';
+                        file_put_contents($sigDirectory . '/' . $sigFileName, $decodedSig);
+                        
+                        $profile->update([
+                            'signature_url' => asset('uploads/signatures/' . $sigFileName)
+                        ]);
+                    }
+                }
+            }
+
+            // Spatie Activity Log
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                activity()
+                    ->performedOn($user)
+                    ->causedBy(auth()->user())
+                    ->log("Alta de nuevo socio #{$user->id} ({$profile->first_name} {$profile->last_name}) con expediente y firma digital");
+            }
+
             \Illuminate\Support\Facades\DB::commit();
-            return redirect()->route('clientes.index')->with('success', 'Cliente registrado exitosamente.');
+            return redirect()->route('clientes.show', $user->id)->with('success', 'Socio registrado exitosamente con expediente digital.');
         } catch (\Illuminate\Database\QueryException $e) {
             \Illuminate\Support\Facades\DB::rollBack();
             $errorMessage = $e->getMessage();
@@ -832,6 +861,74 @@ class AdminController extends Controller
             \Illuminate\Support\Facades\DB::rollBack();
             return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Display digital member card with QR code and signature.
+     */
+    public function digitalCarnet($id)
+    {
+        $gymId = $this->getActiveGymId();
+
+        $cliente = User::where('role', 'member')
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->with(['profile', 'gym', 'activeMembership.plan'])
+            ->findOrFail($id);
+
+        $qrCodeSvg = \SimpleSoftwareIO\QrCode\Facades\QrCode::size(110)
+            ->color(132, 204, 22)
+            ->backgroundColor(15, 23, 42)
+            ->margin(0)
+            ->generate('MEMBER:' . $cliente->id);
+
+        return view('clientes.carnet', compact('cliente', 'qrCodeSvg'));
+    }
+
+    /**
+     * Save/Update client digital signature via AJAX modal.
+     */
+    public function updateSignature(Request $request, $id)
+    {
+        $request->validate([
+            'signature_base64' => 'required|string',
+        ]);
+
+        $cliente = User::where('role', 'member')->findOrFail($id);
+
+        $base64Sig = $request->signature_base64;
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64Sig)) {
+            $data = substr($base64Sig, strpos($base64Sig, ',') + 1);
+            $decodedData = base64_decode($data);
+            if ($decodedData !== false) {
+                $sigDirectory = public_path('uploads/signatures');
+                if (!file_exists($sigDirectory)) {
+                    mkdir($sigDirectory, 0755, true);
+                }
+                $sigFileName = 'sig_user_' . $cliente->id . '_' . time() . '.png';
+                file_put_contents($sigDirectory . '/' . $sigFileName, $decodedData);
+                
+                $cliente->profile->update([
+                    'signature_url' => asset('uploads/signatures/' . $sigFileName)
+                ]);
+
+                if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                    activity()
+                        ->performedOn($cliente)
+                        ->causedBy(auth()->user())
+                        ->log("Firma digital actualizada para el socio #{$cliente->id}");
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Firma digital guardada correctamente.',
+                    'signature_url' => asset('uploads/signatures/' . $sigFileName)
+                ]);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'Formato de firma inválido.'], 422);
     }
 
     /**

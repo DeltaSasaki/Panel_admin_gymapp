@@ -32,6 +32,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/clientes', [AdminController::class, 'storeCliente'])->name('clientes.store');
     Route::get('/api/consultar-cne', [AdminController::class, 'consultarCne'])->name('api.consultar_cne');
     Route::get('/clientes/{id}', [AdminController::class, 'showCliente'])->name('clientes.show');
+    Route::get('/clientes/{id}/carnet', [AdminController::class, 'digitalCarnet'])->name('clientes.carnet');
+    Route::post('/clientes/{id}/signature', [AdminController::class, 'updateSignature'])->name('clientes.update_signature');
     Route::post('/clientes/{id}/assign-routine', [AdminController::class, 'assignRoutine'])->name('clientes.assign_routine');
     Route::post('/clientes/{id}/assign-meal-plan', [AdminController::class, 'assignMealPlan'])->name('clientes.assign_meal_plan');
     Route::post('/clientes/{id}/assign-trainer', [AdminController::class, 'assignTrainer'])->name('clientes.assign_trainer');

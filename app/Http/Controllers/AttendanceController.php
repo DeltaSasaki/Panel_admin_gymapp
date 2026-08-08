@@ -78,15 +78,24 @@ class AttendanceController extends Controller
             return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
-        // Retrieve target user either by user_id or DNI/QR
+        // Retrieve target user either by user_id or DNI/QR string (e.g. MEMBER:347, 347, or DNI)
         if ($request->filled('user_id')) {
             $user = User::with('profile')->find($request->user_id);
         } elseif ($request->filled('dni')) {
-            $cleanDni = preg_replace('/[^a-zA-Z0-9]/', '', $request->dni);
-            $user = User::whereHas('profile', function($q) use ($request, $cleanDni) {
-                $q->where('dni', $request->dni)
-                  ->orWhere('dni', $cleanDni);
-            })->with('profile')->first();
+            $rawInput = trim($request->dni);
+
+            // Check if string comes from Carnet Digital QR (e.g. MEMBER:347)
+            if (preg_match('/^MEMBER:(\d+)$/i', $rawInput, $matches)) {
+                $user = User::with('profile')->find($matches[1]);
+            } elseif (is_numeric($rawInput) && User::where('id', $rawInput)->exists()) {
+                $user = User::with('profile')->find($rawInput);
+            } else {
+                $cleanDni = preg_replace('/[^a-zA-Z0-9]/', '', $rawInput);
+                $user = User::whereHas('profile', function($q) use ($rawInput, $cleanDni) {
+                    $q->where('dni', $rawInput)
+                      ->orWhere('dni', $cleanDni);
+                })->with('profile')->first();
+            }
         } else {
             $user = null;
         }

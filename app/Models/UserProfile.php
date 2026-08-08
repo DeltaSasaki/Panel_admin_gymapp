@@ -20,6 +20,7 @@ class UserProfile extends Model
         'birth_date',
         'gender',
         'profile_photo',
+        'signature_url',
     ];
 
     public function user()
