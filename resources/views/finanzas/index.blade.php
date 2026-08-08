@@ -11,7 +11,10 @@
             <h1 class="text-3xl font-extrabold text-slate-100 tracking-tight">Finanzas y Membresías</h1>
             <p class="text-xs text-slate-400 mt-1">Administra los planes de suscripción, cobros, cupones y estados de facturación.</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ route('finanzas.export') }}" class="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Exportar a Excel (.xlsx / .csv)
+            </a>
             <button onclick="openAbonoModal()" class="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500 border border-amber-500/25 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
                 <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
             </button>
@@ -28,7 +31,7 @@
     </div>
 
     <!-- Error/Success Alerts -->
-    @if($errors->any())
+    @if(isset($errors) && $errors->any())
         <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-4 rounded-xl">
             <ul class="list-disc pl-4 space-y-1">
                 @foreach($errors->all() as $error)

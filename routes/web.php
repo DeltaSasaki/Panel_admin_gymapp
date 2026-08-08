@@ -63,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Finanzas & Membresías routes (restricted to admin/superadmin in controller constructor)
     Route::get('/finanzas', [FinanceController::class, 'index'])->name('finanzas.index');
+    Route::get('/finanzas/export', [FinanceController::class, 'exportExcel'])->name('finanzas.export');
     Route::post('/finanzas/planes', [FinanceController::class, 'storePlan'])->name('finanzas.store_plan');
     Route::put('/finanzas/planes/{id}', [FinanceController::class, 'updatePlan'])->name('finanzas.update_plan');
     Route::post('/finanzas/planes/{id}/toggle', [FinanceController::class, 'togglePlan'])->name('finanzas.toggle_plan');

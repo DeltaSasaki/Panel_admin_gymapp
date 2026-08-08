@@ -717,6 +717,29 @@
         renderMPayPage();
         renderPSalesPage();
         renderAttPage();
+
+        if (typeof flatpickr !== 'undefined') {
+            flatpickr("#cierre_date_picker", {
+                locale: "es",
+                dateFormat: "Y-m-d",
+                theme: "dark",
+                onChange: function(selectedDates, dateStr) {
+                    if (typeof changeAuditDate === 'function') changeAuditDate(dateStr);
+                }
+            });
+
+            flatpickr("#cierre_start_date", {
+                locale: "es",
+                dateFormat: "Y-m-d",
+                theme: "dark"
+            });
+
+            flatpickr("#cierre_end_date", {
+                locale: "es",
+                dateFormat: "Y-m-d",
+                theme: "dark"
+            });
+        }
     }
 
     // Run pagination immediately on script evaluation
@@ -725,4 +748,9 @@
     document.addEventListener('DOMContentLoaded', initAllCierrePaginations);
     window.addEventListener('page:loaded', initAllCierrePaginations);
 </script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 @endsection

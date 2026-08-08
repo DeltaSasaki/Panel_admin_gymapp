@@ -78,6 +78,106 @@ class FinanceController extends Controller
     }
 
     /**
+     * Export Financial Balance and Transactions to CSV/Excel format.
+     */
+    public function exportExcel(Request $request)
+    {
+        $this->checkAdmin();
+        $gymId = $this->getActiveGymId();
+
+        $format = $request->query('format', 'csv'); // csv or xlsx
+
+        $payments = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'receivedBy'])
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->whereHas('membership', function ($sq) use ($gymId) {
+                    $sq->where('gym_id', $gymId);
+                });
+            })
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $sales = \App\Models\ProductSale::with(['user.profile', 'soldBy'])
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $filename = 'Balance_Financiero_' . date('Ymd_His') . '.' . ($format === 'xlsx' ? 'xlsx' : 'csv');
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($payments, $sales) {
+            $file = fopen('php://output', 'w');
+            // Add UTF-8 BOM for Excel compatibility
+            fputs($file, "\xEF\xBB\xBF");
+
+            // Header Row
+            fputcsv($file, [
+                'ID Transaccion',
+                'Tipo Concepto',
+                'Fecha / Hora',
+                'Cliente / Atleta',
+                'Detalle / Plan / Producto',
+                'Metodo de Pago',
+                'Monto ($)',
+                'Cajero / Atendido Por'
+            ]);
+
+            // Membership Payments
+            foreach ($payments as $p) {
+                $clientName = ($p->membership && $p->membership->user && $p->membership->user->profile)
+                    ? $p->membership->user->profile->first_name . ' ' . $p->membership->user->profile->last_name
+                    : 'Socio #' . ($p->membership->user_id ?? 'N/A');
+
+                $planName = $p->membership->plan->name ?? 'Membresia';
+                $cashier = $p->receivedBy->name ?? 'Sistema / Recepcion';
+
+                fputcsv($file, [
+                    'MEM-' . $p->id,
+                    'Membresia',
+                    $p->payment_date ? \Carbon\Carbon::parse($p->payment_date)->format('Y-m-d H:i') : 'N/A',
+                    $clientName,
+                    $planName,
+                    strtoupper($p->payment_method ?? 'cash'),
+                    number_format($p->amount, 2, '.', ''),
+                    $cashier
+                ]);
+            }
+
+            // POS Sales
+            foreach ($sales as $s) {
+                $clientName = ($s->user && $s->user->profile)
+                    ? $s->user->profile->first_name . ' ' . $s->user->profile->last_name
+                    : 'Cliente General POS';
+
+                $cashier = $s->soldBy->name ?? 'Caja POS';
+
+                fputcsv($file, [
+                    'POS-' . $s->id,
+                    'Venta Tienda POS',
+                    $s->sale_date ? \Carbon\Carbon::parse($s->sale_date)->format('Y-m-d H:i') : $s->createdAt,
+                    $clientName,
+                    'Venta POS #' . $s->id,
+                    strtoupper($s->payment_method ?? 'cash'),
+                    number_format($s->total_amount, 2, '.', ''),
+                    $cashier
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
      * Store new membership plan.
      */
     public function storePlan(Request $request)
