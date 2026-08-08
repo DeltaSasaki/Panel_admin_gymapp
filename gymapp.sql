@@ -99,7 +99,7 @@ CREATE TABLE `attendance_logs` (
   `user_id` int(11) NOT NULL,
   `check_in` datetime NOT NULL,
   `check_out` datetime DEFAULT NULL,
-  `entry_method` enum('biometric','app_manual','rfid','admin') DEFAULT 'biometric',
+  `entry_method` enum('biometric','app_manual','rfid','admin','qr') DEFAULT 'app_manual',
   `status` enum('valid','flagged') DEFAULT 'valid' COMMENT 'Flagged si marcó desde la app pero lejos del gym',
   `createdAt` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -7,6 +7,7 @@ use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\AdminAuditLog;
 use App\Models\Gym;
+use App\Models\SaasSubscriptionPlan;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -365,21 +366,28 @@ class AttendanceController extends Controller
             'admin' => 'Admin',
             'biometric' => 'Biométrico',
             'rfid' => 'RFID',
-            'app_manual' => 'App Móvil'
+            'app_manual' => 'App Móvil',
+            'qr' => 'Escáner QR',
         ];
         $methodBadge = [
             'admin' => 'bg-blue-500/10 text-blue-400 border-blue-500/20',
             'biometric' => 'bg-purple-500/10 text-purple-400 border-purple-500/20',
             'rfid' => 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-            'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+            'qr' => 'bg-lime-500/10 text-lime-400 border-lime-500/20',
         ];
 
         $logs = $allLogs->map(function($log) use ($methodMap, $methodBadge) {
+            $userProfile = $log->user ? $log->user->profile : null;
+            $firstName = $userProfile->first_name ?? ($log->user->name ?? 'Atleta');
+            $lastName = $userProfile->last_name ?? '';
+            $userName = trim("{$firstName} {$lastName}");
+
             return [
                 'id' => $log->id,
-                'user_name' => trim(($log->user->profile->first_name ?? 'Atleta') . ' ' . ($log->user->profile->last_name ?? '')),
-                'user_email' => $log->user->email ?? '',
-                'user_photo' => $log->user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                'user_name' => $userName,
+                'user_email' => $log->user->email ?? 'N/A',
+                'user_photo' => $userProfile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
                 'gym_name' => $log->gym->name ?? 'Sucursal Global',
                 'check_in_time' => Carbon::parse($log->check_in)->format('H:i'),
                 'check_in_date' => Carbon::parse($log->check_in)->format('d/m/Y'),

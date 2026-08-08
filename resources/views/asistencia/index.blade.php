@@ -260,13 +260,15 @@
                                                 'admin' => 'Admin',
                                                 'biometric' => 'Biométrico',
                                                 'rfid' => 'RFID',
-                                                'app_manual' => 'App Móvil'
+                                                'app_manual' => 'App Móvil',
+                                                'qr' => 'Escáner QR'
                                             ];
                                             $methodBadge = [
                                                 'admin' => 'bg-blue-500/10 text-blue-400 border-blue-500/20',
                                                 'biometric' => 'bg-purple-500/10 text-purple-400 border-purple-500/20',
                                                 'rfid' => 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                                                'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                'app_manual' => 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                                                'qr' => 'bg-lime-500/10 text-lime-400 border-lime-500/20'
                                             ];
                                         @endphp
                                         <span class="px-2 py-0.5 text-[10px] font-bold border rounded-md {{ $methodBadge[$log->entry_method] ?? 'bg-slate-950 text-slate-500 border-slate-850' }}">
@@ -794,6 +796,22 @@
         if (!input.files || input.files.length === 0) return;
         const file = input.files[0];
 
+        // 1. Try Native Browser BarcodeDetector first (Super fast & handles blurry/rotated images!)
+        if ('BarcodeDetector' in window) {
+            try {
+                const barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+                const imageBitmap = await createImageBitmap(file);
+                const barcodes = await barcodeDetector.detect(imageBitmap);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    onQrCodeScanned(barcodes[0].rawValue);
+                    return;
+                }
+            } catch (nativeErr) {
+                console.warn("Native BarcodeDetector fallback to Html5Qrcode:", nativeErr);
+            }
+        }
+
+        // 2. Try Html5Qrcode scanFile
         if (!html5QrInstance) {
             html5QrInstance = new Html5Qrcode("qr_reader_viewport");
         }
@@ -805,9 +823,99 @@
             const decodedText = await html5QrInstance.scanFile(file, true);
             onQrCodeScanned(decodedText);
         } catch (err) {
-            console.error("Error scanning file:", err);
-            showToast("No se pudo detectar un código QR legible en la imagen subida.", "error");
+            console.warn("Standard scanFile failed, trying Canvas Pre-processing fallback:", err);
+            // 3. Fallback: Pre-process Image on Canvas (downscale & contrast)
+            tryScanQrFromCanvas(file);
         }
+    }
+
+    function tryScanQrFromCanvas(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = async function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                let width = img.width;
+                let height = img.height;
+                const maxDim = 800;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const tryScanBlob = (blob) => {
+                    return new Promise((resolve, reject) => {
+                        if (!blob) return reject("No blob");
+                        const procFile = new File([blob], "proc_qr.png", { type: "image/png" });
+                        html5QrInstance.scanFile(procFile, false)
+                            .then(res => resolve(res))
+                            .catch(err => reject(err));
+                    });
+                };
+
+                // Pass A: Downscaled Image
+                try {
+                    const blobA = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    const resultA = await tryScanBlob(blobA);
+                    onQrCodeScanned(resultA);
+                    return;
+                } catch (eA) {
+                    console.warn("Canvas Pass A failed, attempting Pass B (Color Inversion for Dark Theme QRs)...");
+                }
+
+                // Pass B: Color Inversion (Turns Light Green on Dark Navy into Dark Magenta on Light Cyan)
+                const imgData = ctx.getImageData(0, 0, width, height);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = 255 - data[i];       // R
+                    data[i + 1] = 255 - data[i + 1]; // G
+                    data[i + 2] = 255 - data[i + 2]; // B
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                try {
+                    const blobB = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    const resultB = await tryScanBlob(blobB);
+                    onQrCodeScanned(resultB);
+                    return;
+                } catch (eB) {
+                    console.warn("Canvas Pass B failed, attempting Pass C (High Contrast Binarization)...");
+                }
+
+                // Pass C: Grayscale Binarization Thresholding
+                for (let i = 0; i < data.length; i += 4) {
+                    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    const bw = avg > 128 ? 255 : 0;
+                    data[i] = bw;
+                    data[i + 1] = bw;
+                    data[i + 2] = bw;
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                try {
+                    const blobC = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                    const resultC = await tryScanBlob(blobC);
+                    onQrCodeScanned(resultC);
+                    return;
+                } catch (eC) {
+                    console.error("All canvas scanner passes failed:", eC);
+                    showToast("No se pudo detectar un código QR en la imagen. Intenta con una captura o foto más clara.", "error");
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 
     function closeQrScannerModal() {
