@@ -686,41 +686,135 @@
         }
     }
 
-    // LIVE QR SCANNER MODAL HANDLERS (html5-qrcode)
+    // LIVE QR SCANNER MODAL HANDLERS (html5-qrcode optimized for low quality webcams)
     let html5QrInstance = null;
+    let currentCameraId = null;
 
-    function openQrScannerModal() {
+    async function openQrScannerModal() {
         const modal = document.getElementById('qr_scanner_modal');
         if (modal) modal.classList.remove('hidden');
 
-        setTimeout(() => {
-            if (typeof Html5Qrcode !== 'undefined') {
-                html5QrInstance = new Html5Qrcode("qr_reader_viewport");
-                html5QrInstance.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 220, height: 220 } },
-                    (decodedText) => {
-                        onQrCodeScanned(decodedText);
-                    },
-                    (error) => {}
-                ).catch(err => {
-                    console.error("Camera error:", err);
-                    showToast("No se pudo iniciar la cámara para el escáner QR.", "error");
-                });
-            } else {
-                showToast("Librería QR cargándose, intenta de nuevo.", "info");
+        setTimeout(async () => {
+            if (typeof Html5Qrcode === 'undefined') {
+                showToast("Librería de cámara cargándose, intenta en un segundo.", "info");
+                return;
             }
-        }, 300);
+
+            try {
+                if (!html5QrInstance) {
+                    html5QrInstance = new Html5Qrcode("qr_reader_viewport", {
+                        experimentalFeatures: {
+                            useBarCodeDetectorIfSupported: true
+                        }
+                    });
+                }
+
+                // Discover available cameras
+                const cameras = await Html5Qrcode.getCameras();
+                const cameraSelect = document.getElementById('qr_camera_select');
+
+                if (cameras && cameras.length > 0) {
+                    if (cameraSelect) {
+                        cameraSelect.innerHTML = cameras.map((cam, idx) => `<option value="${cam.id}">${cam.label || ('Cámara ' + (idx + 1))}</option>`).join('');
+                        cameraSelect.classList.remove('hidden');
+                    }
+                    currentCameraId = cameras[0].id;
+                } else {
+                    currentCameraId = { facingMode: "environment" };
+                }
+
+                startScannerWithCamera(currentCameraId);
+
+            } catch (err) {
+                console.warn("Camera enumeration error:", err);
+                startScannerWithCamera({ facingMode: "user" });
+            }
+        }, 200);
+    }
+
+    function startScannerWithCamera(cameraConfig) {
+        if (!html5QrInstance) return;
+
+        const config = {
+            fps: 25, // Higher FPS to quickly catch sharp frames on low quality webcams
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+                const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                const size = Math.max(180, Math.floor(minEdge * 0.85));
+                return { width: size, height: size };
+            },
+            aspectRatio: 1.0,
+            videoConstraints: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: typeof cameraConfig === 'object' ? cameraConfig.facingMode : undefined
+            }
+        };
+
+        if (html5QrInstance.isScanning) {
+            html5QrInstance.stop().then(() => {
+                runStartScanner(cameraConfig, config);
+            }).catch(() => runStartScanner(cameraConfig, config));
+        } else {
+            runStartScanner(cameraConfig, config);
+        }
+    }
+
+    function runStartScanner(cameraConfig, config) {
+        html5QrInstance.start(
+            cameraConfig,
+            config,
+            (decodedText) => {
+                onQrCodeScanned(decodedText);
+            },
+            () => {
+                // Silent on unparsed frames
+            }
+        ).catch(err => {
+            console.warn("Camera start failed with primary config, trying fallback:", err);
+            html5QrInstance.start(
+                { facingMode: "user" },
+                { fps: 15, qrbox: { width: 220, height: 220 } },
+                (decodedText) => onQrCodeScanned(decodedText),
+                () => {}
+            ).catch(e => {
+                console.error("Final camera fallback error:", e);
+                showToast("No se pudo iniciar la cámara. Por favor verifica los permisos o sube una imagen del QR.", "error");
+            });
+        });
+    }
+
+    function switchQrCamera(cameraId) {
+        if (cameraId) {
+            currentCameraId = cameraId;
+            startScannerWithCamera(cameraId);
+        }
+    }
+
+    function scanQrFromFile(input) {
+        if (!input.files || input.files.length === 0) return;
+        const file = input.files[0];
+
+        if (!html5QrInstance) {
+            html5QrInstance = new Html5Qrcode("qr_reader_viewport");
+        }
+
+        html5QrInstance.scanFile(file, true)
+            .then(decodedText => {
+                onQrCodeScanned(decodedText);
+            })
+            .catch(err => {
+                console.error("Error scanning file:", err);
+                showToast("No se pudo detectar un código QR legible en la imagen subida.", "error");
+            });
     }
 
     function closeQrScannerModal() {
         const modal = document.getElementById('qr_scanner_modal');
         if (modal) modal.classList.add('hidden');
 
-        if (html5QrInstance) {
+        if (html5QrInstance && html5QrInstance.isScanning) {
             html5QrInstance.stop().then(() => {
                 html5QrInstance.clear();
-                html5QrInstance = null;
             }).catch(err => console.error(err));
         }
     }
@@ -730,9 +824,9 @@
 
         let cleanVal = decodedText.trim();
         if (cleanVal.includes('MEMBER:')) {
-            cleanVal = cleanVal.split('MEMBER:')[1];
+            cleanVal = cleanVal.substring(cleanVal.indexOf('MEMBER:'));
         } else if (cleanVal.includes('DNI:')) {
-            cleanVal = cleanVal.split('DNI:')[1];
+            cleanVal = cleanVal.split('DNI:')[1].trim();
         }
 
         performQrCheckIn(cleanVal);
@@ -744,10 +838,14 @@
         formData.append('_token', '{{ csrf_token() }}');
         formData.append('entry_method', 'qr');
 
-        if (/^\d+$/.test(value) && value.length <= 6) {
-            formData.append('user_id', value);
+        let targetVal = value.trim();
+        if (/^MEMBER:(\d+)$/i.test(targetVal)) {
+            const matches = targetVal.match(/^MEMBER:(\d+)$/i);
+            formData.append('user_id', matches[1]);
+        } else if (/^\d+$/.test(targetVal) && targetVal.length <= 6) {
+            formData.append('user_id', targetVal);
         } else {
-            formData.append('dni', value);
+            formData.append('dni', targetVal);
         }
 
         try {
@@ -979,7 +1077,7 @@
             showToast("{{ session('success') }}", 'success');
         @endif
 
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             @foreach($errors->all() as $error)
                 showToast("{{ $error }}", 'error');
             @endforeach
@@ -999,7 +1097,7 @@
     });
 </script>
 
-<!-- LIVE QR SCANNER MODAL -->
+<!-- LIVE QR SCANNER MODAL (OPTIMIZED FOR LOW QUALITY WEBCAMS) -->
 <div id="qr_scanner_modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden p-4 animate-fade-in">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-4">
         <button type="button" onclick="closeQrScannerModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors">
@@ -1010,12 +1108,28 @@
                 <i data-lucide="camera" class="w-5 h-5 text-lime-400"></i>
                 Escanear Código QR
             </h3>
-            <p class="text-xs text-slate-400 mt-1">Coloca el carnet digital del socio frente a la cámara.</p>
+            <p class="text-xs text-slate-400 mt-1">Apunta el carnet digital a la cámara o sube la imagen del QR.</p>
         </div>
-        <div id="qr_reader_viewport" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 min-h-[260px] flex items-center justify-center">
+
+        <!-- Viewport Container -->
+        <div id="qr_reader_viewport" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 min-h-[260px] flex items-center justify-center relative shadow-inner">
             <!-- Html5Qrcode renders video viewport here -->
         </div>
-        <div class="text-center">
+
+        <!-- Controls: Camera Selector & Image Upload Fallback for blurry/low quality webcams -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+            <select id="qr_camera_select" onchange="switchQrCamera(this.value)" class="bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-2.5 py-1.5 font-bold text-xs focus:outline-none focus:border-lime-500/50 hidden max-w-[200px] truncate cursor-pointer">
+                <option value="">Cámara por defecto</option>
+            </select>
+
+            <label class="cursor-pointer px-3 py-1.5 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-lime-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-lime-400"></i>
+                <span>Subir QR / Imagen</span>
+                <input type="file" id="qr_file_input" accept="image/*" onchange="scanQrFromFile(this)" class="hidden">
+            </label>
+        </div>
+
+        <div class="text-center pt-2 border-t border-slate-850">
             <button type="button" onclick="closeQrScannerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
                 Cancelar Escaneo
             </button>
