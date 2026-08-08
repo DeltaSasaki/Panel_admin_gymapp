@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Trainer;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Models\AdminAuditLog;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -106,6 +107,8 @@ class StaffController extends Controller
                 'hire_date' => Carbon::today(),
                 'salary' => $request->salary,
             ]);
+
+            AdminAuditLog::logAction('INSERT', 'trainers', $user->id, null, ['email' => $request->email, 'name' => $request->first_name . ' ' . $request->last_name], $gymId);
 
             DB::commit();
             $message = 'Entrenador registrado exitosamente.';

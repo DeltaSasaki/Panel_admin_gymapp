@@ -47,9 +47,11 @@ class AdminAuditLog extends Model
     {
         try {
             $currentAdminId = $adminId ?: (auth()->check() ? auth()->id() : null);
-            if (!$currentAdminId) return;
 
-            $currentGymId = $gymId !== null ? $gymId : (auth()->check() ? auth()->user()->gym_id : null);
+            $currentGymId = $gymId !== null ? $gymId : (auth()->check() ? (auth()->user()->gym_id ?? null) : null);
+
+            $oldJson = is_array($oldData) || is_object($oldData) ? json_encode($oldData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $oldData;
+            $newJson = is_array($newData) || is_object($newData) ? json_encode($newData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $newData;
 
             self::create([
                 'gym_id' => $currentGymId,
@@ -57,12 +59,34 @@ class AdminAuditLog extends Model
                 'action_type' => $actionType,
                 'table_name' => $tableName,
                 'record_id' => $recordId ? (string) $recordId : null,
-                'old_data' => is_array($oldData) || is_object($oldData) ? json_encode($oldData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $oldData,
-                'new_data' => is_array($newData) || is_object($newData) ? json_encode($newData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : $newData,
+                'old_data' => $oldJson,
+                'new_data' => $newJson,
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
                 'createdAt' => now(),
             ]);
+
+            // Synchronize with spatie activity_log table if available
+            if (\Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                \Illuminate\Support\Facades\DB::table('activity_log')->insert([
+                    'log_name' => 'audit',
+                    'description' => "[{$actionType}] Tabla {$tableName}" . ($recordId ? " #{$recordId}" : ''),
+                    'subject_type' => $tableName,
+                    'subject_id' => $recordId ? (int)$recordId : null,
+                    'causer_type' => $currentAdminId ? 'App\\Models\\User' : null,
+                    'causer_id' => $currentAdminId,
+                    'properties' => json_encode([
+                        'action' => $actionType,
+                        'table' => $tableName,
+                        'gym_id' => $currentGymId,
+                        'old' => $oldData,
+                        'new' => $newData,
+                        'ip' => request()->ip()
+                    ], JSON_UNESCAPED_UNICODE),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Failed recording audit log: ' . $e->getMessage());
         }

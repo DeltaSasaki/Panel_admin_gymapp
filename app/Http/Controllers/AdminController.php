@@ -29,6 +29,7 @@ use App\Models\UserMembership;
 use App\Models\ProductSale;
 use App\Models\InventoryProduct;
 use App\Models\UserTrainerAssignment;
+use App\Models\AdminAuditLog;
 
 class AdminController extends Controller
 {
@@ -836,13 +837,21 @@ class AdminController extends Controller
                 }
             }
 
-            // Spatie Activity Log
-            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
-                activity()
-                    ->performedOn($user)
-                    ->causedBy(auth()->user())
-                    ->log("Alta de nuevo socio #{$user->id} ({$profile->first_name} {$profile->last_name}) con expediente y firma digital");
-            }
+            // Audit Log
+            AdminAuditLog::logAction(
+                'INSERT',
+                'user_profiles',
+                $user->id,
+                null,
+                [
+                    'user_id' => $user->id,
+                    'first_name' => $request->first_name,
+                    'last_name' => $request->last_name,
+                    'email' => $request->email,
+                    'dni' => $request->dni,
+                ],
+                $gymId
+            );
 
             \Illuminate\Support\Facades\DB::commit();
             return redirect()->route('clientes.show', $user->id)->with('success', 'Socio registrado exitosamente con expediente digital.');

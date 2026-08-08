@@ -43,6 +43,7 @@ class AuthController extends Controller
                     ]);
                 }
                 
+                AdminAuditLog::logAction('LOGIN_SUCCESS', 'users', $user->id, null, ['email' => $user->email, 'role' => $user->role], $user->gym_id, $user->id);
                 $request->session()->regenerate();
                 return redirect()->intended('dashboard');
             }
@@ -77,6 +78,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+            AdminAuditLog::logAction('LOGOUT', 'users', $user->id, null, ['email' => $user->email], $user->gym_id, $user->id);
+        }
+
         Auth::logout();
 
         $request->session()->invalidate();
@@ -111,7 +117,10 @@ class AuthController extends Controller
             }
         }
 
+        $oldGym = session('superadmin_gym_id', 'all');
         session(['superadmin_gym_id' => $request->gym_id]);
+
+        AdminAuditLog::logAction('SWITCH_GYM', 'gyms', $request->gym_id, ['old_gym_context' => $oldGym], ['new_gym_context' => $request->gym_id]);
 
         if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
             return response()->json([

@@ -9,6 +9,7 @@ use App\Models\AchievementDefinition;
 use App\Models\UserAchievement;
 use App\Models\UserGamificationStat;
 use App\Models\User;
+use App\Models\AdminAuditLog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -87,6 +88,8 @@ class GamificationController extends Controller
             'token_reward' => $request->token_reward,
             'is_active' => 1,
         ]);
+
+        AdminAuditLog::logAction('INSERT', 'challenges', $challenge->id, null, $challenge->toArray(), $gymId);
 
         $message = 'Reto de gimnasio creado exitosamente.';
 

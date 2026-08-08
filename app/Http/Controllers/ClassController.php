@@ -8,6 +8,7 @@ use App\Models\ClassSchedule;
 use App\Models\ClassBooking;
 use App\Models\Trainer;
 use App\Models\User;
+use App\Models\AdminAuditLog;
 use Carbon\Carbon;
 
 class ClassController extends Controller
@@ -85,6 +86,8 @@ class ClassController extends Controller
             'color_code' => $request->color_code ?: '#a3e635',
             'is_active' => 1,
         ]);
+
+        AdminAuditLog::logAction('INSERT', 'gym_classes', $gymClass->id, null, $gymClass->toArray(), $gymId);
 
         $typeLabel = ($categoryType === 'evento') ? 'Evento especial' : (($categoryType === 'actividad') ? 'Actividad recreativa' : 'Clase grupal');
         $message = "{$typeLabel} creado(a) exitosamente.";
