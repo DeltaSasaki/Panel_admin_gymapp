@@ -790,7 +790,7 @@
         }
     }
 
-    function scanQrFromFile(input) {
+    async function scanQrFromFile(input) {
         if (!input.files || input.files.length === 0) return;
         const file = input.files[0];
 
@@ -798,14 +798,16 @@
             html5QrInstance = new Html5Qrcode("qr_reader_viewport");
         }
 
-        html5QrInstance.scanFile(file, true)
-            .then(decodedText => {
-                onQrCodeScanned(decodedText);
-            })
-            .catch(err => {
-                console.error("Error scanning file:", err);
-                showToast("No se pudo detectar un código QR legible en la imagen subida.", "error");
-            });
+        try {
+            if (html5QrInstance.isScanning) {
+                await html5QrInstance.stop();
+            }
+            const decodedText = await html5QrInstance.scanFile(file, true);
+            onQrCodeScanned(decodedText);
+        } catch (err) {
+            console.error("Error scanning file:", err);
+            showToast("No se pudo detectar un código QR legible en la imagen subida.", "error");
+        }
     }
 
     function closeQrScannerModal() {
@@ -861,21 +863,28 @@
             const data = await response.json();
 
             if (data.success) {
+                const isCheckOut = data.action === 'check_out';
+                const titleText = isCheckOut ? '¡Salida Registrada!' : '¡Acceso Concedido!';
+                const iconType = isCheckOut ? 'info' : 'success';
+                const borderColor = isCheckOut ? 'border-purple-400' : 'border-lime-400';
+                const btnColor = isCheckOut ? '#a855f7' : '#84cc16';
+                const badgeBg = isCheckOut ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-lime-500/10 text-lime-400 border-lime-500/20';
+
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: '¡Acceso Concedido!',
+                        title: titleText,
                         html: `
                             <div class="flex flex-col items-center space-y-3 py-2">
-                                <img src="${data.user_photo || ''}" class="w-24 h-24 rounded-full object-cover border-4 border-lime-400 shadow-2xl">
+                                <img src="${data.user_photo || ''}" class="w-24 h-24 rounded-full object-cover border-4 ${borderColor} shadow-2xl">
                                 <h3 class="text-xl font-extrabold text-slate-100">${escapeHtml(data.user_name || '')}</h3>
-                                <span class="px-3 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 text-xs font-mono font-bold rounded-lg">DNI: ${escapeHtml(data.user_dni || '')}</span>
-                                <span class="text-xs text-lime-400 font-semibold mt-1">✔ ${data.message}</span>
+                                <span class="px-3 py-1 ${badgeBg} text-xs font-mono font-bold rounded-lg">DNI: ${escapeHtml(data.user_dni || '')}</span>
+                                <span class="text-xs ${isCheckOut ? 'text-purple-400' : 'text-lime-400'} font-semibold mt-1">✔ ${escapeHtml(data.message)}</span>
                             </div>
                         `,
-                        icon: 'success',
+                        icon: iconType,
                         background: '#0f172a',
                         color: '#f8fafc',
-                        confirmButtonColor: '#84cc16',
+                        confirmButtonColor: btnColor,
                         confirmButtonText: 'Continuar'
                     });
                 } else {
@@ -928,8 +937,16 @@
             url += `&date=${encodeURIComponent(dateVal)}`;
         }
 
-        fetch(url)
-            .then(res => res.json())
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
             .then(data => {
                 cachedLogsData = data.logs || [];
 

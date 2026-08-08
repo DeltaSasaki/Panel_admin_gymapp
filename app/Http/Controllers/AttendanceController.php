@@ -108,20 +108,49 @@ class AttendanceController extends Controller
             return redirect()->back()->withInput()->withErrors(['error' => $msg]);
         }
 
-        // Prevent checking in if already checked in and not checked out today
-        $alreadyCheckedIn = AttendanceLog::where('user_id', $user->id)
+        // Check if athlete is already inside (has active check-in without check-out today)
+        $openLog = AttendanceLog::where('user_id', $user->id)
             ->where('gym_id', $gymId)
             ->whereNull('check_out')
             ->whereDate('check_in', Carbon::today())
-            ->exists();
+            ->first();
 
-        if ($alreadyCheckedIn) {
-            $userName = ($user->profile->first_name ?? 'El cliente') . ' ' . ($user->profile->last_name ?? '');
-            $msg = "{$userName} ya se encuentra dentro del gimnasio (marcó entrada y aún no registra salida).";
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $msg], 422);
+        $userName = trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? ''));
+        $userPhoto = $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+        $userDni = $user->profile->dni ?? 'Sin DNI';
+
+        // AUTOMATIC CHECK-OUT IF ALREADY INSIDE
+        if ($openLog) {
+            $oldData = $openLog->toArray();
+            $openLog->update([
+                'check_out' => Carbon::now(),
+            ]);
+
+            AdminAuditLog::record('UPDATE', 'attendance_logs', $openLog->id, $oldData, $openLog->fresh()->toArray(), $gymId);
+
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                activity()
+                    ->performedOn($openLog)
+                    ->causedBy(auth()->user())
+                    ->withProperties(['gym_id' => $gymId, 'user_id' => $user->id])
+                    ->log("Check-out registrado para socio #{$user->id} vía QR/Escáner");
             }
-            return redirect()->back()->withInput()->withErrors(['error' => $msg]);
+
+            $msg = "¡Salida registrada con éxito para {$userName}!";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'action' => 'check_out',
+                    'message' => $msg,
+                    'log_id' => $openLog->id,
+                    'user_name' => $userName,
+                    'user_photo' => $userPhoto,
+                    'user_dni' => $userDni,
+                ]);
+            }
+
+            return redirect()->route('asistencia.index')->with('success', $msg);
         }
 
         $entryMethod = $request->input('entry_method', 'admin');
@@ -145,14 +174,12 @@ class AttendanceController extends Controller
                     ->log("Check-in ({$entryMethod}) registrado para socio #{$user->id}");
             }
 
-            $userName = trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? ''));
-            $userPhoto = $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
-            $userDni = $user->profile->dni ?? 'Sin DNI';
             $msg = "¡Check-in exitoso para {$userName}!";
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
+                    'action' => 'check_in',
                     'message' => $msg,
                     'log_id' => $log->id,
                     'user_name' => $userName,
