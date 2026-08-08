@@ -75,8 +75,10 @@ class FinanceController extends Controller
         $gymPromotions = $gymPromosQuery->orderBy('id', 'desc')->get();
 
         // Fetch pending verification payments (Binance, Pago Móvil, Transfers from Mobile App / API)
+        // Only include payments for memberships that are still pending or overdue (requiring manual admin verification)
         $pendingVerificationPayments = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'user.profile'])
             ->whereHas('membership', function ($q) use ($gymId) {
+                $q->whereIn('payment_status', ['pending', 'overdue']);
                 if ($gymId !== 'all') {
                     $q->where('gym_id', $gymId);
                 }
