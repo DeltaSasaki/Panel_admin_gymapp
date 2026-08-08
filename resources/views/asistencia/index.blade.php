@@ -721,11 +721,13 @@
                         <option value="facing_user">Cámara Frontal (Selfie)</option>
                     `;
 
-                    if (cameras && cameras.length > 0) {
-                        optionsHtml += cameras.map((cam, idx) => {
-                            const label = cam.label ? cam.label : `Cámara ${idx + 1}`;
-                            return `<option value="${cam.id}">📹 ${label}</option>`;
-                        }).join('');
+                    // Only append external/additional hardware devices if custom label is available
+                    if (cameras && cameras.length > 2) {
+                        cameras.forEach((cam, idx) => {
+                            if (cam.label && cam.label.length > 0) {
+                                optionsHtml += `<option value="${cam.id}">${cam.label}</option>`;
+                            }
+                        });
                     }
 
                     cameraSelect.innerHTML = optionsHtml;
