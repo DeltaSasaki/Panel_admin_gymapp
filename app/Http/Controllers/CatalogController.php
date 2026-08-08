@@ -88,7 +88,13 @@ class CatalogController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-        $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+        $equipQuery = Equipment::query();
+        if ($gymId !== 'all') {
+            $equipQuery->where(function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $equipment = $equipQuery->findOrFail($id);
         $oldData = $equipment->toArray();
 
         $data = [
@@ -136,7 +142,13 @@ class CatalogController extends Controller
     public function deleteEquipment($id)
     {
         $gymId = $this->getActiveGymId();
-        $equipment = Equipment::where('gym_id', $gymId)->findOrFail($id);
+        $equipQuery = Equipment::query();
+        if ($gymId !== 'all') {
+            $equipQuery->where(function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $equipment = $equipQuery->findOrFail($id);
         $oldData = $equipment->toArray();
 
         $newStatus = $equipment->is_active ? 0 : 1;
@@ -427,7 +439,13 @@ class CatalogController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-        $exercise = Exercise::where('gym_id', $gymId)->findOrFail($id);
+        $exerciseQuery = Exercise::query();
+        if ($gymId !== 'all') {
+            $exerciseQuery->where(function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $exercise = $exerciseQuery->findOrFail($id);
         $oldData = $exercise->toArray();
 
         $data = [
@@ -490,7 +508,13 @@ class CatalogController extends Controller
     public function deleteExercise($id)
     {
         $gymId = $this->getActiveGymId();
-        $exercise = Exercise::where('gym_id', $gymId)->findOrFail($id);
+        $exerciseQuery = Exercise::query();
+        if ($gymId !== 'all') {
+            $exerciseQuery->where(function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId)->orWhereNull('gym_id');
+            });
+        }
+        $exercise = $exerciseQuery->findOrFail($id);
         $oldData = $exercise->toArray();
 
         $newStatus = $exercise->is_active ? 0 : 1;
