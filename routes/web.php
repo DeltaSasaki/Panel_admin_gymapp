@@ -68,6 +68,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/finanzas/planes/{id}', [FinanceController::class, 'updatePlan'])->name('finanzas.update_plan');
     Route::post('/finanzas/planes/{id}/toggle', [FinanceController::class, 'togglePlan'])->name('finanzas.toggle_plan');
     Route::post('/finanzas/pagos', [FinanceController::class, 'recordPayment'])->name('finanzas.record_payment');
+    Route::post('/finanzas/pagos/{id}/aprobar', [FinanceController::class, 'approvePendingPayment'])->name('finanzas.approve_payment');
+    Route::post('/finanzas/pagos/{id}/rechazar', [FinanceController::class, 'rejectPendingPayment'])->name('finanzas.reject_payment');
     Route::post('/finanzas/abonos', [FinanceController::class, 'recordAbono'])->name('finanzas.record_abono');
     Route::post('/finanzas/renovar', [FinanceController::class, 'renewMembership'])->name('finanzas.renew_membership');
     Route::post('/finanzas/promos', [FinanceController::class, 'storePromoCode'])->name('finanzas.store_promo');
