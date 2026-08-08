@@ -688,9 +688,9 @@
         }
     }
 
-    // LIVE QR SCANNER MODAL HANDLERS (html5-qrcode optimized for low quality webcams)
+    // LIVE QR SCANNER MODAL HANDLERS (html5-qrcode optimized for low quality webcams & dual camera support)
     let html5QrInstance = null;
-    let currentCameraId = null;
+    let currentCameraConfig = { facingMode: "environment" };
 
     async function openQrScannerModal() {
         const modal = document.getElementById('qr_scanner_modal');
@@ -711,45 +711,65 @@
                     });
                 }
 
-                // Discover available cameras
-                const cameras = await Html5Qrcode.getCameras();
+                // Discover available hardware cameras and populate selector
+                const cameras = await Html5Qrcode.getCameras().catch(() => []);
                 const cameraSelect = document.getElementById('qr_camera_select');
 
-                if (cameras && cameras.length > 0) {
-                    if (cameraSelect) {
-                        cameraSelect.innerHTML = cameras.map((cam, idx) => `<option value="${cam.id}">${cam.label || ('Cámara ' + (idx + 1))}</option>`).join('');
-                        cameraSelect.classList.remove('hidden');
+                if (cameraSelect) {
+                    let optionsHtml = `
+                        <option value="facing_environment">Cámara Trasera (Principal)</option>
+                        <option value="facing_user">Cámara Frontal (Selfie)</option>
+                    `;
+
+                    if (cameras && cameras.length > 0) {
+                        optionsHtml += cameras.map((cam, idx) => {
+                            const label = cam.label ? cam.label : `Cámara ${idx + 1}`;
+                            return `<option value="${cam.id}">📹 ${label}</option>`;
+                        }).join('');
                     }
-                    currentCameraId = cameras[0].id;
-                } else {
-                    currentCameraId = { facingMode: "environment" };
+
+                    cameraSelect.innerHTML = optionsHtml;
+                    cameraSelect.classList.remove('hidden');
                 }
 
-                startScannerWithCamera(currentCameraId);
+                // Default to environment (rear camera)
+                currentCameraConfig = { facingMode: "environment" };
+                startScannerWithCamera(currentCameraConfig);
 
             } catch (err) {
-                console.warn("Camera enumeration error:", err);
-                startScannerWithCamera({ facingMode: "user" });
+                console.warn("Camera enumeration warning:", err);
+                startScannerWithCamera({ facingMode: "environment" });
             }
         }, 200);
+    }
+
+    function switchQrCamera(selectedVal) {
+        if (!selectedVal) return;
+
+        let cameraConfig;
+        if (selectedVal === 'facing_environment') {
+            cameraConfig = { facingMode: "environment" };
+        } else if (selectedVal === 'facing_user') {
+            cameraConfig = { facingMode: "user" };
+        } else {
+            cameraConfig = { deviceId: { exact: selectedVal } };
+        }
+
+        currentCameraConfig = cameraConfig;
+        startScannerWithCamera(cameraConfig);
     }
 
     function startScannerWithCamera(cameraConfig) {
         if (!html5QrInstance) return;
 
         const config = {
-            fps: 25, // Higher FPS to quickly catch sharp frames on low quality webcams
+            fps: 25, // Higher FPS to quickly catch sharp frames on webcams/mobile
             qrbox: (viewfinderWidth, viewfinderHeight) => {
                 const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
                 const size = Math.max(180, Math.floor(minEdge * 0.85));
                 return { width: size, height: size };
             },
-            aspectRatio: 1.0,
-            videoConstraints: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: typeof cameraConfig === 'object' ? cameraConfig.facingMode : undefined
-            }
+            aspectRatio: 1.0
         };
 
         if (html5QrInstance.isScanning) {
@@ -772,24 +792,21 @@
                 // Silent on unparsed frames
             }
         ).catch(err => {
-            console.warn("Camera start failed with primary config, trying fallback:", err);
+            console.warn("Camera start failed with target config, trying fallback:", err);
+            const fallbackConfig = (typeof cameraConfig === 'object' && cameraConfig.deviceId) 
+                ? cameraConfig.deviceId.exact 
+                : { facingMode: "user" };
+
             html5QrInstance.start(
-                { facingMode: "user" },
+                fallbackConfig,
                 { fps: 15, qrbox: { width: 220, height: 220 } },
                 (decodedText) => onQrCodeScanned(decodedText),
                 () => {}
             ).catch(e => {
                 console.error("Final camera fallback error:", e);
-                showToast("No se pudo iniciar la cámara. Por favor verifica los permisos o sube una imagen del QR.", "error");
+                showToast("No se pudo iniciar la cámara seleccionada. Permite los permisos de cámara en tu navegador o selecciona otra opción.", "error");
             });
         });
-    }
-
-    function switchQrCamera(cameraId) {
-        if (cameraId) {
-            currentCameraId = cameraId;
-            startScannerWithCamera(cameraId);
-        }
     }
 
     async function scanQrFromFile(input) {
