@@ -172,6 +172,28 @@ class InventoryController extends Controller
 
             DB::commit();
 
+            // Determine recipient email (if user has registered email or provided in request)
+            $recipientEmail = null;
+            if ($request->filled('recipient_email') && filter_var(trim($request->recipient_email), FILTER_VALIDATE_EMAIL)) {
+                $recipientEmail = trim($request->recipient_email);
+            } elseif ($sale->user && filter_var($sale->user->email, FILTER_VALIDATE_EMAIL)) {
+                $recipientEmail = $sale->user->email;
+            }
+
+            $sale->load(['user.profile', 'soldBy.profile', 'gym']);
+
+            $gymName = $sale->gym ? $sale->gym->name : 'BigWorldFitness';
+
+            $sellerProfile = $sale->soldBy ? $sale->soldBy->profile : (auth()->user() ? auth()->user()->profile : null);
+            $cashierName = $sellerProfile ? trim(($sellerProfile->first_name ?? '') . ' ' . ($sellerProfile->last_name ?? '')) : (auth()->user() ? auth()->user()->email : 'Cajero');
+            if (empty($cashierName)) $cashierName = auth()->user() ? auth()->user()->email : 'Cajero';
+
+            $clientProfile = $sale->user ? $sale->user->profile : null;
+            $clientName = $clientProfile ? trim(($clientProfile->first_name ?? '') . ' ' . ($clientProfile->last_name ?? '')) : ($sale->user ? $sale->user->email : 'Cliente General');
+            if (empty($clientName)) $clientName = 'Cliente General';
+
+            $clientDni = ($clientProfile && !empty($clientProfile->dni)) ? $clientProfile->dni : 'Sin DNI';
+
             $successMsg = 'Venta registrada con éxito. Total cobrado: $' . number_format($totalAmount, 2);
             if ($promoId) {
                 $successMsg .= ' (Descuento aplicado, total original: $' . number_format($originalTotal, 2) . ')';
@@ -186,7 +208,13 @@ class InventoryController extends Controller
                     'total_formatted' => '$' . number_format($totalAmount, 2),
                     'sale_date' => Carbon::now()->format('d/m/Y H:i'),
                     'payment_method' => $request->payment_method,
-                    'items_count' => count($itemsToCreate)
+                    'items_count' => count($itemsToCreate),
+                    'has_email' => !empty($recipientEmail),
+                    'recipient_email' => $recipientEmail,
+                    'gym_name' => $gymName,
+                    'cashier_name' => $cashierName,
+                    'client_name' => $clientName,
+                    'client_dni' => $clientDni,
                 ]);
             }
 
@@ -628,6 +656,33 @@ class InventoryController extends Controller
         $sales = $salesQuery->orderBy('id', 'desc')->get();
 
         return view('tienda.ventas', compact('sales'));
+    }
+
+    /**
+     * Send or resend ticket receipt email via Gmail SMTP.
+     */
+    public function sendReceiptEmail(Request $request)
+    {
+        $request->validate([
+            'sale_id' => 'required|exists:product_sales,id',
+            'email' => 'required|email',
+        ]);
+
+        try {
+            $sale = ProductSale::with(['items.product', 'user.profile', 'seller', 'gym'])->findOrFail($request->sale_id);
+            \Illuminate\Support\Facades\Mail::to($request->email)->send(new \App\Mail\PosReceiptMail($sale));
+
+            return response()->json([
+                'success' => true,
+                'message' => "Comprobante digital enviado exitosamente a: {$request->email}"
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Error al enviar correo de ticket POS #{$request->sale_id}: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => "Error al enviar correo: " . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

@@ -160,10 +160,10 @@
             <!-- Customer Association -->
             <div>
                 <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Asociar Socio (Opcional)</label>
-                <select name="user_id" class="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
-                    <option value="">Cliente General (Sin asociar)</option>
+                <select name="user_id" id="pos-user-id-select" class="w-full px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <option value="" data-email="">Cliente General (Sin asociar)</option>
                     @foreach($clients as $client)
-                        <option value="{{ $client->id }}">{{ $client->profile->first_name }} {{ $client->profile->last_name }}</option>
+                        <option value="{{ $client->id }}" data-email="{{ $client->email }}">{{ $client->profile->first_name ?? 'Socio' }} {{ $client->profile->last_name ?? '' }} ({{ $client->email }})</option>
                     @endforeach
                 </select>
             </div>
@@ -226,6 +226,8 @@
 
 <script>
     let cart = [];
+    let lastCompletedSaleData = null;
+    let lastCompletedSaleDetails = null;
     let currentPosPage = 1;
     const posPerPage = 9;
     let matchingPosCards = [];
@@ -502,7 +504,11 @@
         }
 
         const paymentMethod = document.getElementById('payment-method-select')?.value || 'cash';
-        const userId = document.getElementById('pos-user-id-input')?.value || '';
+        const userSelect = document.getElementById('pos-user-id-select');
+        const userId = userSelect?.value || '';
+        const selectedOption = userSelect?.options[userSelect.selectedIndex];
+        const selectedEmail = selectedOption?.dataset?.email || '';
+
         const promoCode = document.getElementById('pos_promo_code')?.value || '';
         const notes = document.getElementById('pos_notes')?.value || '';
 
@@ -515,6 +521,7 @@
         formData.append('_token', '{{ csrf_token() }}');
         formData.append('payment_method', paymentMethod);
         if (userId) formData.append('user_id', userId);
+        if (selectedEmail) formData.append('recipient_email', selectedEmail);
         if (promoCode) formData.append('promo_code', promoCode);
         if (notes) formData.append('notes', notes);
         formData.append('cart', cartJson);
@@ -535,47 +542,25 @@
             const data = await response.json();
 
             if (data.success) {
-                const saleDetails = {
+                lastCompletedSaleData = data;
+                lastCompletedSaleDetails = {
                     sale_id: data.sale_id,
                     total: data.total_formatted,
                     date: data.sale_date,
                     payment: data.payment_method,
+                    gym_name: data.gym_name || 'BigWorldFitness',
+                    cashier_name: data.cashier_name || 'Cajero Principal',
+                    client_name: data.client_name || 'Cliente General',
+                    client_dni: data.client_dni || 'Sin DNI',
                     items: [...cart]
                 };
 
-                // SweetAlert2 Confirmation & Print Option
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        title: '¡Venta Registrada!',
-                        html: `
-                            <div class="space-y-3 text-center text-slate-200 py-2">
-                                <p class="text-xs text-slate-400">Venta POS #${data.sale_id} procesada con éxito.</p>
-                                <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
-                                    <span class="block text-[10px] uppercase text-slate-500 font-extrabold tracking-wider">Total Cobrado</span>
-                                    <span class="text-3xl font-black text-lime-400 mt-0.5 block">${data.total_formatted}</span>
-                                </div>
-                            </div>
-                        `,
-                        icon: 'success',
-                        showCancelButton: true,
-                        confirmButtonColor: '#84cc16',
-                        cancelButtonColor: '#475569',
-                        confirmButtonText: 'Imprimir Ticket POS',
-                        cancelButtonText: 'Cerrar',
-                        background: '#0f172a',
-                        color: '#f8fafc'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            printPosReceipt(saleDetails);
-                        }
-                    });
-                } else {
-                    showPosToast(data.message, 'success');
-                }
-
-                // Reset Cart
+                // Reset Cart immediately
                 cart = [];
                 renderCart();
+
+                // Show completed sale modal with intelligent options
+                showSaleCompletedModal(data);
             } else {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -677,9 +662,9 @@
                     
                     <!-- HEADER -->
                     <div style="text-align: center; padding-bottom: 10px; border-bottom: 2px solid #0f172a; margin-bottom: 12px;">
-                        <h1 style="margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #0f172a;">BIGWORLD FITNESS</h1>
+                        <h1 style="margin: 0; font-size: 17px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; color: #0f172a;">${escapeHtml(sale.gym_name || 'BIGWORLD FITNESS')}</h1>
                         <p style="margin: 3px 0 0 0; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #475569;">Gimnasio & Centro de Entrenamiento</p>
-                        <p style="margin: 2px 0 0 0; font-size: 8px; color: #64748b;">Comprobante No Fiscal | Ticket POS</p>
+                        <p style="margin: 2px 0 0 0; font-size: 8px; color: #64748b;">Comprobante No Fiscal | Sistema BigWorldFitness</p>
                     </div>
 
                     <!-- METADATA BOX -->
@@ -691,6 +676,18 @@
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #64748b; font-weight: 600;">Fecha y Hora:</span>
                             <strong style="color: #0f172a;">${sale.date}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">Cliente / Socio:</span>
+                            <strong style="color: #0f172a;">${escapeHtml(sale.client_name || 'Cliente General')}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">DNI / Cédula:</span>
+                            <strong style="color: #0f172a; font-family: monospace;">${escapeHtml(sale.client_dni || 'Sin DNI')}</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: #64748b; font-weight: 600;">Atendido por:</span>
+                            <strong style="color: #0f172a;">${escapeHtml(sale.cashier_name || 'Cajero')}</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <span style="color: #64748b; font-weight: 600;">Forma de Pago:</span>
@@ -741,6 +738,224 @@
             win.print();
             win.close();
         }
+    }
+
+    // Fast & Intelligent POS Sale Completed Modal
+    function showSaleCompletedModal(saleData) {
+        if (typeof Swal === 'undefined') {
+            showPosToast(saleData.message, 'success');
+            return;
+        }
+
+        const hasEmail = Boolean(saleData.has_email && saleData.recipient_email);
+
+        let emailStatusHtml = '';
+        if (hasEmail) {
+            emailStatusHtml = `
+                <div id="pos-email-status-badge" class="p-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs rounded-xl flex items-center justify-center gap-2 font-medium mt-2">
+                    <svg class="animate-spin h-3.5 w-3.5 text-sky-400 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Enviando comprobante a <strong>${escapeHtml(saleData.recipient_email)}</strong>...</span>
+                </div>
+            `;
+        }
+
+        let extraButtonsHtml = `
+            <div class="flex flex-col sm:flex-row gap-2 mt-4 pt-3 border-t border-slate-800">
+                <button type="button" onclick="printPosReceipt(lastCompletedSaleDetails)" class="flex-1 py-2.5 px-3 bg-gradient-to-r from-lime-500 to-emerald-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 hover:from-lime-400 hover:to-emerald-400 transition-all shadow-lg">
+                    <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Ticket POS
+                </button>
+        `;
+
+        if (!hasEmail) {
+            extraButtonsHtml += `
+                <button type="button" onclick="promptSendReceiptEmail(lastCompletedSaleDetails.sale_id, '')" class="flex-1 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-sky-500/30 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+                    <i data-lucide="mail" class="w-4 h-4"></i> Enviar Ticket por Correo
+                </button>
+            `;
+        } else {
+            extraButtonsHtml += `
+                <button type="button" onclick="promptSendReceiptEmail(lastCompletedSaleDetails.sale_id, '${escapeHtml(saleData.recipient_email)}')" class="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all" title="Reenviar o cambiar dirección de correo">
+                    <i data-lucide="mail-plus" class="w-4 h-4 text-sky-400"></i> Reenviar Correo
+                </button>
+            `;
+        }
+
+        extraButtonsHtml += `</div>`;
+
+        Swal.fire({
+            title: '¡Venta Registrada Exitosamente!',
+            html: `
+                <div class="space-y-3 text-center text-slate-200 py-1">
+                    <p class="text-xs text-slate-400">Comprobante POS #${saleData.sale_id} procesado correctamente.</p>
+                    <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
+                        <span class="block text-[10px] uppercase text-slate-500 font-extrabold tracking-wider">Total Cobrado</span>
+                        <span class="text-3xl font-black text-lime-400 mt-0.5 block">${saleData.total_formatted}</span>
+                    </div>
+                    ${emailStatusHtml}
+                    ${extraButtonsHtml}
+                </div>
+            `,
+            icon: 'success',
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonColor: '#475569',
+            cancelButtonText: 'Cerrar y Nueva Venta',
+            background: '#0f172a',
+            color: '#f8fafc',
+            didOpen: () => {
+                if (window.lucide) window.lucide.createIcons();
+
+                if (hasEmail) {
+                    dispatchBackgroundReceiptEmail(saleData.sale_id, saleData.recipient_email);
+                }
+            }
+        });
+    }
+
+    // Async Non-Blocking Background Email Dispatcher
+    function dispatchBackgroundReceiptEmail(saleId, email) {
+        const formData = new FormData();
+        formData.append('_token', '{{ csrf_token() }}');
+        formData.append('sale_id', saleId);
+        formData.append('email', email);
+
+        fetch("{{ route('tienda.send_email') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const badge = document.getElementById('pos-email-status-badge');
+            if (badge) {
+                if (data.success) {
+                    badge.className = "p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center justify-center gap-2 font-medium mt-2";
+                    badge.innerHTML = `<i data-lucide="mail-check" class="w-4 h-4 text-emerald-400"></i><span>✔ Ticket enviado con éxito a: <strong>${escapeHtml(email)}</strong></span>`;
+                } else {
+                    badge.className = "p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center justify-center gap-2 font-medium mt-2";
+                    badge.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i><span>No se pudo enviar el correo a <strong>${escapeHtml(email)}</strong></span>`;
+                }
+                if (window.lucide) window.lucide.createIcons();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            const badge = document.getElementById('pos-email-status-badge');
+            if (badge) {
+                badge.className = "p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center justify-center gap-2 font-medium mt-2";
+                badge.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 text-rose-400"></i><span>Error de conexión al enviar correo.</span>`;
+                if (window.lucide) window.lucide.createIcons();
+            }
+        });
+    }
+
+    // Interactive Email Prompt for POS Receipts via Gmail SMTP with Bi-directional Navigation
+    function promptSendReceiptEmail(saleId, defaultEmail) {
+        if (typeof Swal === 'undefined') return;
+
+        const hasEmail = Boolean(defaultEmail && defaultEmail.trim() !== '');
+
+        Swal.fire({
+            title: hasEmail ? 'Confirmar / Reenviar Correo' : 'Enviar Ticket por Correo',
+            text: hasEmail 
+                ? 'Se enviará el comprobante digital a la siguiente dirección de correo:' 
+                : 'El cliente no tiene un correo registrado. Ingresa la dirección de correo donde enviar la factura:',
+            input: 'email',
+            inputValue: defaultEmail || '',
+            inputPlaceholder: 'correo@ejemplo.com',
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonColor: '#0ea5e9',
+            denyButtonColor: '#334155',
+            cancelButtonColor: '#475569',
+            confirmButtonText: 'Enviar Ahora',
+            denyButtonText: '↩ Volver al Resumen',
+            cancelButtonText: 'Cancelar',
+            background: '#0f172a',
+            color: '#f8fafc',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes ingresar un correo electrónico válido.';
+                }
+            }
+        }).then((result) => {
+            if (result.isDenied) {
+                if (lastCompletedSaleData) showSaleCompletedModal(lastCompletedSaleData);
+            } else if (result.isConfirmed && result.value) {
+                const targetEmail = result.value;
+                const formData = new FormData();
+                formData.append('_token', '{{ csrf_token() }}');
+                formData.append('sale_id', saleId);
+                formData.append('email', targetEmail);
+
+                Swal.fire({
+                    title: 'Enviando Correo...',
+                    text: `Enviando comprobante digital a ${targetEmail}`,
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading(),
+                    background: '#0f172a',
+                    color: '#f8fafc'
+                });
+
+                fetch("{{ route('tienda.send_email') }}", {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: '¡Correo Enviado!',
+                            text: data.message,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonColor: '#84cc16',
+                            cancelButtonColor: '#334155',
+                            confirmButtonText: 'Imprimir Ticket POS',
+                            cancelButtonText: '↩ Volver al Resumen',
+                            background: '#0f172a',
+                            color: '#f8fafc'
+                        }).then((postResult) => {
+                            if (postResult.isConfirmed && lastCompletedSaleDetails) {
+                                printPosReceipt(lastCompletedSaleDetails);
+                                setTimeout(() => {
+                                    if (lastCompletedSaleData) showSaleCompletedModal(lastCompletedSaleData);
+                                }, 500);
+                            } else {
+                                if (lastCompletedSaleData) showSaleCompletedModal(lastCompletedSaleData);
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'Error al Enviar',
+                            text: data.message || 'No se pudo enviar el correo.',
+                            icon: 'error',
+                            confirmButtonText: '↩ Volver al Resumen',
+                            confirmButtonColor: '#0ea5e9',
+                            background: '#0f172a',
+                            color: '#f8fafc'
+                        }).then(() => {
+                            if (lastCompletedSaleData) showSaleCompletedModal(lastCompletedSaleData);
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showPosToast('Error de conexión al enviar el correo.', 'danger');
+                    if (lastCompletedSaleData) showSaleCompletedModal(lastCompletedSaleData);
+                });
+            }
+        });
     }
 
     // POS BARCODE SCANNER HANDLER
