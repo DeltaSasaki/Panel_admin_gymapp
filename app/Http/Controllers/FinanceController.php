@@ -74,7 +74,21 @@ class FinanceController extends Controller
         }
         $gymPromotions = $gymPromosQuery->orderBy('id', 'desc')->get();
 
-        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions'));
+        // Fetch pending verification payments (Binance, Pago Móvil, Transfers from Mobile App / API)
+        // Only include payments for memberships that are still pending or overdue (requiring manual admin verification)
+        $pendingVerificationPayments = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'user.profile'])
+            ->whereHas('membership', function ($q) use ($gymId) {
+                $q->whereIn('payment_status', ['pending', 'overdue']);
+                if ($gymId !== 'all') {
+                    $q->where('gym_id', $gymId);
+                }
+            })
+            ->whereNotNull('reference_code')
+            ->where('reference_code', '!=', '')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions', 'pendingVerificationPayments'));
     }
 
     /**
@@ -946,6 +960,100 @@ class FinanceController extends Controller
             'success' => true,
             'message' => "Promoción '{$promoTitle}' eliminada exitosamente."
         ]);
+    }
+
+    /**
+     * Approve a pending payment (Binance, Pago Móvil, Transfers) and activate/extend membership.
+     */
+    public function approvePendingPayment(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $payment = MembershipPayment::with(['membership.plan', 'membership.user.profile'])->findOrFail($id);
+        $membership = $payment->membership;
+
+        if (!$membership) {
+            return redirect()->back()->withErrors(['error' => 'Membresía no encontrada para este pago.']);
+        }
+
+        $oldMembership = $membership->toArray();
+        $oldPayment = $payment->toArray();
+
+        $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
+
+        // Calculate new start and end dates from today
+        $startDate = Carbon::now()->toDateString();
+        $endDate = Carbon::now()->addDays($durationDays)->toDateString();
+
+        // Update membership status to paid and active
+        $membership->update([
+            'status' => 'active',
+            'payment_status' => 'paid',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'notes' => trim(($membership->notes ?? '') . " | Pago Ref: {$payment->reference_code} APROBADO por Admin el " . now()->format('d/m/Y H:i')),
+        ]);
+
+        // Update payment record
+        $payment->update([
+            'received_by' => auth()->id(),
+            'payment_date' => now(),
+            'notes' => trim(($payment->notes ?? '') . " [Aprobado por Admin #" . auth()->id() . "]"),
+        ]);
+
+        // Audit Log
+        AdminAuditLog::logAction('UPDATE', 'user_memberships', $membership->id, $oldMembership, $membership->fresh()->toArray(), $membership->gym_id);
+        AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+
+        if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+            $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
+            activity()
+                ->performedOn($membership)
+                ->causedBy(auth()->user())
+                ->log("Aprobación manual de pago {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}. Membresía activada hasta {$endDate}");
+        }
+
+        $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
+        $msg = "¡Pago Ref: {$payment->reference_code} comprobado y APROBADO! La membresía de {$userName} fue activada exitosamente hasta el {$endDate}.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => $msg]);
+        }
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Reject a pending payment (invalid transaction / reference code).
+     */
+    public function rejectPendingPayment(Request $request, $id)
+    {
+        $this->checkAdmin();
+        $payment = MembershipPayment::with(['membership.user.profile'])->findOrFail($id);
+        $membership = $payment->membership;
+
+        $reason = $request->input('rejection_reason', 'Referencia de pago no verificada o rechazada por el administrador.');
+
+        $oldPayment = $payment->toArray();
+        $payment->update([
+            'notes' => trim(($payment->notes ?? '') . " [RECHAZADO por Admin: {$reason}]"),
+        ]);
+
+        if ($membership && in_array($membership->payment_status, ['pending', 'overdue'])) {
+            $membership->update([
+                'payment_status' => 'overdue',
+                'notes' => trim(($membership->notes ?? '') . " | Pago Ref: {$payment->reference_code} RECHAZADO: {$reason}"),
+            ]);
+        }
+
+        AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $payment->gym_id ?? null);
+
+        $msg = "El pago con referencia #{$payment->reference_code} ha sido marcado como RECHAZADO.";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => $msg]);
+        }
+
+        return redirect()->back()->with('success', $msg);
     }
 
     /**

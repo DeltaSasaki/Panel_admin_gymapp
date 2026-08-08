@@ -118,6 +118,19 @@
             <i data-lucide="ticket" class="w-4 h-4"></i>
             <span>Cupones (Promo Codes)</span>
         </button>
+        <button 
+            type="button"
+            onclick="switchFinanceTab('verificacion')" 
+            id="tab-btn-verificacion"
+            class="finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 relative">
+            <i data-lucide="shield-check" class="w-4 h-4 text-purple-400"></i>
+            <span>Verificación de Pagos</span>
+            @if(isset($pendingVerificationPayments) && $pendingVerificationPayments->count() > 0)
+                <span class="px-2 py-0.5 text-[10px] font-black bg-purple-500 text-slate-950 rounded-full animate-pulse">
+                    {{ $pendingVerificationPayments->count() }}
+                </span>
+            @endif
+        </button>
     </div>
 
     <!-- Tab 1: Membresías de Socios -->
@@ -556,6 +569,138 @@
                     Siguiente
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Tab 5: Verificación de Pagos Pendientes (Binance, Pago Móvil, Transferencias) -->
+    <div id="tab-content-verificacion" class="finance-tab-content bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl hidden">
+        <div class="p-6 border-b border-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-purple-400"></i>
+                    Comprobación Manual de Pagos Pendientes (Binance, Pago Móvil)
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">Revisa los pagos registrados desde la App Móvil / API y apruébalos para activar o renovar la membresía del socio.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    <span>{{ isset($pendingVerificationPayments) ? $pendingVerificationPayments->count() : 0 }} Registros por Verificar</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-850 bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                        <th class="p-4 pl-6">Socio / Atleta</th>
+                        <th class="p-4">Plan Solicitado</th>
+                        <th class="p-4">Método / Pasarela</th>
+                        <th class="p-4">Ref. / ID Transacción</th>
+                        <th class="p-4 text-center">Monto</th>
+                        <th class="p-4 text-center">Fecha Registro</th>
+                        <th class="p-4 text-center">Estado</th>
+                        <th class="p-4 pr-6 text-right">Acción de Verificación</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-850/60 text-slate-300">
+                    @forelse($pendingVerificationPayments ?? [] as $pay)
+                        @php
+                            $userProf = $pay->user ? $pay->user->profile : ($pay->membership->user->profile ?? null);
+                            $athleteName = trim(($userProf->first_name ?? 'Atleta') . ' ' . ($userProf->last_name ?? ''));
+                            $athleteDni = $userProf->dni ?? 'Sin DNI';
+                            $athletePhoto = $userProf->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+                            $planName = $pay->membership->plan->name ?? 'Plan de Membresía';
+                            $isApproved = str_contains($pay->notes ?? '', '[Aprobado');
+                            $isRejected = str_contains($pay->notes ?? '', '[RECHAZADO');
+                        @endphp
+                        <tr class="hover:bg-slate-850/30 transition-colors">
+                            <td class="p-4 pl-6">
+                                <div class="flex items-center gap-3">
+                                    <img src="{{ $athletePhoto }}" class="w-9 h-9 rounded-full object-cover border border-slate-800 shrink-0">
+                                    <div>
+                                        <span class="block font-bold text-slate-100 text-xs">{{ $athleteName }}</span>
+                                        <span class="block text-[10px] text-slate-500 font-mono">DNI: {{ $athleteDni }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <span class="block font-bold text-slate-200">{{ $planName }}</span>
+                                <span class="block text-[10px] text-slate-500">Membresía #{{ $pay->membership_id }}</span>
+                            </td>
+                            <td class="p-4">
+                                @if(str_contains(strtolower($pay->notes ?? ''), 'binance') || strtolower($pay->payment_method) === 'binance')
+                                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        🟡 Binance Pay
+                                    </span>
+                                @elseif(strtolower($pay->payment_method) === 'transfer')
+                                    <span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        🏦 Transferencia / Pago Móvil
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg font-bold text-[10px]">
+                                        {{ strtoupper($pay->payment_method) }}
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="p-4">
+                                <code class="px-2.5 py-1 bg-slate-950 text-lime-400 border border-slate-800 rounded-lg text-xs font-mono font-bold select-all">
+                                    {{ $pay->reference_code }}
+                                </code>
+                            </td>
+                            <td class="p-4 text-center">
+                                <span class="font-extrabold text-slate-100 text-sm">${{ number_format($pay->amount, 2) }}</span>
+                                <span class="block text-[10px] text-slate-500">{{ $pay->currency ?? 'USD' }}</span>
+                            </td>
+                            <td class="p-4 text-center text-slate-400">
+                                <span class="block font-bold text-xs">{{ \Carbon\Carbon::parse($pay->createdAt)->format('d/m/Y') }}</span>
+                                <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($pay->createdAt)->format('H:i A') }}</span>
+                            </td>
+                            <td class="p-4 text-center">
+                                @if($isApproved)
+                                    <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px]">Aprobado</span>
+                                @elseif($isRejected)
+                                    <span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full font-bold text-[10px]">Rechazado</span>
+                                @else
+                                    <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full font-bold text-[10px] animate-pulse">Pendiente</span>
+                                @endif
+                            </td>
+                            <td class="p-4 pr-6 text-right">
+                                @if(!$isApproved && !$isRejected)
+                                    <div class="flex items-center justify-end gap-2">
+                                        <form action="{{ route('finanzas.approve_payment', $pay->id) }}" method="POST" class="inline m-0">
+                                            @csrf
+                                            <button type="submit" onclick="return confirm('¿Confirmas que recibiste el pago #{{ $pay->reference_code }}? Se activará la membresía del socio automáticamente.')" class="px-3 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1">
+                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                                Aprobar
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ route('finanzas.reject_payment', $pay->id) }}" method="POST" class="inline m-0">
+                                            @csrf
+                                            <button type="submit" onclick="return confirm('¿Deseas rechazar esta solicitud de pago #{{ $pay->reference_code }}?')" class="px-3 py-1.5 bg-slate-950 hover:bg-rose-950 text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1">
+                                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                                                Rechazar
+                                            </button>
+                                        </form>
+                                    </div>
+                                @else
+                                    <span class="text-xs text-slate-500 italic font-medium">Verificado</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="p-12 text-center text-slate-500">
+                                <i data-lucide="shield-check" class="w-12 h-12 mx-auto text-slate-700 mb-3"></i>
+                                <span class="block font-bold text-sm text-slate-400">No hay pagos pendientes de verificación</span>
+                                <span class="block text-xs mt-1 text-slate-500">Todos los pagos enviados desde la app móvil o Binance han sido revisados.</span>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -1900,7 +2045,7 @@
 
         // Reset all tab button styles
         document.querySelectorAll('.finance-tab-btn').forEach(btn => {
-            btn.className = "finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2";
+            btn.className = "finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 relative";
         });
 
         // Show active content & style active button
@@ -1909,7 +2054,7 @@
 
         const activeBtn = document.getElementById('tab-btn-' + tabName);
         if (activeBtn) {
-            activeBtn.className = "finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-lime-500 text-lime-400 flex items-center gap-2";
+            activeBtn.className = "finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-lime-500 text-lime-400 flex items-center gap-2 relative";
         }
 
         if (tabName === 'membresias') renderMembershipPage();
