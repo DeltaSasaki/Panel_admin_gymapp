@@ -1,0 +1,96 @@
+================================================================================
+ESPECIFICACION TECNICA - GENERACION DE CODIGO QR CARNET APP MOBILE
+SISTEMA BIGWORLDFITNESS (GYMOS)
+================================================================================
+
+1. ESTRUCTURA Y FORMATO DEL CADENA QR
+--------------------------------------------------------------------------------
+El código QR del carnet digital no requiere consultar un servidor en vivo para
+dibujarse. Se genera localmente en el dispositivo móvil combinando el prefijo 
+estándar "MEMBER:" con el ID de usuario registrado en la base de datos (users.id).
+
+Estructura:
+MEMBER:{user_id}
+
+Ejemplos:
+- Para el Usuario con ID #347: MEMBER:347
+- Para el Usuario con ID #15:  MEMBER:15
+
+
+2. EJEMPLOS DE IMPLEMENTACION PARA EL DESARROLLADOR MOBILE
+--------------------------------------------------------------------------------
+
+A) Flutter (paquete qr_flutter):
+   QrImageView(
+     data: 'MEMBER:${user.id}', // Ej: MEMBER:347
+     version: QrVersions.auto,
+     size: 220.0,
+     eyeStyle: const QrEyeStyle(
+       eyeShape: QrEyeShape.square,
+       color: Color(0xFF84CC16), // Verde Lima del sistema
+     ),
+     dataModuleStyle: const QrDataModuleStyle(
+       dataModuleShape: QrDataModuleShape.square,
+       color: Colors.white,
+     ),
+   );
+
+B) React Native (paquete react-native-qrcode-svg):
+   <QRCode
+     value={`MEMBER:${user.id}`} // Ej: MEMBER:347
+     size={200}
+     color="#84CC16"
+     backgroundColor="#0F172A"
+   />
+
+C) iOS / Swift:
+   let qrContent = "MEMBER:\(user.id)" // Ej: MEMBER:347
+
+D) Android / Kotlin (ZXing):
+   val qrContent = "MEMBER:${user.id}" // Ej: MEMBER:347
+
+
+3. DECODIFICACION EN EL SERVIDOR (AttendanceController.php)
+--------------------------------------------------------------------------------
+Cuando el escáner de la recepción del gimnasio lee el QR de la App:
+
+1. Extrae la cadena de texto: "MEMBER:347".
+2. Ejecuta la expresión regular: /^MEMBER:(\d+)$/i para obtener el user_id (347).
+3. Consulta la base de datos y valida si la membresía del socio está ACTIVA.
+4. Si está activa, registra la entrada instantáneamente y retorna la información 
+   del perfil (Foto, Nombre, DNI).
+
+Nota: El controlador también es capaz de procesar si se envía el DNI directo 
+(ej. 30838517) o el ID numérico directo (ej. 347), pero el estándar es MEMBER:{id}.
+
+
+4. ENDPOINT API REST PARA CHECK-IN DESDE LA APP (OPCIONAL)
+--------------------------------------------------------------------------------
+Si la App requiere realizar el Check-in mediante petición HTTP:
+
+- Método: POST
+- Ruta:   /asistencia/check-in  (o /api/asistencia/check-in)
+- Headers: 
+  Content-Type: application/json
+  Accept: application/json
+
+- Body Payload:
+  {
+    "dni": "MEMBER:347",
+    "entry_method": "qr"
+  }
+
+- Respuesta Exitosa (HTTP 200):
+  {
+    "success": true,
+    "message": "¡Acceso concedido! Bienvenido(a) Jesus Serrano.",
+    "user": {
+      "id": 347,
+      "name": "Jesus Serrano",
+      "photo": "https://..."
+    }
+  }
+
+================================================================================
+Documentación generada automáticamente - Sistema Panel Admin GymApp
+================================================================================
