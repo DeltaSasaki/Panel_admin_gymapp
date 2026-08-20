@@ -149,23 +149,6 @@
                             </div>
                         </div>
 
-                        <!-- Fallback / Full List Selector -->
-                        <div class="pt-2 border-t border-slate-850">
-                            <label for="user_id_select" class="block text-slate-500 text-[10px] uppercase tracking-wider mb-1">O selecciona de la lista con DNI:</label>
-                            <select id="user_id_select" onchange="selectClientFromDropdown(this)" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 text-[11px] text-slate-300 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                                <option value="" disabled selected>-- Ver lista completa con DNI --</option>
-                                @foreach($clients as $client)
-                                    <option value="{{ $client->id }}" 
-                                            data-name="{{ trim(($client->profile->first_name ?? 'Atleta') . ' ' . ($client->profile->last_name ?? '')) }}" 
-                                            data-dni="{{ $client->profile->dni ?? 'Sin DNI' }}" 
-                                            data-email="{{ $client->email }}" 
-                                            data-photo="{{ $client->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}">
-                                        {{ $client->profile->first_name ?? 'Atleta' }} {{ $client->profile->last_name ?? '' }} - DNI: {{ $client->profile->dni ?? 'Sin DNI' }} ({{ $client->email }})
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
                         <button type="submit" id="submit_checkin_btn" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center justify-center gap-2">
                             <i data-lucide="check" class="w-4 h-4 stroke-[3px]"></i>
                             Registrar Entrada Presencial
@@ -505,19 +488,6 @@
         if (searchInput) searchInput.value = `${name} (DNI: ${dni})`;
         
         if (window.lucide) window.lucide.createIcons();
-    }
-
-    function selectClientFromDropdown(selectEl) {
-        const option = selectEl.options[selectEl.selectedIndex];
-        if (!option || !option.value) return;
-
-        const id = option.value;
-        const name = option.getAttribute('data-name');
-        const dni = option.getAttribute('data-dni');
-        const email = option.getAttribute('data-email');
-        const photo = option.getAttribute('data-photo');
-
-        pickClient(id, name, dni, email, photo);
     }
 
     function clearSelectedClient() {

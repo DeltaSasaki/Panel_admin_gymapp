@@ -134,61 +134,10 @@
                         </span>
                     </div>
                 </div>
-                <!-- Active Membership Status & Daily Rate Card -->
-                <div class="pt-4 border-t border-slate-800/60">
-                    <span class="text-xs uppercase font-extrabold tracking-wider text-slate-500 block mb-2.5">Estado de Membresía</span>
-                    @if($cliente->activeMembership)
-                        @php
-                            $mPlan = $cliente->activeMembership->plan;
-                            $mPrice = $mPlan->price ?? 0;
-                            $mDays = max(1, $mPlan->duration_days ?? 30);
-                            $mDaily = $mDays > 0 ? ($mPrice / $mDays) : 0;
-                        @endphp
-                        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="font-bold text-slate-100 text-xs">{{ $mPlan->name ?? 'Membresía Activa' }}</span>
-                                <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase rounded-full">Activa</span>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-400">
-                                <span>Costo por Día:</span>
-                                <span class="font-extrabold text-amber-400">${{ number_format($mDaily, 2) }} / día</span>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] text-slate-400">
-                                <span>Vence:</span>
-                                <span class="font-bold text-slate-200">{{ date('d/m/Y', strtotime($cliente->activeMembership->end_date)) }}</span>
-                            </div>
-                        </div>
-                    @else
-                        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 text-slate-500 text-xs text-center space-y-2">
-                            <span class="italic block">Sin membresía activa en este momento</span>
-                            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
-                                <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="w-full py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                                    <i data-lucide="user-plus" class="w-4 h-4"></i> Asignar Plan
-                                </button>
-                            @endif
-                        </div>
-                    @endif
-                </div>
             </div>
 
             <!-- Profile Actions -->
             <div class="pt-6 border-t border-slate-800/60 flex flex-col gap-2">
-                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
-                    @if($cliente->activeMembership)
-                        @if(($cliente->activeMembership->payment_status ?? '') === 'pending')
-                            <button type="button" onclick="toggleModal('client-payment-modal')" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse">
-                                <i data-lucide="receipt" class="w-4 h-4"></i> Registrar Cobro de Membresía
-                            </button>
-                        @endif
-                        <button type="button" onclick="toggleModal('client-abono-modal')" class="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-                            <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
-                        </button>
-                    @endif
-                    <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="w-full py-2.5 bg-lime-500/10 hover:bg-lime-500 text-lime-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-lime-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-                        <i data-lucide="credit-card" class="w-4 h-4"></i> {{ $cliente->activeMembership ? 'Renovar / Cambiar Plan' : 'Asignar Plan a Socio' }}
-                    </button>
-                @endif
-                
                 <!-- Firma Digital Preview -->
                 <div class="pt-4 border-t border-slate-800/60">
                     <div class="flex items-center justify-between mb-2">
