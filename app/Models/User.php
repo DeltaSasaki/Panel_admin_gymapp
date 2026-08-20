@@ -111,12 +111,17 @@ class User extends Authenticatable
 
     public function memberships()
     {
-        return $this->hasMany(UserMembership::class, 'user_id');
+        return $this->hasMany(UserMembership::class, 'user_id')->orderBy('id', 'desc');
     }
 
     public function activeMembership()
     {
-        return $this->hasOne(UserMembership::class, 'user_id')->where('status', 'active');
+        return $this->hasOne(UserMembership::class, 'user_id')->where('status', 'active')->latestOfMany('id');
+    }
+
+    public function latestMembership()
+    {
+        return $this->hasOne(UserMembership::class, 'user_id')->latestOfMany('id');
     }
 
     public function membershipPayments()

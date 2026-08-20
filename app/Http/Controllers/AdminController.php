@@ -77,7 +77,7 @@ class AdminController extends Controller
 
         $pendingPaymentsCount = UserMembership::when($gymId !== 'all', function ($q) use ($gymId) {
             $q->where('gym_id', $gymId);
-        })->where('payment_status', 'pending')->count();
+        })->where('status', 'active')->where('payment_status', 'pending')->count();
 
         $lowStockCount = InventoryProduct::when($gymId !== 'all', function ($q) use ($gymId) {
             $q->where('gym_id', $gymId);

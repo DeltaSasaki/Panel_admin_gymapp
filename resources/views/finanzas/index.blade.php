@@ -145,10 +145,10 @@
                         Todos (<span id="count-all-memberships">{{ $memberships->count() }}</span>)
                     </button>
                     <button type="button" onclick="setMembershipStatusFilter('paid')" id="m-filter-btn-paid" class="m-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200">
-                        Pagados (<span id="count-paid-memberships">{{ $memberships->where('payment_status', 'paid')->count() }}</span>)
+                        Pagados (<span id="count-paid-memberships">{{ $memberships->where('status', 'active')->where('payment_status', 'paid')->count() }}</span>)
                     </button>
                     <button type="button" onclick="setMembershipStatusFilter('pending')" id="m-filter-btn-pending" class="m-status-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200">
-                        Pendientes (<span id="count-pending-memberships">{{ $memberships->where('payment_status', 'pending')->count() }}</span>)
+                        Pendientes Activos (<span id="count-pending-memberships">{{ $memberships->where('status', 'active')->where('payment_status', 'pending')->count() }}</span>)
                     </button>
                 </div>
             </div>
@@ -182,7 +182,7 @@
                         @endphp
                         <tr id="membership_row_{{ $m->id }}"
                             data-membership-row
-                            data-status="{{ $m->payment_status }}"
+                            data-status="{{ $m->status === 'active' ? $m->payment_status : 'archived' }}"
                             data-search="{{ $searchKey }}"
                             class="hover:bg-slate-900/20 text-slate-200 transition-colors {{ $loop->index >= 9 ? 'hidden' : '' }}">
                             <td class="p-4 pl-6 flex items-center gap-3">
@@ -206,12 +206,16 @@
                                     <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Activo</span>
                                 @elseif($m->status === 'expired')
                                     <span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-400 text-[9px] font-bold uppercase rounded-full border border-rose-500/20">Expirado</span>
+                                @elseif($m->status === 'cancelled')
+                                    <span class="px-2.5 py-0.5 bg-slate-800 text-slate-400 text-[9px] font-bold uppercase rounded-full border border-slate-700">Cancelado</span>
                                 @else
                                     <span class="px-2.5 py-0.5 bg-slate-800 text-slate-400 text-[9px] font-bold uppercase rounded-full border border-slate-700">{{ __($m->status) }}</span>
                                 @endif
                             </td>
                             <td class="p-4 text-center" id="membership_payment_cell_{{ $m->id }}">
-                                @if($m->payment_status === 'paid')
+                                @if($m->status !== 'active')
+                                    <span class="px-2.5 py-0.5 bg-slate-900 text-slate-500 text-[9px] font-bold uppercase rounded-full border border-slate-800">Inactivo</span>
+                                @elseif($m->payment_status === 'paid')
                                     <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Pagado</span>
                                 @elseif($m->payment_status === 'pending')
                                     <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-bold uppercase rounded-full border border-amber-500/20">Pendiente</span>
@@ -221,14 +225,18 @@
                             </td>
                             <td class="p-4 text-right pr-6" id="membership_action_cell_{{ $m->id }}">
                                 <div class="flex items-center justify-end gap-1.5">
-                                    @if($m->payment_status !== 'paid')
-                                        <button onclick="openPaymentModal({{ $m->id }}, {{ $m->plan->price ?? 0 }})" class="px-2.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
-                                            Registrar Pago
+                                    @if($m->status === 'active')
+                                        @if($m->payment_status !== 'paid')
+                                            <button onclick="openPaymentModal({{ $m->id }}, {{ $m->plan->price ?? 0 }})" class="px-2.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
+                                                Registrar Pago
+                                            </button>
+                                        @endif
+                                        <button onclick='openAbonoModal({{ json_encode($m) }})' class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-extrabold text-[10px] rounded-xl transition-all shadow-sm flex items-center gap-1" title="Abonar días adelantados">
+                                            <i data-lucide="coins" class="w-3 h-3"></i> Abonar
                                         </button>
+                                    @else
+                                        <span class="text-[10px] text-slate-500 italic">Plan anterior</span>
                                     @endif
-                                    <button onclick='openAbonoModal({{ json_encode($m) }})' class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-extrabold text-[10px] rounded-xl transition-all shadow-sm flex items-center gap-1" title="Abonar días adelantados">
-                                        <i data-lucide="coins" class="w-3 h-3"></i> Abonar
-                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -925,12 +933,37 @@
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Fecha de Inicio</label>
                 <input type="date" name="start_date" required value="{{ date('Y-m-d') }}" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
             </div>
+
+            <!-- Opciones de Cobro / Pago Inmediato -->
+            <div class="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-850 space-y-3">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" name="paid_now" value="1" id="finanzas_assign_paid_now_checkbox" onchange="toggleFinanzasAssignPaymentFields()" checked class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-lime-500/50">
+                    <span class="text-xs font-bold text-slate-200">Registrar cobro y marcar como PAGADO de inmediato</span>
+                </label>
+                
+                <div id="finanzas_assign_payment_details_container" class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-850/80">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Método de Pago *</label>
+                        <select name="payment_method" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                            <option value="cash">Efectivo</option>
+                            <option value="transfer">Transferencia</option>
+                            <option value="card">Tarjeta de Débito/Crédito</option>
+                            <option value="other">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">N° Referencia (Opcional)</label>
+                        <input type="text" name="reference_number" placeholder="Ej: REF-9874" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    </div>
+                </div>
+            </div>
+
             <div class="pt-4 flex gap-3 border-t border-slate-800">
                 <button type="button" onclick="toggleModal('membership-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
                     Cancelar
                 </button>
                 <button type="submit" id="membership-submit-btn" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all">
-                    Asignar y Pre-Facturar
+                    Asignar y Guardar
                 </button>
             </div>
         </form>
@@ -1069,8 +1102,8 @@
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Membresía del Socio *</label>
                 <select name="user_membership_id" id="abono_membership_select" onchange="calculateAbonoPreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500/50 cursor-pointer">
-                    <option value="" disabled selected>Selecciona un socio activo...</option>
-                    @foreach($memberships as $m)
+                    <option value="" disabled selected>Selecciona un socio con membresía activa...</option>
+                    @foreach($activeMemberships as $m)
                         <option value="{{ $m->id }}" 
                             data-user-name="{{ ($m->user && $m->user->profile) ? $m->user->profile->first_name . ' ' . $m->user->profile->last_name : ($m->user->email ?? 'Socio') }}"
                             data-plan-name="{{ $m->plan->name ?? 'Membresía' }}"
@@ -1804,6 +1837,14 @@
         }
     }
 
+    function toggleFinanzasAssignPaymentFields() {
+        const checkbox = document.getElementById('finanzas_assign_paid_now_checkbox');
+        const container = document.getElementById('finanzas_assign_payment_details_container');
+        if (checkbox && container) {
+            container.style.display = checkbox.checked ? 'grid' : 'none';
+        }
+    }
+
     async function submitMembershipForm(e) {
         e.preventDefault();
         const form = e.target;
@@ -1838,8 +1879,9 @@
                 const selectedOpt = planSelect ? planSelect.options[planSelect.selectedIndex] : null;
                 const planName = selectedOpt ? selectedOpt.text : 'Plan';
                 const planPrice = parseFloat(selectedOpt?.getAttribute('data-price') || '0');
+                const isPaid = (m.payment_status === 'paid');
 
-                if (planPrice > 0) {
+                if (!isPaid && planPrice > 0) {
                     updateStatPending(planPrice);
                 }
 
@@ -1849,6 +1891,25 @@
                 newRow.setAttribute('data-status', m.payment_status || 'pending');
                 newRow.setAttribute('data-search', `${clientName} ${planName}`.toLowerCase());
                 newRow.className = "hover:bg-slate-900/20 text-slate-200 transition-colors";
+
+                const paymentBadgeHtml = isPaid 
+                    ? `<span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Pagado</span>`
+                    : `<span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-bold uppercase rounded-full border border-amber-500/20">Pendiente</span>`;
+
+                const actionHtml = isPaid
+                    ? `<div class="flex items-center justify-end gap-1.5">
+                        <button onclick='openAbonoModal(${JSON.stringify(m)})' class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-extrabold text-[10px] rounded-xl transition-all shadow-sm flex items-center gap-1" title="Abonar días adelantados">
+                            <i data-lucide="coins" class="w-3 h-3"></i> Abonar
+                        </button>
+                       </div>`
+                    : `<div class="flex items-center justify-end gap-1.5">
+                        <button onclick="openPaymentModal(${m.id}, ${planPrice})" class="px-2.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
+                            Registrar Pago
+                        </button>
+                        <button onclick='openAbonoModal(${JSON.stringify(m)})' class="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-extrabold text-[10px] rounded-xl transition-all shadow-sm flex items-center gap-1" title="Abonar días adelantados">
+                            <i data-lucide="coins" class="w-3 h-3"></i> Abonar
+                        </button>
+                       </div>`;
 
                 newRow.innerHTML = `
                     <td class="p-4 pl-6 flex items-center gap-3">
@@ -1869,12 +1930,10 @@
                         <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase rounded-full border border-emerald-500/20">Activo</span>
                     </td>
                     <td class="p-4 text-center" id="membership_payment_cell_${m.id}">
-                        <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 text-[9px] font-bold uppercase rounded-full border border-amber-500/20">Pendiente</span>
+                        ${paymentBadgeHtml}
                     </td>
                     <td class="p-4 text-right pr-6" id="membership_action_cell_${m.id}">
-                        <button onclick="openPaymentModal(${m.id}, ${planPrice})" class="px-3 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-extrabold text-[10px] rounded-xl transition-all shadow-sm">
-                            Registrar Pago
-                        </button>
+                        ${actionHtml}
                     </td>
                 `;
 
@@ -1882,6 +1941,7 @@
                 form.reset();
                 updateMembershipCounters();
                 renderMembershipPage();
+                if (window.lucide) window.lucide.createIcons();
             } else {
                 const errMsg = data.error || data.message || 'Error al asignar membresía.';
                 showFinanceToast(errMsg, 'error');

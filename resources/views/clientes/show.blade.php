@@ -855,8 +855,20 @@
                     <span class="font-bold text-amber-400">${{ number_format($clientDailyRate, 2) }} / día</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Saldo a Favor Previo:</span>
+                    <span class="font-bold text-amber-400">${{ number_format($cliente->credit_balance ?? 0, 2) }}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 border-b border-slate-850/60 pb-2 font-bold">
+                    <span>Total Fondos Disponibles:</span>
+                    <span id="client_abono_total_funds" class="font-black text-slate-100">${{ number_format($cliente->credit_balance ?? 0, 2) }}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
                     <span class="font-semibold">Días Otorgados:</span>
                     <span id="client_abono_extra_days" class="font-black text-lime-400 text-sm">+0 Días</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Nuevo Saldo a Favor Restante:</span>
+                    <span id="client_abono_new_credit" class="font-bold text-amber-400">${{ number_format($cliente->credit_balance ?? 0, 2) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-300 font-bold pt-1">
                     <span>Nueva Fecha de Vencimiento:</span>
@@ -953,6 +965,20 @@
 
             <!-- Opciones de Cobro / Pago Inmediato -->
             <div class="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-850 space-y-3">
+                @if(($cliente->credit_balance ?? 0) > 0)
+                    <div class="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+                            <span class="text-xs font-bold text-slate-200">Saldo a Favor disponible:</span>
+                        </div>
+                        <span class="text-xs font-black text-amber-400">${{ number_format($cliente->credit_balance, 2) }}</span>
+                    </div>
+                    <label class="flex items-center gap-2.5 cursor-pointer">
+                        <input type="checkbox" name="use_credit" value="1" checked class="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 focus:ring-amber-500/50">
+                        <span class="text-xs font-bold text-amber-300">Aplicar Saldo a Favor (${{ number_format($cliente->credit_balance, 2) }}) al plan</span>
+                    </label>
+                @endif
+
                 <label class="flex items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" name="paid_now" value="1" id="client_assign_paid_now_checkbox" onchange="toggleAssignPaymentFields()" checked class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-lime-500/50">
                     <span class="text-xs font-bold text-slate-200">Registrar cobro y marcar como PAGADO de inmediato</span>
@@ -1119,16 +1145,25 @@
 
     function calculateClientAbonoPreview() {
         const amountInput = document.getElementById('client_abono_amount_input');
+        const totalFundsEl = document.getElementById('client_abono_total_funds');
         const extraDaysEl = document.getElementById('client_abono_extra_days');
+        const newCreditEl = document.getElementById('client_abono_new_credit');
         const newEndDateEl = document.getElementById('client_abono_new_end_date');
 
         @if($cliente->activeMembership)
             const dailyRate = {{ $clientDailyRate }};
             const endDateStr = "{{ $clientEndDate }}";
+            const prevCredit = {{ (float) ($cliente->credit_balance ?? 0) }};
             const amount = parseFloat(amountInput ? amountInput.value : '0') || 0;
+            const totalFunds = amount + prevCredit;
 
-            const extraDays = dailyRate > 0 ? Math.floor(amount / dailyRate) : 0;
+            const extraDays = dailyRate > 0 ? Math.floor(totalFunds / dailyRate) : 0;
+            const costUsed = extraDays * dailyRate;
+            const newCredit = Math.max(0, totalFunds - costUsed);
+
+            if (totalFundsEl) totalFundsEl.textContent = '$' + totalFunds.toFixed(2);
             if (extraDaysEl) extraDaysEl.textContent = '+' + extraDays + ' Días';
+            if (newCreditEl) newCreditEl.textContent = '$' + newCredit.toFixed(2);
 
             if (endDateStr) {
                 let baseDate = new Date(endDateStr);

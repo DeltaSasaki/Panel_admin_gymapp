@@ -29,12 +29,19 @@ class FinanceController extends Controller
         }
         $plans = $plansQuery->get();
 
-        // Get active & pending memberships
+        // Get all memberships for audit & transaction history
         $membershipsQuery = UserMembership::with(['user.profile', 'plan'])->orderBy('id', 'desc');
         if ($gymId !== 'all') {
             $membershipsQuery->where('gym_id', $gymId);
         }
         $memberships = $membershipsQuery->get();
+
+        // Get ONLY active memberships for assignment/abono modals
+        $activeMembershipsQuery = UserMembership::where('status', 'active')->with(['user.profile', 'plan'])->orderBy('id', 'desc');
+        if ($gymId !== 'all') {
+            $activeMembershipsQuery->where('gym_id', $gymId);
+        }
+        $activeMemberships = $activeMembershipsQuery->get();
 
         // Get clients to register new memberships
         $clientsQuery = User::where('role', 'member')->with('profile');
@@ -51,7 +58,9 @@ class FinanceController extends Controller
         });
         $totalCollected = $totalCollectedQuery->sum('amount');
 
-        $pendingAmountQuery = UserMembership::where('user_memberships.payment_status', 'pending')
+        // Only ACTIVE memberships with pending payment count towards pending collection stats
+        $pendingAmountQuery = UserMembership::where('user_memberships.status', 'active')
+            ->where('user_memberships.payment_status', 'pending')
             ->join('membership_plans', 'user_memberships.plan_id', '=', 'membership_plans.id');
         if ($gymId !== 'all') {
             $pendingAmountQuery->where('user_memberships.gym_id', $gymId);
@@ -78,7 +87,7 @@ class FinanceController extends Controller
         // Only include payments for memberships that are still pending or overdue (requiring manual admin verification)
         $pendingVerificationPayments = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'user.profile'])
             ->whereHas('membership', function ($q) use ($gymId) {
-                $q->whereIn('payment_status', ['pending', 'overdue']);
+                $q->where('status', 'active')->whereIn('payment_status', ['pending', 'overdue']);
                 if ($gymId !== 'all') {
                     $q->where('gym_id', $gymId);
                 }
@@ -88,7 +97,7 @@ class FinanceController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        return view('finanzas.index', compact('plans', 'memberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions', 'pendingVerificationPayments'));
+        return view('finanzas.index', compact('plans', 'memberships', 'activeMemberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions', 'pendingVerificationPayments'));
     }
 
     /**
@@ -375,7 +384,18 @@ class FinanceController extends Controller
         }
 
         try {
-            $membership = UserMembership::findOrFail($request->user_membership_id);
+            $membership = UserMembership::with('plan')->findOrFail($request->user_membership_id);
+
+            // If the selected membership was cancelled, redirect to the user's active membership
+            if ($membership->status === 'cancelled') {
+                $activeMem = UserMembership::where('user_id', $membership->user_id)
+                    ->where('status', 'active')
+                    ->latest('id')
+                    ->first();
+                if ($activeMem) {
+                    $membership = $activeMem;
+                }
+            }
 
             // Record payment
             $payment = MembershipPayment::create([
@@ -455,6 +475,17 @@ class FinanceController extends Controller
 
         try {
             $membership = UserMembership::with(['plan', 'user.profile'])->findOrFail($request->user_membership_id);
+
+            // If the selected membership was cancelled, link to the user's active membership
+            if ($membership->status === 'cancelled') {
+                $activeMem = UserMembership::where('user_id', $membership->user_id)
+                    ->where('status', 'active')
+                    ->latest('id')
+                    ->first();
+                if ($activeMem) {
+                    $membership = $activeMem;
+                }
+            }
 
             if (!$membership->plan) {
                 $errMsg = 'La membresía seleccionada no tiene un plan asociado.';
@@ -542,7 +573,8 @@ class FinanceController extends Controller
 
             // Record transaction
             $formattedRate = number_format($dailyRate, 2);
-            $notes = "ABONO ADELANTADO: Pago de \${$payAmount} otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . ".";
+            $creditText = $newCredit > 0 ? " (Saldo a favor restante: \${$newCredit})" : "";
+            $notes = "ABONO ADELANTADO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} saldo previo" : "") . " otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
             
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
@@ -565,7 +597,7 @@ class FinanceController extends Controller
                 $membership->gym_id
             );
 
-            $msg = "¡Abono de \${$payAmount} registrado exitosamente! Se otorgaron +{$extraDays} día(s) adicionales de vigencia.";
+            $msg = "¡Abono de \${$payAmount} registrado exitosamente! Se otorgaron +{$extraDays} día(s) adicionales de vigencia." . ($newCredit > 0 ? " Saldo a favor: \${$newCredit}" : "");
 
             if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
@@ -612,6 +644,7 @@ class FinanceController extends Controller
             'start_date' => 'required|date',
             'payment_method' => 'nullable|in:cash,card,transfer,other',
             'reference_number' => 'nullable|string|max:100',
+            'use_credit' => 'nullable|boolean',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -621,12 +654,20 @@ class FinanceController extends Controller
         $plan = MembershipPlan::findOrFail($request->plan_id);
 
         // Deactivate previous active memberships
-        UserMembership::where('user_id', $request->user_id)->update(['status' => 'cancelled']);
+        UserMembership::where('user_id', $request->user_id)
+            ->where('status', 'active')
+            ->update(['status' => 'cancelled']);
 
         $startDate = Carbon::parse($request->start_date);
         $endDate = $startDate->copy()->addDays($plan->duration_days);
 
-        $isPaidNow = $request->boolean('paid_now') || $request->filled('payment_method');
+        $planPrice = (float) $plan->price;
+        $prevCredit = (float) ($user->credit_balance ?? 0);
+        $applyCredit = $request->boolean('use_credit') && $prevCredit > 0;
+        $creditApplied = $applyCredit ? min($prevCredit, $planPrice) : 0;
+        $remainingToPay = max(0, round($planPrice - $creditApplied, 2));
+
+        $isPaidNow = $request->boolean('paid_now') || $request->filled('payment_method') || ($creditApplied >= $planPrice);
         $paymentStatus = $isPaidNow ? 'paid' : 'pending';
 
         try {
@@ -640,20 +681,33 @@ class FinanceController extends Controller
                 'payment_status' => $paymentStatus,
             ]);
 
+            if ($creditApplied > 0) {
+                $newCreditBalance = max(0, round($prevCredit - $creditApplied, 2));
+                $user->update(['credit_balance' => $newCreditBalance]);
+            }
+
             if ($isPaidNow) {
                 $payMethod = $request->input('payment_method', 'cash') ?: 'cash';
                 $refCode = $request->input('reference_number');
+
+                $paymentNotes = "PAGO INICIAL: Membresía '{$plan->name}' asignada.";
+                if ($creditApplied > 0) {
+                    $paymentNotes .= " Aplicado \${$creditApplied} de Saldo a Favor.";
+                    if ($remainingToPay > 0) {
+                        $paymentNotes .= " Saldo restante de \${$remainingToPay} cobrado en " . strtoupper($payMethod) . ".";
+                    }
+                }
 
                 MembershipPayment::create([
                     'membership_id' => $membership->id,
                     'user_id' => $membership->user_id,
                     'amount' => $plan->price,
                     'payment_date' => Carbon::now(),
-                    'payment_method' => $payMethod,
+                    'payment_method' => ($creditApplied >= $planPrice && !$request->filled('payment_method')) ? 'other' : $payMethod,
                     'reference_code' => $refCode,
                     'received_by' => auth()->user()->id,
                     'currency' => $plan->currency ?? 'USD',
-                    'notes' => "PAGO INICIAL: Membresía '{$plan->name}' cobrada de contado al asignar.",
+                    'notes' => $paymentNotes,
                 ]);
             }
 
