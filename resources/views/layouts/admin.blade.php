@@ -811,8 +811,78 @@
         </div>
     </div>
 
-    <!-- Toggle Sidebar Script -->
+    <!-- Global Event Lifecycle Interceptor & Universal Modal Helper -->
     <script>
+        (function() {
+            // Intercept document.addEventListener for DOMContentLoaded to execute immediately if document is already ready (e.g. during PJAX / AJAX)
+            const origDocAddEventListener = document.addEventListener;
+            document.addEventListener = function(type, listener, options) {
+                if (type === 'DOMContentLoaded' && (document.readyState === 'interactive' || document.readyState === 'complete')) {
+                    try {
+                        setTimeout(() => listener.call(document, new Event('DOMContentLoaded')), 0);
+                    } catch (e) {
+                        console.error('Error executing immediate DOMContentLoaded listener:', e);
+                    }
+                }
+                return origDocAddEventListener.call(document, type, listener, options);
+            };
+
+            // Intercept window.addEventListener for load event
+            const origWinAddEventListener = window.addEventListener;
+            window.addEventListener = function(type, listener, options) {
+                if (type === 'load' && document.readyState === 'complete') {
+                    try {
+                        setTimeout(() => listener.call(window, new Event('load')), 0);
+                    } catch (e) {
+                        console.error('Error executing immediate load listener:', e);
+                    }
+                }
+                return origWinAddEventListener.call(window, type, listener, options);
+            };
+
+            // Universal Robust Modal Toggle Helper (Accessible on every view)
+            window.toggleModal = function(modalId) {
+                if (!modalId) return;
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.warn('Modal not found:', modalId);
+                    return;
+                }
+                const isHidden = modal.classList.contains('hidden');
+                if (isHidden) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                    document.body.classList.add('overflow-hidden');
+                    setTimeout(() => {
+                        const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+                        if (firstInput) firstInput.focus();
+                    }, 50);
+                } else {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    // Unlock body scroll if no other modal is currently visible
+                    const anyModalOpen = document.querySelector('.fixed.z-50:not(.hidden), .fixed.z-\\[100\\]:not(.hidden), .fixed.z-\\[50\\]:not(.hidden), [id$="-modal"]:not(.hidden):not(.fixed-bottom), [id^="modal-"]:not(.hidden)');
+                    if (!anyModalOpen) {
+                        document.body.classList.remove('overflow-hidden');
+                    }
+                }
+                if (window.lucide) window.lucide.createIcons();
+            };
+
+            // Global ESC key listener to close active modals
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const openModals = document.querySelectorAll('[id$="-modal"]:not(.hidden), [id^="modal-"]:not(.hidden), .fixed.z-50:not(.hidden), .fixed.z-\\[100\\]:not(.hidden)');
+                    openModals.forEach(m => {
+                        if (m.id && typeof window.toggleModal === 'function') {
+                            window.toggleModal(m.id);
+                        }
+                    });
+                }
+            });
+        })();
+
+        // Toggle Sidebar Script
         function toggleSidebarGroup(groupId) {
             const content = document.getElementById(groupId);
             const chevron = document.getElementById('chevron-' + groupId);
@@ -1226,12 +1296,22 @@
                     void mainContainer.offsetWidth;
                     mainContainer.classList.add('animate-fade-in');
 
-                    // Re-execute inline scripts inside main
-                    const scripts = mainContainer.querySelectorAll('script');
-                    scripts.forEach(oldScript => {
+                    // Collect all scripts from mainContainer and modalsContainer
+                    const incomingScripts = [];
+                    mainContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
+                    if (modalsContainer) {
+                        modalsContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
+                    }
+
+                    // Re-execute all scripts in sequence
+                    incomingScripts.forEach(oldScript => {
                         const newScript = document.createElement('script');
                         Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                        newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                        if (oldScript.src) {
+                            newScript.src = oldScript.src;
+                        } else {
+                            newScript.text = oldScript.innerHTML || oldScript.textContent;
+                        }
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
 
@@ -1242,6 +1322,7 @@
 
                     if (window.lucide) {
                         window.lucide.createIcons();
+                        setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 100);
                     }
 
                     // Close mobile menu drawer if open
@@ -1255,7 +1336,11 @@
 
                     window.scrollTo({ top: 0, behavior: 'instant' });
                     completeProgress();
+
+                    // Dispatch custom and standard events so all page modules re-init immediately
                     window.dispatchEvent(new CustomEvent('page:loaded', { detail: { url: url } }));
+                    document.dispatchEvent(new Event('DOMContentLoaded'));
+                    window.dispatchEvent(new Event('load'));
                 } catch (err) {
                     console.error('PJAX Navigation Error:', err);
                     window.location.href = url;

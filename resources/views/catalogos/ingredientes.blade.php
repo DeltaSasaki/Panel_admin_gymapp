@@ -836,7 +836,7 @@
         @if(session('success'))
             showToast("{{ session('success') }}", 'success');
         @endif
-        @if($errors->any())
+        @if(isset($errors) && $errors->any())
             @foreach($errors->all() as $error)
                 showToast("{{ $error }}", 'error');
             @endforeach
