@@ -159,8 +159,13 @@
                             </div>
                         </div>
                     @else
-                        <div class="bg-slate-950 p-3 rounded-2xl border border-slate-850 text-slate-500 text-xs italic text-center">
-                            Sin membresía activa en este momento
+                        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 text-slate-500 text-xs text-center space-y-2">
+                            <span class="italic block">Sin membresía activa en este momento</span>
+                            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                                <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="w-full py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="user-plus" class="w-4 h-4"></i> Asignar Plan
+                                </button>
+                            @endif
                         </div>
                     @endif
                 </div>
@@ -168,9 +173,19 @@
 
             <!-- Profile Actions -->
             <div class="pt-6 border-t border-slate-800/60 flex flex-col gap-2">
-                @if(in_array(auth()->user()->role, ['admin', 'superadmin']) && $cliente->activeMembership)
-                    <button onclick="toggleModal('client-abono-modal')" class="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-                        <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
+                @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                    @if($cliente->activeMembership)
+                        @if(($cliente->activeMembership->payment_status ?? '') === 'pending')
+                            <button type="button" onclick="toggleModal('client-payment-modal')" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse">
+                                <i data-lucide="receipt" class="w-4 h-4"></i> Registrar Cobro de Membresía
+                            </button>
+                        @endif
+                        <button type="button" onclick="toggleModal('client-abono-modal')" class="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-amber-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                            <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
+                        </button>
+                    @endif
+                    <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="w-full py-2.5 bg-lime-500/10 hover:bg-lime-500 text-lime-400 hover:text-slate-950 font-bold text-xs rounded-xl border border-lime-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                        <i data-lucide="credit-card" class="w-4 h-4"></i> {{ $cliente->activeMembership ? 'Renovar / Cambiar Plan' : 'Asignar Plan a Socio' }}
                     </button>
                 @endif
                 
@@ -509,16 +524,34 @@
                                 </div>
                             </div>
 
-                            <button type="button" onclick="toggleModal('client-abono-modal')" class="w-full py-2 bg-gradient-to-r from-amber-500 to-emerald-500 hover:from-amber-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                                <i data-lucide="coins" class="w-4 h-4"></i>
-                                <span>Registrar Abono</span>
-                            </button>
+                            <div class="flex flex-col gap-2">
+                                @if($paymentStatus === 'pending')
+                                    <button type="button" onclick="toggleModal('client-payment-modal')" class="w-full py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer animate-pulse">
+                                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                                        <span>Registrar Cobro (${{ number_format($mPrice, 2) }})</span>
+                                    </button>
+                                @endif
+                                <button type="button" onclick="toggleModal('client-abono-modal')" class="w-full py-2 bg-amber-500/15 hover:bg-amber-500 border border-amber-500/30 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="coins" class="w-4 h-4"></i>
+                                    <span>Registrar Abono (+Días)</span>
+                                </button>
+                                <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="w-full py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 hover:text-lime-400 font-bold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-lime-400"></i>
+                                    <span>Renovar / Cambiar Plan</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 @else
-                    <div class="py-8 text-center text-slate-500 text-sm bg-slate-950/40 rounded-2xl border border-slate-850">
-                        <i data-lucide="alert-circle" class="w-8 h-8 text-slate-700 mb-2 mx-auto"></i>
-                        No tiene ninguna membresía activa registrada en este gimnasio.
+                    <div class="py-8 text-center text-slate-400 text-sm bg-slate-950/40 rounded-2xl border border-slate-850 space-y-3">
+                        <i data-lucide="alert-circle" class="w-8 h-8 text-amber-400 mb-2 mx-auto"></i>
+                        <p class="text-xs text-slate-400">Este socio no tiene ninguna membresía activa registrada en este gimnasio.</p>
+                        @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+                            <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg transition-all inline-flex items-center gap-2 cursor-pointer">
+                                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                                <span>Asignar Plan de Membresía</span>
+                            </button>
+                        @endif
                     </div>
                 @endif
 
@@ -860,6 +893,176 @@
     </div>
 </div>
 @endif
+
+<!-- ================= MODAL: ASIGNAR PLAN / MEMBRESÍA A ESTE SOCIO ================= -->
+<div id="client-assign-membership-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-lime-500/10 text-lime-400 border border-lime-500/20">
+                    <i data-lucide="credit-card" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">{{ $cliente->activeMembership ? 'Renovar / Cambiar Plan' : 'Asignar Membresía a Socio' }}</h3>
+                    <p class="text-[11px] text-slate-400">Socio: <span class="text-lime-400 font-semibold">{{ $cliente->profile->first_name ?? 'Socio' }} {{ $cliente->profile->last_name ?? '' }}</span></p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="{{ route('finanzas.renew_membership') }}" method="POST" class="space-y-4">
+            @csrf
+            <input type="hidden" name="user_id" value="{{ $cliente->id }}">
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Seleccionar Plan de Membresía *</label>
+                <select name="plan_id" id="client_assign_plan_select" onchange="calculateClientAssignPlanPreview()" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="" disabled selected>Selecciona un plan de membresía...</option>
+                    @if(isset($membershipPlans))
+                        @foreach($membershipPlans as $plan)
+                            <option value="{{ $plan->id }}" data-price="{{ $plan->price }}" data-days="{{ $plan->duration_days }}" data-currency="{{ $plan->currency ?? 'USD' }}">
+                                {{ $plan->name }} (${{ number_format($plan->price, 2) }} {{ $plan->currency ?? 'USD' }} - {{ $plan->duration_days }} días)
+                            </option>
+                        @endforeach
+                    @endif
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Fecha de Inicio *</label>
+                <input type="date" name="start_date" id="client_assign_start_date" onchange="calculateClientAssignPlanPreview()" required value="{{ date('Y-m-d') }}" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+            </div>
+
+            <!-- Calculadora en Vivo (Live Preview Box) -->
+            <div id="client_assign_preview_box" class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Precio del Plan:</span>
+                    <span id="client_assign_preview_price" class="font-black text-lime-400 text-sm">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
+                    <span class="font-semibold">Duración de Cobertura:</span>
+                    <span id="client_assign_preview_duration" class="font-bold text-slate-200">0 Días</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 font-bold pt-1">
+                    <span>Fecha de Vencimiento Estimada:</span>
+                    <span id="client_assign_preview_end_date" class="text-slate-100 font-black text-sm">--/--/----</span>
+                </div>
+            </div>
+
+            <!-- Opciones de Cobro / Pago Inmediato -->
+            <div class="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-850 space-y-3">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" name="paid_now" value="1" id="client_assign_paid_now_checkbox" onchange="toggleAssignPaymentFields()" checked class="w-4 h-4 rounded text-lime-500 bg-slate-900 border-slate-700 focus:ring-lime-500/50">
+                    <span class="text-xs font-bold text-slate-200">Registrar cobro y marcar como PAGADO de inmediato</span>
+                </label>
+                
+                <div id="assign_payment_details_container" class="grid grid-cols-2 gap-3 pt-2 border-t border-slate-850/80">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Método de Pago *</label>
+                        <select name="payment_method" id="client_assign_payment_method" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                            <option value="cash">Efectivo</option>
+                            <option value="transfer">Transferencia</option>
+                            <option value="card">Tarjeta de Débito/Crédito</option>
+                            <option value="other">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">N° Referencia (Opcional)</label>
+                        <input type="text" name="reference_number" placeholder="Ej: REF-9874" class="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
+                <button type="button" onclick="toggleModal('client-assign-membership-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    <span>Asignar y Guardar</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if($cliente->activeMembership)
+<!-- ================= MODAL: REGISTRAR COBRO / PAGO DE MEMBRESÍA ================= -->
+<div id="client-payment-modal" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md mx-auto my-auto shadow-2xl animate-scale-up space-y-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-lime-500/10 text-lime-400 border border-lime-500/20">
+                    <i data-lucide="receipt" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Registrar Cobro de Membresía</h3>
+                    <p class="text-[11px] text-slate-400">Socio: <span class="text-lime-400 font-semibold">{{ $cliente->profile->first_name ?? 'Socio' }} {{ $cliente->profile->last_name ?? '' }}</span></p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('client-payment-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="{{ route('finanzas.record_payment') }}" method="POST" class="space-y-4">
+            @csrf
+            <input type="hidden" name="user_membership_id" value="{{ $cliente->activeMembership->id }}">
+
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2 text-xs">
+                <div class="flex items-center justify-between text-slate-400">
+                    <span>Plan Contratado:</span>
+                    <span class="font-bold text-slate-200">{{ $cliente->activeMembership->plan->name ?? 'Membresía' }}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400">
+                    <span>Vigencia:</span>
+                    <span class="font-bold text-slate-200">{{ date('d/m/Y', strtotime($cliente->activeMembership->start_date)) }} - {{ date('d/m/Y', strtotime($cliente->activeMembership->end_date)) }}</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 font-bold border-t border-slate-850/80 pt-2">
+                    <span>Total a Cobrar:</span>
+                    <span class="font-black text-lime-400 text-base">${{ number_format($cliente->activeMembership->plan->price ?? 0, 2) }} {{ $cliente->activeMembership->plan->currency ?? 'USD' }}</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Monto Recibido *</label>
+                <div class="relative">
+                    <span class="absolute left-4 top-2.5 text-slate-400 font-bold">$</span>
+                    <input type="number" step="0.01" min="0.01" name="amount" value="{{ $cliente->activeMembership->plan->price ?? 0 }}" required class="w-full pl-8 pr-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Método de Pago *</label>
+                    <select name="payment_method" required class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                        <option value="cash">Efectivo</option>
+                        <option value="transfer">Transferencia</option>
+                        <option value="card">Tarjeta de Débito/Crédito</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">N° Referencia (Opcional)</label>
+                    <input type="text" name="reference_number" placeholder="Ej: REF-9874" class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
+
+            <div class="pt-4 flex gap-3 border-t border-slate-800">
+                <button type="button" onclick="toggleModal('client-payment-modal')" class="flex-1 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors cursor-pointer">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    <span>Confirmar Pago</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endpush
 
 <script>
@@ -867,6 +1070,50 @@
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.toggle('hidden');
+        }
+    }
+
+    function toggleAssignPaymentFields() {
+        const checkbox = document.getElementById('client_assign_paid_now_checkbox');
+        const container = document.getElementById('assign_payment_details_container');
+        if (checkbox && container) {
+            if (checkbox.checked) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+    }
+
+    function calculateClientAssignPlanPreview() {
+        const select = document.getElementById('client_assign_plan_select');
+        const startDateInput = document.getElementById('client_assign_start_date');
+        const priceEl = document.getElementById('client_assign_preview_price');
+        const durationEl = document.getElementById('client_assign_preview_duration');
+        const endDateEl = document.getElementById('client_assign_preview_end_date');
+
+        if (!select || !select.selectedOptions || select.selectedOptions.length === 0) return;
+        const opt = select.selectedOptions[0];
+        if (!opt || !opt.value) return;
+
+        const price = parseFloat(opt.dataset.price) || 0;
+        const days = parseInt(opt.dataset.days) || 0;
+        const currency = opt.dataset.currency || 'USD';
+
+        if (priceEl) priceEl.textContent = `$${price.toFixed(2)} ${currency}`;
+        if (durationEl) durationEl.textContent = `${days} Días`;
+
+        const startVal = startDateInput && startDateInput.value ? startDateInput.value : null;
+        if (startVal && days > 0) {
+            const parts = startVal.split('-');
+            if (parts.length === 3) {
+                let d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                d.setDate(d.getDate() + days);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                if (endDateEl) endDateEl.textContent = `${day}/${month}/${year}`;
+            }
         }
     }
 

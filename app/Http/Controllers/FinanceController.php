@@ -501,6 +501,10 @@ class FinanceController extends Controller
                     'notes' => $notes,
                 ]);
 
+                if ($membership->payment_status === 'pending') {
+                    $membership->update(['payment_status' => 'paid']);
+                }
+
                 $msg = "Abono de \${$payAmount} guardado como Saldo a Favor. Crédito acumulado total: \${$newCredit}. Faltan \$" . number_format($dailyRate - $newCredit, 2) . " para 1 día extra.";
                 
                 if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
@@ -538,8 +542,7 @@ class FinanceController extends Controller
 
             // Record transaction
             $formattedRate = number_format($dailyRate, 2);
-            $creditText = $newCredit > 0 ? " (Saldo a favor acumulado remanente: \${$newCredit})" : "";
-            $notes = "ABONO ADELANTADO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} crédito previo" : "") . " otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
+            $notes = "ABONO ADELANTADO: Pago de \${$payAmount} otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . ".";
             
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
@@ -553,20 +556,16 @@ class FinanceController extends Controller
                 'notes' => $notes,
             ]);
 
-            $userName = ($user && $user->profile) 
-                ? $user->profile->first_name . ' ' . $user->profile->last_name 
-                : ($user->email ?? 'Socio');
-
             AdminAuditLog::logAction(
                 'TRANSACCION',
-                'Abono por Adelantado',
-                "Abono por Adelantado de \${$payment->amount} {$payment->currency} registrado para {$userName}. Vigencia extendida +{$extraDays} días hasta el {$newEndDate->format('d/m/Y')}. Saldo a favor sobrante: \${$newCredit}.",
+                'Abono Adelantado',
+                "Abono de \${$payAmount} registrado para {$user->email} (+{$extraDays} días extra hasta " . $newEndDate->format('d/m/Y') . ").",
                 $oldData,
-                $membership->fresh()->toArray(),
+                $membership->toArray(),
                 $membership->gym_id
             );
 
-            $msg = "¡Abono registrado con éxito! Se otorgaron +{$extraDays} día(s) extra a {$userName}. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . ($newCredit > 0 ? " (Queda \${$newCredit} en saldo a favor)." : ".");
+            $msg = "¡Abono de \${$payAmount} registrado exitosamente! Se otorgaron +{$extraDays} día(s) adicionales de vigencia.";
 
             if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
@@ -611,6 +610,8 @@ class FinanceController extends Controller
             'user_id' => 'required|exists:users,id',
             'plan_id' => 'required|exists:membership_plans,id',
             'start_date' => 'required|date',
+            'payment_method' => 'nullable|in:cash,card,transfer,other',
+            'reference_number' => 'nullable|string|max:100',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -625,6 +626,9 @@ class FinanceController extends Controller
         $startDate = Carbon::parse($request->start_date);
         $endDate = $startDate->copy()->addDays($plan->duration_days);
 
+        $isPaidNow = $request->boolean('paid_now') || $request->filled('payment_method');
+        $paymentStatus = $isPaidNow ? 'paid' : 'pending';
+
         try {
             $membership = UserMembership::create([
                 'user_id' => $request->user_id,
@@ -633,31 +637,56 @@ class FinanceController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'status' => 'active',
-                'payment_status' => 'pending',
+                'payment_status' => $paymentStatus,
             ]);
+
+            if ($isPaidNow) {
+                $payMethod = $request->input('payment_method', 'cash') ?: 'cash';
+                $refCode = $request->input('reference_number');
+
+                MembershipPayment::create([
+                    'membership_id' => $membership->id,
+                    'user_id' => $membership->user_id,
+                    'amount' => $plan->price,
+                    'payment_date' => Carbon::now(),
+                    'payment_method' => $payMethod,
+                    'reference_code' => $refCode,
+                    'received_by' => auth()->user()->id,
+                    'currency' => $plan->currency ?? 'USD',
+                    'notes' => "PAGO INICIAL: Membresía '{$plan->name}' cobrada de contado al asignar.",
+                ]);
+            }
 
             $userName = ($user->profile) 
                 ? $user->profile->first_name . ' ' . $user->profile->last_name 
                 : $user->email;
 
+            $actionNote = $isPaidNow 
+                ? "Membresía '{$plan->name}' asignada y PAGADA de contado por el socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')})."
+                : "Membresía '{$plan->name}' asignada al socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')}).";
+
             AdminAuditLog::logAction(
                 'CREACION',
                 'Asignación de Membresía',
-                "Membresía '{$plan->name}' asignada al socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')}).",
+                $actionNote,
                 null,
                 $membership->toArray(),
                 $targetGymId
             );
 
+            $successMsg = $isPaidNow
+                ? "¡Membresía '{$plan->name}' asignada y cobro registrado exitosamente!"
+                : "Nueva membresía asignada al socio {$userName}. Registra el pago para activarla.";
+
             if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => true,
-                    'message' => "Nueva membresía asignada al socio {$userName}. Registra el pago para activarla.",
+                    'message' => $successMsg,
                     'membership' => $membership
                 ]);
             }
 
-            return redirect()->back()->with('success', 'Nueva membresía asignada. Registra el pago para activarla.');
+            return redirect()->back()->with('success', $successMsg);
 
         } catch (\Illuminate\Database\QueryException $e) {
             $errorMessage = $e->getMessage();

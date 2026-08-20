@@ -20,6 +20,7 @@ use App\Models\UserAssignedRoutine;
 use App\Models\Exercise;
 use App\Models\RoutineDay;
 use App\Models\RoutineExercise;
+use App\Models\MembershipPlan;
 use App\Models\MembershipPayment;
 use App\Models\MealPlanDay;
 use App\Models\Recipe;
@@ -656,6 +657,12 @@ class AdminController extends Controller
             $q->where('gym_id', $cliente->gym_id);
         })->where('is_active', 1)->get();
 
+        $membershipPlans = MembershipPlan::where(function($q) use ($cliente) {
+            if ($cliente->gym_id) {
+                $q->where('gym_id', $cliente->gym_id)->orWhereNull('gym_id');
+            }
+        })->where('is_active', 1)->orderBy('price', 'asc')->get();
+
         return view('clientes.show', compact(
             'cliente',
             'weightPoints',
@@ -664,7 +671,8 @@ class AdminController extends Controller
             'weightValues',
             'routines',
             'mealPlans',
-            'trainers'
+            'trainers',
+            'membershipPlans'
         ));
     }
 
