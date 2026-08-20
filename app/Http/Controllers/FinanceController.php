@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\MembershipPlan;
 use App\Models\UserMembership;
 use App\Models\MembershipPayment;
+use App\Models\UserCreditLog;
 use App\Models\PromoCode;
 use App\Models\GymPromotion;
 use App\Models\User;
@@ -97,7 +98,34 @@ class FinanceController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        return view('finanzas.index', compact('plans', 'memberships', 'activeMemberships', 'clients', 'totalCollected', 'pendingAmount', 'promos', 'gymPromotions', 'pendingVerificationPayments'));
+        // Fetch Abono & Saldo a Favor Logs
+        $abonoLogsQuery = UserCreditLog::with(['user.profile', 'membership.plan', 'receiver.profile', 'payment'])->orderBy('id', 'desc');
+        if ($gymId !== 'all') {
+            $abonoLogsQuery->where('gym_id', $gymId);
+        }
+        $abonoLogs = $abonoLogsQuery->get();
+
+        $totalAbonosAmount = $abonoLogs->where('type', 'abono_payment')->sum('amount');
+        $totalDaysAwarded = $abonoLogs->sum('days_added');
+        $totalCirculatingCredit = User::where('role', 'member')
+            ->when($gymId !== 'all', fn($q) => $q->where('gym_id', $gymId))
+            ->sum('credit_balance');
+
+        return view('finanzas.index', compact(
+            'plans', 
+            'memberships', 
+            'activeMemberships', 
+            'clients', 
+            'totalCollected', 
+            'pendingAmount', 
+            'promos', 
+            'gymPromotions', 
+            'pendingVerificationPayments',
+            'abonoLogs',
+            'totalAbonosAmount',
+            'totalDaysAwarded',
+            'totalCirculatingCredit'
+        ));
     }
 
     /**
@@ -514,6 +542,9 @@ class FinanceController extends Controller
 
             $extraDays = (int) floor($totalFunds / $dailyRate);
 
+            $receiverId = auth()->check() ? auth()->user()->id : null;
+            $source = $request->input('source', $receiverId ? 'admin_panel' : 'mobile_app');
+
             if ($extraDays < 1) {
                 $newCredit = round($totalFunds, 2);
                 $user->update(['credit_balance' => $newCredit]);
@@ -527,10 +558,30 @@ class FinanceController extends Controller
                     'payment_date' => Carbon::now(),
                     'payment_method' => $request->payment_method,
                     'reference_code' => $request->reference_number,
-                    'received_by' => auth()->user()->id,
+                    'received_by' => $receiverId,
                     'currency' => $plan->currency ?? 'USD',
                     'notes' => $notes,
                 ]);
+
+                $creditLog = UserCreditLog::create([
+                    'gym_id' => $membership->gym_id,
+                    'user_id' => $membership->user_id,
+                    'membership_id' => $membership->id,
+                    'payment_id' => $payment->id,
+                    'received_by' => $receiverId,
+                    'source' => $source,
+                    'type' => 'abono_payment',
+                    'amount' => $payAmount,
+                    'payment_method' => $request->payment_method,
+                    'reference_code' => $request->reference_number,
+                    'daily_rate' => $dailyRate,
+                    'previous_credit' => $prevCredit,
+                    'days_added' => 0,
+                    'credit_used' => 0.00,
+                    'resulting_credit' => $newCredit,
+                    'notes' => $notes,
+                ]);
+                $creditLog->load(['user.profile', 'membership.plan', 'receiver.profile', 'payment']);
 
                 if ($membership->payment_status === 'pending') {
                     $membership->update(['payment_status' => 'paid']);
@@ -544,6 +595,7 @@ class FinanceController extends Controller
                         'message' => $msg,
                         'extra_days' => 0,
                         'credit_balance' => $newCredit,
+                        'log' => $creditLog,
                         'membership' => $membership->fresh(['user.profile', 'plan']),
                     ]);
                 }
@@ -583,10 +635,30 @@ class FinanceController extends Controller
                 'payment_date' => Carbon::now(),
                 'payment_method' => $request->payment_method,
                 'reference_code' => $request->reference_number,
-                'received_by' => auth()->user()->id,
+                'received_by' => $receiverId,
                 'currency' => $plan->currency ?? 'USD',
                 'notes' => $notes,
             ]);
+
+            $creditLog = UserCreditLog::create([
+                'gym_id' => $membership->gym_id,
+                'user_id' => $membership->user_id,
+                'membership_id' => $membership->id,
+                'payment_id' => $payment->id,
+                'received_by' => $receiverId,
+                'source' => $source,
+                'type' => 'abono_payment',
+                'amount' => $payAmount,
+                'payment_method' => $request->payment_method,
+                'reference_code' => $request->reference_number,
+                'daily_rate' => $dailyRate,
+                'previous_credit' => $prevCredit,
+                'days_added' => $extraDays,
+                'credit_used' => $costUsed,
+                'resulting_credit' => $newCredit,
+                'notes' => $notes,
+            ]);
+            $creditLog->load(['user.profile', 'membership.plan', 'receiver.profile', 'payment']);
 
             AdminAuditLog::logAction(
                 'TRANSACCION',
@@ -606,6 +678,7 @@ class FinanceController extends Controller
                     'extra_days' => $extraDays,
                     'new_end_date' => $newEndDate->format('Y-m-d'),
                     'new_end_date_formatted' => $newEndDate->format('d/m/Y'),
+                    'log' => $creditLog,
                     'membership' => $membership->fresh(['user.profile', 'plan']),
                 ]);
             }
@@ -681,9 +754,31 @@ class FinanceController extends Controller
                 'payment_status' => $paymentStatus,
             ]);
 
+            $receiverId = auth()->check() ? auth()->user()->id : null;
+            $source = $request->input('source', $receiverId ? 'admin_panel' : 'mobile_app');
+
             if ($creditApplied > 0) {
                 $newCreditBalance = max(0, round($prevCredit - $creditApplied, 2));
                 $user->update(['credit_balance' => $newCreditBalance]);
+
+                UserCreditLog::create([
+                    'gym_id' => $targetGymId,
+                    'user_id' => $user->id,
+                    'membership_id' => $membership->id,
+                    'payment_id' => null,
+                    'received_by' => $receiverId,
+                    'source' => $source,
+                    'type' => 'credit_applied_to_plan',
+                    'amount' => $creditApplied,
+                    'payment_method' => 'credit_balance',
+                    'reference_code' => $request->input('reference_number'),
+                    'daily_rate' => $plan->duration_days > 0 ? round($plan->price / $plan->duration_days, 2) : 0,
+                    'previous_credit' => $prevCredit,
+                    'days_added' => 0,
+                    'credit_used' => $creditApplied,
+                    'resulting_credit' => $newCreditBalance,
+                    'notes' => "SALDO A FAVOR APLICADO: Se aplicaron \${$creditApplied} del saldo a favor al contratar/renovar el plan '{$plan->name}'.",
+                ]);
             }
 
             if ($isPaidNow) {

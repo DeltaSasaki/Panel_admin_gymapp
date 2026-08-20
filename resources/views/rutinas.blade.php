@@ -253,6 +253,7 @@
     } else {
         initRoutineDniSearch();
     }
+    window.addEventListener('page:loaded', initRoutineDniSearch);
 
     function escapeRoutineHtml(str) {
         return (str || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -294,24 +295,7 @@
         if (selectEl) selectEl.selectedIndex = 0;
     }
 
-    function toggleModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
 
-        // Move modal to body if inside a transformed parent container so position:fixed centers in viewport
-        if (modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
-
-        const isOpening = modal.classList.contains('hidden');
-        modal.classList.toggle('hidden');
-
-        if (isOpening) {
-            document.body.classList.add('overflow-hidden');
-        } else {
-            document.body.classList.remove('overflow-hidden');
-        }
-    }
 
     function openAssignRoutineModal(actionUrl, routineName, routineId) {
         initRoutineDniSearch();

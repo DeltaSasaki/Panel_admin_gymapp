@@ -1376,6 +1376,34 @@ CREATE TABLE `user_profiles` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `user_credit_logs`
+--
+
+CREATE TABLE `user_credit_logs` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) DEFAULT NULL,
+  `user_id` int(11) NOT NULL,
+  `membership_id` int(11) DEFAULT NULL,
+  `payment_id` int(11) DEFAULT NULL,
+  `received_by` int(11) DEFAULT NULL COMMENT 'Null si fue auto-recarga desde la App Móvil',
+  `source` varchar(30) NOT NULL DEFAULT 'admin_panel' COMMENT 'admin_panel, mobile_app, web_gateway',
+  `type` enum('abono_payment','credit_applied_to_plan','manual_adjustment') NOT NULL DEFAULT 'abono_payment',
+  `amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `payment_method` varchar(50) NOT NULL DEFAULT 'cash',
+  `reference_code` varchar(100) DEFAULT NULL,
+  `daily_rate` decimal(10,2) DEFAULT NULL,
+  `previous_credit` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `days_added` int(11) NOT NULL DEFAULT 0,
+  `credit_used` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `resulting_credit` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `notes` text DEFAULT NULL,
+  `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `user_referrals`
 --
 
@@ -1904,6 +1932,17 @@ ALTER TABLE `user_challenges`
   ADD KEY `challenge_id` (`challenge_id`);
 
 --
+-- Indices de la tabla `user_credit_logs`
+--
+ALTER TABLE `user_credit_logs`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `ucl_gym_id` (`gym_id`),
+  ADD KEY `ucl_user_id` (`user_id`),
+  ADD KEY `ucl_membership_id` (`membership_id`),
+  ADD KEY `ucl_payment_id` (`payment_id`),
+  ADD KEY `ucl_received_by` (`received_by`);
+
+--
 -- Indices de la tabla `user_food_logs`
 --
 ALTER TABLE `user_food_logs`
@@ -2261,6 +2300,12 @@ ALTER TABLE `user_assigned_routines`
 -- AUTO_INCREMENT de la tabla `user_challenges`
 --
 ALTER TABLE `user_challenges`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `user_credit_logs`
+--
+ALTER TABLE `user_credit_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

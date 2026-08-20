@@ -131,6 +131,19 @@
                 </span>
             @endif
         </button>
+        <button 
+            type="button"
+            onclick="switchFinanceTab('abonos')" 
+            id="tab-btn-abonos"
+            class="finance-tab-btn px-5 py-3 border-b-2 text-xs font-bold uppercase tracking-wider transition-all border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 relative">
+            <i data-lucide="coins" class="w-4 h-4 text-amber-400"></i>
+            <span>Historial de Abonos & Saldo</span>
+            @if(isset($abonoLogs) && $abonoLogs->count() > 0)
+                <span id="abonos_tab_badge" class="px-2 py-0.5 text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full">
+                    {{ $abonoLogs->count() }}
+                </span>
+            @endif
+        </button>
     </div>
 
     <!-- Tab 1: Membresías de Socios -->
@@ -325,7 +338,7 @@
                                 <span class="px-2 py-0.5 bg-lime-500/10 text-lime-400 text-[9px] font-bold uppercase rounded-full border border-lime-500/20 plan-duration-text">
                                     {{ $plan->duration_days }} Días
                                 </span>
-                                <button type="button" onclick="openEditPlanModal({{ json_encode($plan) }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0" title="Editar Plan">
+                                <button type="button" onclick='openEditPlanModal(@json($plan))' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0" title="Editar Plan">
                                     <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                 </button>
                             </div>
@@ -709,6 +722,275 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Tab 6: Historial de Abonos & Saldo a Favor -->
+    <div id="tab-content-abonos" class="finance-tab-content bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl hidden space-y-6">
+        
+        <!-- Header & KPI Stat Cards for Abonos -->
+        <div class="p-6 border-b border-slate-850 bg-slate-950/40">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="font-black text-xl text-slate-100 flex items-center gap-2.5">
+                        <span class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <i data-lucide="coins" class="w-5 h-5"></i>
+                        </span>
+                        Historial de Abonos & Saldo a Favor
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">Trazabilidad detallada de recargas, días acreditados, saldos a favor y canales de origen (Admin / App Móvil).</p>
+                </div>
+                <button type="button" onclick="openAbonoModal()" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-xs rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all flex items-center gap-2 cursor-pointer self-start lg:self-auto">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Nuevo Abono Directo</span>
+                </button>
+            </div>
+
+            <!-- 4 KPI Metrics -->
+            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Recaudado</span>
+                        <span id="abono_stat_total_amount" class="text-lg sm:text-xl font-black text-emerald-400">${{ number_format($totalAbonosAmount ?? 0, 2) }}</span>
+                    </div>
+                    <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Días Otorgados</span>
+                        <span id="abono_stat_days_awarded" class="text-lg sm:text-xl font-black text-amber-400">+{{ number_format($totalDaysAwarded ?? 0) }} Días</span>
+                    </div>
+                    <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                        <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Saldo en Circulación</span>
+                        <span id="abono_stat_circulating_credit" class="text-lg sm:text-xl font-black text-cyan-400">${{ number_format($totalCirculatingCredit ?? 0, 2) }}</span>
+                    </div>
+                    <div class="p-2.5 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
+                        <i data-lucide="wallet" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Operaciones</span>
+                        <span id="abono_stat_total_count" class="text-lg sm:text-xl font-black text-slate-200">{{ isset($abonoLogs) ? $abonoLogs->count() : 0 }}</span>
+                    </div>
+                    <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                        <i data-lucide="history" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Filter Type Pills -->
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+                    <button type="button" onclick="setAbonoTypeFilter('all')" id="abono-filter-btn-all" class="abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 transition-all">
+                        Todos (<span id="abono-count-all">{{ isset($abonoLogs) ? $abonoLogs->count() : 0 }}</span>)
+                    </button>
+                    <button type="button" onclick="setAbonoTypeFilter('with_days')" id="abono-filter-btn-with_days" class="abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Con Días Extra (<span id="abono-count-days">{{ isset($abonoLogs) ? $abonoLogs->where('days_added', '>', 0)->count() : 0 }}</span>)
+                    </button>
+                    <button type="button" onclick="setAbonoTypeFilter('pure_credit')" id="abono-filter-btn-pure_credit" class="abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Solo Saldo (<span id="abono-count-credit">{{ isset($abonoLogs) ? $abonoLogs->where('type', 'abono_payment')->where('days_added', 0)->count() : 0 }}</span>)
+                    </button>
+                    <button type="button" onclick="setAbonoTypeFilter('applied_to_plan')" id="abono-filter-btn-applied_to_plan" class="abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Saldo Aplicado (<span id="abono-count-applied">{{ isset($abonoLogs) ? $abonoLogs->where('type', 'credit_applied_to_plan')->count() : 0 }}</span>)
+                    </button>
+                </div>
+
+                <!-- Payment Method Filter -->
+                <select id="abono_method_select_filter" onchange="setAbonoMethodFilter(this.value)" class="px-3 py-1.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-300 font-bold focus:outline-none focus:border-amber-500/50 cursor-pointer">
+                    <option value="all">Todos los Métodos</option>
+                    <option value="cash">Efectivo</option>
+                    <option value="card">Tarjeta</option>
+                    <option value="transfer">Transferencia</option>
+                    <option value="credit_balance">Saldo a Favor</option>
+                    <option value="other">Otro</option>
+                </select>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-72">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-500"></i>
+                <input 
+                    type="text" 
+                    id="abono_search_input" 
+                    oninput="onAbonoSearchInput()"
+                    placeholder="Buscar por socio, ref, nota..." 
+                    class="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-850 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 transition-colors">
+            </div>
+        </div>
+
+        <!-- Abonos Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="border-b border-slate-800 text-[10px] font-extrabold uppercase text-slate-400 tracking-wider bg-slate-950/60">
+                        <th class="p-4 pl-6">Fecha / Hora</th>
+                        <th class="p-4">Socio / Atleta</th>
+                        <th class="p-4">Tipo & Origen</th>
+                        <th class="p-4">Monto & Método</th>
+                        <th class="p-4">Plan & Tarifa</th>
+                        <th class="p-4 text-center">Días Ganados</th>
+                        <th class="p-4 text-center">Saldo a Favor</th>
+                        <th class="p-4">Atendido Por</th>
+                        <th class="p-4 pr-6 text-right">Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="abonos-table-tbody" class="divide-y divide-slate-800/40">
+                    @forelse($abonoLogs as $log)
+                        @php
+                            $user = $log->user;
+                            $profile = $user ? $user->profile : null;
+                            $userName = $profile ? ($profile->first_name . ' ' . $profile->last_name) : ($user->email ?? 'Socio Desconocido');
+                            $userAvatar = $profile && $profile->photo_url ? $profile->photo_url : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop';
+                            $userEmail = $user ? $user->email : 'N/A';
+                            $planName = ($log->membership && $log->membership->plan) ? $log->membership->plan->name : 'Membresía Activa';
+                            $dailyRateVal = $log->daily_rate ?? (($log->membership && $log->membership->plan && $log->membership->plan->duration_days > 0) ? ($log->membership->plan->price / $log->membership->plan->duration_days) : 0);
+                            $isAppliedToPlan = ($log->type === 'credit_applied_to_plan');
+                            $isDirectAbono = ($log->type === 'abono_payment');
+                            $isFromApp = ($log->source === 'mobile_app') || ($log->received_by === null && str_contains(strtolower($log->payment_method), 'app'));
+                            $receiverName = $log->receiver && $log->receiver->profile 
+                                ? ($log->receiver->profile->first_name . ' ' . $log->receiver->profile->last_name)
+                                : ($log->receiver ? $log->receiver->email : ($isFromApp ? 'App Móvil (Auto-servicio)' : 'Sistema Automático'));
+                        @endphp
+                        <tr 
+                            class="hover:bg-slate-900/40 text-slate-200 transition-colors"
+                            data-abono-row
+                            data-type="{{ $isAppliedToPlan ? 'applied_to_plan' : ($log->days_added > 0 ? 'with_days' : 'pure_credit') }}"
+                            data-method="{{ strtolower($log->payment_method ?? 'cash') }}"
+                            data-search="{{ strtolower($userName . ' ' . $userEmail . ' ' . ($log->reference_code ?? '') . ' ' . ($log->notes ?? '') . ' ' . $planName) }}"
+                            id="abono_log_row_{{ $log->id }}">
+                            
+                            <td class="p-4 pl-6 text-slate-400 whitespace-nowrap">
+                                <span class="block font-bold text-slate-200">{{ \Carbon\Carbon::parse($log->createdAt)->format('d/m/Y') }}</span>
+                                <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($log->createdAt)->format('h:i A') }}</span>
+                            </td>
+
+                            <td class="p-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="{{ $userAvatar }}" class="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-800">
+                                    <div>
+                                        <span class="block font-bold text-slate-100 text-xs">{{ $userName }}</span>
+                                        <span class="block text-[10px] text-slate-500">{{ $userEmail }}</span>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <td class="p-4 whitespace-nowrap">
+                                @if($isAppliedToPlan)
+                                    <span class="px-2.5 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="arrow-down-right" class="w-3 h-3"></i> Saldo Usado
+                                    </span>
+                                @elseif($log->days_added > 0)
+                                    <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="calendar-check" class="w-3 h-3"></i> Abono a Días
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="wallet" class="w-3 h-3"></i> Saldo Guardado
+                                    </span>
+                                @endif
+                                <span class="block text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                    @if($isFromApp)
+                                        <i data-lucide="smartphone" class="w-2.5 h-2.5 text-purple-400"></i> App Móvil
+                                    @else
+                                        <i data-lucide="monitor" class="w-2.5 h-2.5 text-slate-400"></i> Panel Admin
+                                    @endif
+                                </span>
+                            </td>
+
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="block font-extrabold text-slate-100 text-sm">${{ number_format($log->amount, 2) }}</span>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-850 text-slate-400 rounded text-[9px] font-bold uppercase">
+                                        {{ $log->payment_method === 'credit_balance' ? 'Saldo a Favor' : ($log->payment_method === 'cash' ? 'Efectivo' : ($log->payment_method === 'card' ? 'Tarjeta' : ($log->payment_method === 'transfer' ? 'Transferencia' : strtoupper($log->payment_method)))) }}
+                                    </span>
+                                    @if($log->reference_code)
+                                        <span class="text-[9px] font-mono text-lime-400">#{{ $log->reference_code }}</span>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="block font-bold text-slate-300">{{ $planName }}</span>
+                                @if($dailyRateVal > 0)
+                                    <span class="block text-[10px] text-slate-500">${{ number_format($dailyRateVal, 2) }} / día</span>
+                                @endif
+                            </td>
+
+                            <td class="p-4 text-center whitespace-nowrap">
+                                @if($log->days_added > 0)
+                                    <span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-xl font-black text-xs inline-flex items-center gap-1 shadow-sm">
+                                        <i data-lucide="sparkles" class="w-3 h-3 text-emerald-400"></i> +{{ $log->days_added }} Días
+                                    </span>
+                                @else
+                                    <span class="text-xs text-slate-500 font-bold">0 días</span>
+                                @endif
+                            </td>
+
+                            <td class="p-4 text-center whitespace-nowrap">
+                                <div class="inline-flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-855 text-[11px]">
+                                    <span class="text-slate-500 line-through">${{ number_format($log->previous_credit, 2) }}</span>
+                                    <span class="text-slate-600">→</span>
+                                    <span class="font-bold {{ $log->resulting_credit > 0 ? 'text-amber-400' : 'text-slate-400' }}">${{ number_format($log->resulting_credit, 2) }}</span>
+                                </div>
+                            </td>
+
+                            <td class="p-4 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <div class="p-1 rounded-lg {{ $isFromApp ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-400' }}">
+                                        <i data-lucide="{{ $isFromApp ? 'smartphone' : 'user-check' }}" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="font-medium text-slate-300 text-xs">{{ $receiverName }}</span>
+                                </div>
+                            </td>
+
+                            <td class="p-4 pr-6 text-right whitespace-nowrap">
+                                <button 
+                                    type="button" 
+                                    onclick='openAbonoDetailModal(@json($log))'
+                                    class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-800 hover:border-slate-700 font-bold text-[10px] rounded-xl transition-all flex items-center gap-1 ml-auto cursor-pointer">
+                                    <i data-lucide="receipt" class="w-3.5 h-3.5 text-amber-400"></i>
+                                    <span>Comprobante</span>
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr id="no_abono_logs_row">
+                            <td colspan="9" class="p-12 text-center text-slate-500">
+                                <i data-lucide="coins" class="w-12 h-12 mx-auto text-slate-700 mb-3"></i>
+                                <span class="block font-bold text-sm text-slate-400">No hay registros de abonos todavía</span>
+                                <span class="block text-xs mt-1 text-slate-500">Los abonos registrados desde este panel o desde la App Móvil aparecerán detallados aquí.</span>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Footer for Abonos -->
+        <div class="p-4 border-t border-slate-850 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+            <span id="abonos-page-indicator">Mostrando registros de abonos</span>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="changeAbonoPage(-1)" id="abono-prev-btn" class="px-3 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer">
+                    Anterior
+                </button>
+                <button type="button" onclick="changeAbonoPage(1)" id="abono-next-btn" class="px-3 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-400 hover:text-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer">
+                    Siguiente
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1182,24 +1464,124 @@
     </div>
 </div>
 
+<!-- ================= MODAL: DETALLE / COMPROBANTE DE ABONO ================= -->
+<div id="abono-detail-modal" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-lg mx-auto my-auto space-y-6 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto relative">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <i data-lucide="receipt" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base text-slate-100">Comprobante de Abono & Saldo</h3>
+                    <p id="abono_detail_modal_code" class="text-xs text-slate-400 font-mono">ID Movimiento: #---</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('abono-detail-modal')" class="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Info Grid -->
+        <div class="space-y-4">
+            <!-- Client & Plan strip -->
+            <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-850 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-slate-300 overflow-hidden" id="abono_detail_avatar_container">
+                        <i data-lucide="user" class="w-5 h-5 text-slate-400"></i>
+                    </div>
+                    <div>
+                        <span id="abono_detail_client_name" class="block font-black text-sm text-slate-100">---</span>
+                        <span id="abono_detail_client_email" class="block text-xs text-slate-500">---</span>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="abono_detail_plan_name" class="block font-bold text-xs text-slate-300">Plan</span>
+                    <span id="abono_detail_daily_rate" class="block text-[10px] text-amber-400 font-semibold">$0.00 / día</span>
+                </div>
+            </div>
+
+            <!-- Mathematical Breakdown Card -->
+            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2.5 text-xs">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-850 pb-1.5 flex items-center gap-1.5">
+                    <i data-lucide="calculator" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>Desglose de Conversión Matemática</span>
+                </div>
+
+                <div class="flex items-center justify-between text-slate-300">
+                    <span>Monto Recargado / Abonado:</span>
+                    <span id="abono_detail_amount" class="font-extrabold text-emerald-400 text-sm">$0.00</span>
+                </div>
+
+                <div class="flex items-center justify-between text-slate-400">
+                    <span>Saldo a Favor Previo:</span>
+                    <span id="abono_detail_prev_credit" class="font-bold text-slate-300">$0.00</span>
+                </div>
+
+                <div class="flex items-center justify-between text-slate-400 border-t border-slate-850/60 pt-2">
+                    <span>Total Fondos Disponibles:</span>
+                    <span id="abono_detail_total_funds" class="font-black text-slate-100">$0.00</span>
+                </div>
+
+                <div class="flex items-center justify-between text-slate-400">
+                    <span>Costo Consumido en Días:</span>
+                    <span id="abono_detail_cost_used" class="font-bold text-rose-400">-$0.00</span>
+                </div>
+
+                <div class="flex items-center justify-between bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20 text-amber-300 font-bold">
+                    <span>Nuevo Saldo a Favor Restante:</span>
+                    <span id="abono_detail_resulting_credit" class="font-black text-sm text-amber-400">$0.00</span>
+                </div>
+            </div>
+
+            <!-- Result Highlights -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 text-center">
+                    <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1">Días Acreditados</span>
+                    <span id="abono_detail_days_badge" class="text-base font-black text-emerald-400">+0 Días</span>
+                </div>
+                <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-850 text-center">
+                    <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1">Método de Pago</span>
+                    <span id="abono_detail_method_badge" class="text-xs font-black text-slate-200 uppercase">EFECTIVO</span>
+                </div>
+            </div>
+
+            <!-- Extra Metadata Strip -->
+            <div class="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-850 space-y-1.5 text-xs text-slate-400">
+                <div class="flex items-center justify-between">
+                    <span>Canal de Origen:</span>
+                    <span id="abono_detail_source_text" class="font-bold text-slate-200 flex items-center gap-1">---</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Atendido / Procesado por:</span>
+                    <span id="abono_detail_receiver_name" class="font-bold text-slate-200">---</span>
+                </div>
+                <div class="flex items-center justify-between" id="abono_detail_ref_row">
+                    <span>N° Referencia:</span>
+                    <span id="abono_detail_ref_code" class="font-mono text-lime-400 font-bold">---</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Fecha y Hora:</span>
+                    <span id="abono_detail_datetime" class="font-semibold text-slate-300">--/--/---- --:--</span>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div id="abono_detail_notes_box" class="bg-slate-950/40 p-3 rounded-xl border border-slate-850/80 text-[11px] text-slate-400 italic">
+                <span class="font-bold text-slate-500 block not-italic uppercase text-[9px] mb-0.5">Nota de Auditoría:</span>
+                <span id="abono_detail_notes_text">---</span>
+            </div>
+        </div>
+
+        <div class="pt-2 flex gap-3 border-t border-slate-800">
+            <button type="button" onclick="toggleModal('abono-detail-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
+                Cerrar Comprobante
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
-    function toggleModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-
-        if (modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
-
-        const isOpening = modal.classList.contains('hidden');
-        modal.classList.toggle('hidden');
-
-        if (isOpening) {
-            document.body.classList.add('overflow-hidden');
-        } else {
-            document.body.classList.remove('overflow-hidden');
-        }
-    }
 
     let originalAmount = 0;
 
@@ -1320,6 +1702,107 @@
                     const newVal = currentVal + added;
                     statTotal.setAttribute('data-value', newVal);
                     statTotal.textContent = '$' + newVal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+
+                if (data.log) {
+                    const log = data.log;
+                    const tbody = document.getElementById('abonos-table-tbody');
+                    const noRow = document.getElementById('no_abono_logs_row');
+                    if (noRow) noRow.classList.add('hidden');
+
+                    if (tbody) {
+                        const user = log.user || {};
+                        const profile = user.profile || {};
+                        const userName = profile.first_name ? `${profile.first_name} ${profile.last_name || ''}` : (user.email || 'Socio');
+                        const userAvatar = profile.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=100&auto=format&fit=crop';
+                        const userEmail = user.email || 'N/A';
+                        const planName = (log.membership && log.membership.plan) ? log.membership.plan.name : 'Membresía Activa';
+                        const dailyRate = parseFloat(log.daily_rate || 0);
+                        const isFromApp = (log.source === 'mobile_app') || (!log.received_by && log.payment_method && log.payment_method.toLowerCase().includes('app'));
+                        const receiver = log.receiver || {};
+                        const receiverProfile = receiver.profile || {};
+                        const receiverName = receiverProfile.first_name 
+                            ? `${receiverProfile.first_name} ${receiverProfile.last_name || ''}` 
+                            : (receiver.email || (isFromApp ? 'App Móvil (Auto-servicio)' : 'Sistema Automático'));
+
+                        const newRow = document.createElement('tr');
+                        newRow.id = `abono_log_row_${log.id}`;
+                        newRow.className = "hover:bg-slate-900/40 text-slate-200 transition-colors";
+                        newRow.setAttribute('data-abono-row', '');
+                        newRow.setAttribute('data-type', log.days_added > 0 ? 'with_days' : 'pure_credit');
+                        newRow.setAttribute('data-method', (log.payment_method || 'cash').toLowerCase());
+                        newRow.setAttribute('data-search', `${userName} ${userEmail} ${log.reference_code || ''} ${log.notes || ''} ${planName}`.toLowerCase());
+
+                        const logJsonStr = JSON.stringify(log).replace(/'/g, "&apos;");
+
+                        newRow.innerHTML = `
+                            <td class="p-4 pl-6 text-slate-400 whitespace-nowrap">
+                                <span class="block font-bold text-slate-200">Hoy</span>
+                                <span class="block text-[10px] text-slate-500">Reciente</span>
+                            </td>
+                            <td class="p-4">
+                                <div class="flex items-center gap-3">
+                                    <img src="${userAvatar}" class="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-800">
+                                    <div>
+                                        <span class="block font-bold text-slate-100 text-xs">${userName}</span>
+                                        <span class="block text-[10px] text-slate-500">${userEmail}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="px-2.5 py-1 ${log.days_added > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' : 'bg-amber-500/10 text-amber-400 border-amber-500/25'} border rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                    <i data-lucide="${log.days_added > 0 ? 'calendar-check' : 'wallet'}" class="w-3 h-3"></i> ${log.days_added > 0 ? 'Abono a Días' : 'Saldo Guardado'}
+                                </span>
+                                <span class="block text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                                    ${isFromApp ? '<i data-lucide="smartphone" class="w-2.5 h-2.5 text-purple-400"></i> App Móvil' : '<i data-lucide="monitor" class="w-2.5 h-2.5 text-slate-400"></i> Panel Admin'}
+                                </span>
+                            </td>
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="block font-extrabold text-slate-100 text-sm">$${parseFloat(log.amount).toFixed(2)}</span>
+                                <div class="flex items-center gap-1.5 mt-0.5">
+                                    <span class="px-2 py-0.5 bg-slate-950 border border-slate-800 text-slate-400 rounded text-[9px] font-bold uppercase">
+                                        ${log.payment_method}
+                                    </span>
+                                    ${log.reference_code ? `<span class="text-[9px] font-mono text-lime-400">#${log.reference_code}</span>` : ''}
+                                </div>
+                            </td>
+                            <td class="p-4 whitespace-nowrap">
+                                <span class="block font-bold text-slate-300">${planName}</span>
+                                ${dailyRate > 0 ? `<span class="block text-[10px] text-slate-500">$${dailyRate.toFixed(2)} / día</span>` : ''}
+                            </td>
+                            <td class="p-4 text-center whitespace-nowrap">
+                                ${log.days_added > 0 ? `<span class="px-2.5 py-1 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-xl font-black text-xs inline-flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3 text-emerald-400"></i> +${log.days_added} Días</span>` : '<span class="text-xs text-slate-500 font-bold">0 días</span>'}
+                            </td>
+                            <td class="p-4 text-center whitespace-nowrap">
+                                <div class="inline-flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-855 text-[11px]">
+                                    <span class="text-slate-500 line-through">$${parseFloat(log.previous_credit).toFixed(2)}</span>
+                                    <span class="text-slate-600">→</span>
+                                    <span class="font-bold ${parseFloat(log.resulting_credit) > 0 ? 'text-amber-400' : 'text-slate-400'}">$${parseFloat(log.resulting_credit).toFixed(2)}</span>
+                                </div>
+                            </td>
+                            <td class="p-4 whitespace-nowrap">
+                                <div class="flex items-center gap-2">
+                                    <div class="p-1 rounded-lg ${isFromApp ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-400'}">
+                                        <i data-lucide="${isFromApp ? 'smartphone' : 'user-check'}" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="font-medium text-slate-300 text-xs">${receiverName}</span>
+                                </div>
+                            </td>
+                            <td class="p-4 pr-6 text-right whitespace-nowrap">
+                                <button 
+                                    type="button" 
+                                    onclick='openAbonoDetailModal(${logJsonStr})'
+                                    class="px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-slate-100 border border-slate-800 hover:border-slate-700 font-bold text-[10px] rounded-xl transition-all flex items-center gap-1 ml-auto cursor-pointer">
+                                    <i data-lucide="receipt" class="w-3.5 h-3.5 text-amber-400"></i>
+                                    <span>Comprobante</span>
+                                </button>
+                            </td>
+                        `;
+
+                        tbody.prepend(newRow);
+                        updateAbonoCounters();
+                        renderAbonoPage();
+                    }
                 }
 
                 form.reset();
@@ -2120,6 +2603,7 @@
         if (tabName === 'membresias') renderMembershipPage();
         else if (tabName === 'planes') renderPlanPage();
         else if (tabName === 'cupones') renderPromoPage();
+        else if (tabName === 'abonos') renderAbonoPage();
 
         if (window.lucide) window.lucide.createIcons();
     }
@@ -2509,12 +2993,228 @@
         }
     }
 
+    // ================= ABONOS & SALDO A FAVOR FILTER & PAGINATION =================
+    var currentAbonoPage = 1;
+    var currentAbonoTypeFilter = 'all';
+    var currentAbonoMethodFilter = 'all';
+    var itemsPerAbonoPage = 10;
+
+    function setAbonoTypeFilter(type) {
+        currentAbonoTypeFilter = type;
+        document.querySelectorAll('.abono-type-filter-btn').forEach(btn => {
+            btn.className = "abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all";
+        });
+        const activeBtn = document.getElementById('abono-filter-btn-' + type);
+        if (activeBtn) {
+            activeBtn.className = "abono-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-amber-400 border border-slate-800 transition-all";
+        }
+        currentAbonoPage = 1;
+        renderAbonoPage();
+    }
+
+    function setAbonoMethodFilter(method) {
+        currentAbonoMethodFilter = method;
+        currentAbonoPage = 1;
+        renderAbonoPage();
+    }
+
+    function onAbonoSearchInput() {
+        currentAbonoPage = 1;
+        renderAbonoPage();
+    }
+
+    function changeAbonoPage(delta) {
+        currentAbonoPage += delta;
+        renderAbonoPage();
+    }
+
+    function updateAbonoCounters() {
+        const allRows = Array.from(document.querySelectorAll('[data-abono-row]'));
+        const total = allRows.length;
+        const withDays = allRows.filter(r => r.getAttribute('data-type') === 'with_days').length;
+        const pureCredit = allRows.filter(r => r.getAttribute('data-type') === 'pure_credit').length;
+        const applied = allRows.filter(r => r.getAttribute('data-type') === 'applied_to_plan').length;
+
+        const countAllEl = document.getElementById('abono-count-all');
+        const countDaysEl = document.getElementById('abono-count-days');
+        const countCreditEl = document.getElementById('abono-count-credit');
+        const countAppliedEl = document.getElementById('abono-count-applied');
+        const tabBadge = document.getElementById('abonos_tab_badge');
+        const statCount = document.getElementById('abono_stat_total_count');
+
+        if (countAllEl) countAllEl.textContent = total;
+        if (countDaysEl) countDaysEl.textContent = withDays;
+        if (countCreditEl) countCreditEl.textContent = pureCredit;
+        if (countAppliedEl) countAppliedEl.textContent = applied;
+        if (tabBadge) tabBadge.textContent = total;
+        if (statCount) statCount.textContent = total;
+    }
+
+    function renderAbonoPage() {
+        const query = (document.getElementById('abono_search_input')?.value || '').toLowerCase().trim();
+        const allRows = Array.from(document.querySelectorAll('[data-abono-row]'));
+
+        const matchingRows = allRows.filter(row => {
+            const type = row.getAttribute('data-type') || '';
+            const method = (row.getAttribute('data-method') || '').toLowerCase();
+            const search = row.getAttribute('data-search') || '';
+
+            let matchesType = true;
+            if (currentAbonoTypeFilter !== 'all') {
+                matchesType = (type === currentAbonoTypeFilter);
+            }
+
+            let matchesMethod = true;
+            if (currentAbonoMethodFilter !== 'all') {
+                matchesMethod = (method === currentAbonoMethodFilter);
+            }
+
+            let matchesSearch = true;
+            if (query) {
+                matchesSearch = search.includes(query);
+            }
+
+            return matchesType && matchesMethod && matchesSearch;
+        });
+
+        const totalItems = matchingRows.length;
+        const totalPages = Math.ceil(totalItems / itemsPerAbonoPage) || 1;
+
+        if (currentAbonoPage < 1) currentAbonoPage = 1;
+        if (currentAbonoPage > totalPages) currentAbonoPage = totalPages;
+
+        const startIndex = (currentAbonoPage - 1) * itemsPerAbonoPage;
+        const endIndex = startIndex + itemsPerAbonoPage;
+
+        allRows.forEach(row => row.classList.add('hidden'));
+
+        matchingRows.forEach((row, idx) => {
+            if (idx >= startIndex && idx < endIndex) {
+                row.classList.remove('hidden');
+            }
+        });
+
+        const noRow = document.getElementById('no_abono_logs_row');
+        if (noRow) {
+            if (totalItems === 0) noRow.classList.remove('hidden');
+            else noRow.classList.add('hidden');
+        }
+
+        const indicator = document.getElementById('abonos-page-indicator');
+        if (indicator) {
+            if (totalItems === 0) {
+                indicator.textContent = 'No se encontraron registros de abono';
+            } else {
+                const shownFrom = startIndex + 1;
+                const shownTo = Math.min(endIndex, totalItems);
+                indicator.textContent = `Mostrando ${shownFrom}-${shownTo} de ${totalItems} registros (Página ${currentAbonoPage} de ${totalPages})`;
+            }
+        }
+
+        const prevBtn = document.getElementById('abono-prev-btn');
+        const nextBtn = document.getElementById('abono-next-btn');
+        if (prevBtn) prevBtn.disabled = (currentAbonoPage <= 1);
+        if (nextBtn) nextBtn.disabled = (currentAbonoPage >= totalPages);
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function openAbonoDetailModal(log) {
+        if (!log) return;
+
+        const codeEl = document.getElementById('abono_detail_modal_code');
+        const nameEl = document.getElementById('abono_detail_client_name');
+        const emailEl = document.getElementById('abono_detail_client_email');
+        const planNameEl = document.getElementById('abono_detail_plan_name');
+        const dailyRateEl = document.getElementById('abono_detail_daily_rate');
+        const amountEl = document.getElementById('abono_detail_amount');
+        const prevCreditEl = document.getElementById('abono_detail_prev_credit');
+        const totalFundsEl = document.getElementById('abono_detail_total_funds');
+        const costUsedEl = document.getElementById('abono_detail_cost_used');
+        const resultingCreditEl = document.getElementById('abono_detail_resulting_credit');
+        const daysBadgeEl = document.getElementById('abono_detail_days_badge');
+        const methodBadgeEl = document.getElementById('abono_detail_method_badge');
+        const sourceTextEl = document.getElementById('abono_detail_source_text');
+        const receiverNameEl = document.getElementById('abono_detail_receiver_name');
+        const refRow = document.getElementById('abono_detail_ref_row');
+        const refCodeEl = document.getElementById('abono_detail_ref_code');
+        const datetimeEl = document.getElementById('abono_detail_datetime');
+        const notesTextEl = document.getElementById('abono_detail_notes_text');
+        const avatarContainer = document.getElementById('abono_detail_avatar_container');
+
+        const user = log.user || {};
+        const profile = user.profile || {};
+        const fullName = profile.first_name ? `${profile.first_name} ${profile.last_name || ''}` : (user.email || 'Socio');
+        const userEmail = user.email || 'N/A';
+        const plan = (log.membership && log.membership.plan) ? log.membership.plan : {};
+        const planName = plan.name || 'Membresía Activa';
+        const dailyRate = parseFloat(log.daily_rate || 0);
+        const amount = parseFloat(log.amount || 0);
+        const prevCredit = parseFloat(log.previous_credit || 0);
+        const totalFunds = amount + prevCredit;
+        const costUsed = parseFloat(log.credit_used || 0);
+        const resultingCredit = parseFloat(log.resulting_credit || 0);
+        const isFromApp = (log.source === 'mobile_app') || (!log.received_by && log.payment_method && log.payment_method.toLowerCase().includes('app'));
+        const receiver = log.receiver || {};
+        const receiverProfile = receiver.profile || {};
+        const receiverName = receiverProfile.first_name 
+            ? `${receiverProfile.first_name} ${receiverProfile.last_name || ''}` 
+            : (receiver.email || (isFromApp ? 'App Móvil (Auto-servicio del Atleta)' : 'Sistema Automático'));
+
+        if (codeEl) codeEl.textContent = `ID Movimiento: #${log.id}`;
+        if (nameEl) nameEl.textContent = fullName;
+        if (emailEl) emailEl.textContent = userEmail;
+        if (planNameEl) planNameEl.textContent = planName;
+        if (dailyRateEl) dailyRateEl.textContent = `$${dailyRate.toFixed(2)} / día`;
+        if (amountEl) amountEl.textContent = `$${amount.toFixed(2)}`;
+        if (prevCreditEl) prevCreditEl.textContent = `$${prevCredit.toFixed(2)}`;
+        if (totalFundsEl) totalFundsEl.textContent = `$${totalFunds.toFixed(2)}`;
+        if (costUsedEl) costUsedEl.textContent = `-$${costUsed.toFixed(2)}`;
+        if (resultingCreditEl) resultingCreditEl.textContent = `$${resultingCredit.toFixed(2)}`;
+        if (daysBadgeEl) daysBadgeEl.textContent = `+${log.days_added || 0} Días`;
+        if (methodBadgeEl) {
+            methodBadgeEl.textContent = log.payment_method === 'credit_balance' ? 'SALDO A FAVOR' : (log.payment_method === 'cash' ? 'EFECTIVO' : (log.payment_method === 'card' ? 'TARJETA' : (log.payment_method === 'transfer' ? 'TRANSFERENCIA' : (log.payment_method || 'OTRO').toUpperCase())));
+        }
+        if (sourceTextEl) {
+            sourceTextEl.innerHTML = isFromApp 
+                ? `<span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold inline-flex items-center gap-1"><i data-lucide="smartphone" class="w-3 h-3"></i> App Móvil (Auto-servicio)</span>`
+                : `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-bold inline-flex items-center gap-1"><i data-lucide="monitor" class="w-3 h-3"></i> Panel de Administración</span>`;
+        }
+        if (receiverNameEl) receiverNameEl.textContent = receiverName;
+        if (refCodeEl && refRow) {
+            if (log.reference_code) {
+                refRow.classList.remove('hidden');
+                refCodeEl.textContent = log.reference_code;
+            } else {
+                refRow.classList.add('hidden');
+            }
+        }
+        if (datetimeEl && log.createdAt) {
+            const dt = new Date(log.createdAt);
+            datetimeEl.textContent = dt.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + dt.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        }
+        if (notesTextEl) notesTextEl.textContent = log.notes || 'Sin observaciones adicionales.';
+
+        if (avatarContainer) {
+            if (profile.photo_url) {
+                avatarContainer.innerHTML = `<img src="${profile.photo_url}" class="w-full h-full object-cover rounded-full">`;
+            } else {
+                avatarContainer.innerHTML = `<i data-lucide="user" class="w-5 h-5 text-slate-400"></i>`;
+            }
+        }
+
+        toggleModal('abono-detail-modal');
+        if (window.lucide) window.lucide.createIcons();
+    }
+
     function initFinanzasPage() {
         if (typeof updateMembershipCounters === 'function') updateMembershipCounters();
         if (typeof updatePlanCounters === 'function') updatePlanCounters();
         if (typeof updatePromoTabCounters === 'function') updatePromoTabCounters();
+        if (typeof updateAbonoCounters === 'function') updateAbonoCounters();
         if (typeof switchFinanceTab === 'function') switchFinanceTab(currentFinanceTab || 'membresias');
         if (typeof renderMembershipPage === 'function') renderMembershipPage();
+        if (typeof renderAbonoPage === 'function') renderAbonoPage();
     }
 
     initFinanzasPage();

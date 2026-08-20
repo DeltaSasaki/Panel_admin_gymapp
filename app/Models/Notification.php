@@ -17,6 +17,12 @@ class Notification extends Model
         'body',
         'type', // 'membership_expiry','payment_reminder','new_routine','achievement','general'
         'is_read',
+        'createdAt',
+    ];
+
+    protected $casts = [
+        'is_read' => 'boolean',
+        'createdAt' => 'datetime',
     ];
 
     public function user()

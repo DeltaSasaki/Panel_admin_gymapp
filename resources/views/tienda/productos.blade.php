@@ -152,7 +152,7 @@
                                     </button>
 
                                     <!-- Edit Button (Yellow/Amber) -->
-                                    <button onclick="openEditModal({{ json_encode($p) }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                    <button type="button" onclick="openEditModalById({{ $p->id }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
                                         <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                     </button>
 
@@ -434,23 +434,9 @@
 </div>
 
 <script>
-    function toggleModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
+    var STORE_PRODUCTS_CACHE = @json($products);
 
-        if (modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
 
-        const isOpening = modal.classList.contains('hidden');
-        modal.classList.toggle('hidden');
-
-        if (isOpening) {
-            document.body.classList.add('overflow-hidden');
-        } else {
-            document.body.classList.remove('overflow-hidden');
-        }
-    }
 
     function openRestockModal(productId, name) {
         document.getElementById('restock-product-name').innerText = name;
@@ -462,24 +448,55 @@
         toggleModal('restock-modal');
     }
 
+    function openEditModalById(productId) {
+        let product = null;
+        if (Array.isArray(STORE_PRODUCTS_CACHE)) {
+            product = STORE_PRODUCTS_CACHE.find(p => p && p.id == productId);
+        }
+        if (!product && typeof window.FILTERED_PRODUCTS !== 'undefined' && Array.isArray(window.FILTERED_PRODUCTS)) {
+            product = window.FILTERED_PRODUCTS.find(p => p && p.id == productId);
+        }
+        if (product) {
+            openEditModal(product);
+        } else {
+            console.warn('Product not found in cache for ID:', productId);
+        }
+    }
+
     function openEditModal(product) {
-        document.getElementById('edit-form').action = `/tienda/productos/${product.id}`;
-        document.getElementById('edit-category_id').value = product.category_id;
-        document.getElementById('edit-name').value = product.name;
-        document.getElementById('edit-description').value = product.description || '';
-        document.getElementById('edit-cost_price').value = product.cost_price;
-        document.getElementById('edit-price').value = product.price;
-        document.getElementById('edit-min_stock').value = product.min_stock;
+        if (!product) return;
+        const form = document.getElementById('edit-form');
+        if (form) form.action = `/tienda/productos/${product.id}`;
+        
+        const catEl = document.getElementById('edit-category_id');
+        if (catEl) catEl.value = product.category_id;
+        
+        const nameEl = document.getElementById('edit-name');
+        if (nameEl) nameEl.value = product.name || '';
+        
+        const descEl = document.getElementById('edit-description');
+        if (descEl) descEl.value = product.description || '';
+        
+        const costEl = document.getElementById('edit-cost_price');
+        if (costEl) costEl.value = product.cost_price;
+        
+        const priceEl = document.getElementById('edit-price');
+        if (priceEl) priceEl.value = product.price;
+        
+        const minEl = document.getElementById('edit-min_stock');
+        if (minEl) minEl.value = product.min_stock;
         
         // Show/hide remove photo checkbox
         const currentImgContainer = document.getElementById('edit-current-image-container');
         const removeImgCheck = document.getElementById('edit-remove-image');
-        if (product.image_url) {
-            currentImgContainer.classList.remove('hidden');
-        } else {
-            currentImgContainer.classList.add('hidden');
+        if (currentImgContainer && removeImgCheck) {
+            if (product.image_url) {
+                currentImgContainer.classList.remove('hidden');
+            } else {
+                currentImgContainer.classList.add('hidden');
+            }
+            removeImgCheck.checked = false;
         }
-        removeImgCheck.checked = false;
         
         toggleModal('edit-product-modal');
     }
@@ -660,11 +677,11 @@
                         </td>
                         <td class="p-4 text-center pr-6">
                             <div class="flex items-center justify-center gap-2" id="product_actions_${p.id}">
-                                <button onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                <button type="button" onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
                                     <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
                                     +Stock
                                 </button>
-                                <button onclick='openEditModal(${JSON.stringify(p)})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                <button type="button" onclick="openEditModalById(${p.id})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
                                     <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                 </button>
                                 <div id="product_toggle_btn_container_${p.id}" class="inline-block">
@@ -825,11 +842,11 @@
                         </td>
                         <td class="p-4 text-center pr-6">
                             <div class="flex items-center justify-center gap-2" id="product_actions_${p.id}">
-                                <button onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                <button type="button" onclick="openRestockModal(${p.id}, '${safeName}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
                                     <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
                                     +Stock
                                 </button>
-                                <button onclick='openEditModal(${JSON.stringify(p)})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                <button type="button" onclick="openEditModalById(${p.id})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
                                     <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                                 </button>
                                 <div id="product_toggle_btn_container_${p.id}" class="inline-block">

@@ -133,9 +133,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/v1/gyms/{gym_id}/payment-gateways', [PaymentGatewayController::class, 'apiGetGymGateways'])->name('api.v1.gym_payment_gateways');
     Route::get('/api/notifications/unread', [AdminController::class, 'getUnreadNotifications'])->name('api.notifications.unread');
     Route::get('/api/aforo', [AdminController::class, 'getAforoApi'])->name('api.aforo');
-    Route::get('/notificaciones', [AdminController::class, 'notificationsHistory'])->name('notificaciones.index');
     Route::get('/notificaciones/{id}/read', [AdminController::class, 'readAndRedirect'])->name('notificaciones.read_and_redirect');
-    Route::post('/notificaciones/read-all', [AdminController::class, 'markAllAsRead'])->name('notificaciones.read_all');
 
     // Ruta de prueba temporal para generar notificaciones
     Route::get('/generar-notificacion-prueba', function () {
@@ -232,6 +230,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/notificaciones/enviar', [NotificationController::class, 'sendManual'])->name('notificaciones.send_manual');
     Route::post('/notificaciones/{id}/leer', [NotificationController::class, 'markAsRead'])->name('notificaciones.mark_read');
     Route::post('/notificaciones/marcar-todas', [NotificationController::class, 'markAllAsRead'])->name('notificaciones.mark_all_read');
+    Route::post('/notificaciones/read-all', [NotificationController::class, 'markAllAsRead'])->name('notificaciones.read_all');
+    Route::delete('/notificaciones/{id}', [NotificationController::class, 'destroy'])->name('notificaciones.destroy');
+    Route::post('/notificaciones/limpiar-antiguas', [NotificationController::class, 'cleanupOld'])->name('notificaciones.cleanup_old');
     Route::post('/notificaciones/ejecutar-disparadores', [NotificationController::class, 'runAutoTriggers'])->name('notificaciones.run_triggers');
 
     // Settings / Configuración routes

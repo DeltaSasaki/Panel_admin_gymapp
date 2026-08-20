@@ -1041,12 +1041,6 @@
 @endpush
 
 <script>
-    function toggleModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.toggle('hidden');
-        }
-    }
 
     function toggleAssignPaymentFields() {
         const checkbox = document.getElementById('client_assign_paid_now_checkbox');

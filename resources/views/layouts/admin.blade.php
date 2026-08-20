@@ -256,7 +256,7 @@
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: none;
             }
         }
 
@@ -823,6 +823,7 @@
                     } catch (e) {
                         console.error('Error executing immediate DOMContentLoaded listener:', e);
                     }
+                    return; // Prevent piling up stale listeners across PJAX navigations
                 }
                 return origDocAddEventListener.call(document, type, listener, options);
             };
@@ -836,11 +837,12 @@
                     } catch (e) {
                         console.error('Error executing immediate load listener:', e);
                     }
+                    return; // Prevent piling up stale listeners across PJAX navigations
                 }
                 return origWinAddEventListener.call(window, type, listener, options);
             };
 
-            // Universal Robust Modal Toggle Helper (Accessible on every view)
+            // Universal Robust Viewport-Centered Modal Toggle Helper (Accessible on every view)
             window.toggleModal = function(modalId) {
                 if (!modalId) return;
                 const modal = document.getElementById(modalId);
@@ -848,11 +850,39 @@
                     console.warn('Modal not found:', modalId);
                     return;
                 }
-                const isHidden = modal.classList.contains('hidden');
-                if (isHidden) {
+
+                // Crucial: Move modal to document.body so position:fixed is ALWAYS relative to browser viewport,
+                // never trapped or displaced by parent transforms, animations, or page scroll!
+                if (modal.parentElement !== document.body) {
+                    document.body.appendChild(modal);
+                }
+
+                const isOpening = modal.classList.contains('hidden') || modal.style.display === 'none';
+                if (isOpening) {
                     modal.classList.remove('hidden');
                     modal.classList.add('flex');
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.right = '0';
+                    modal.style.bottom = '0';
+                    modal.style.zIndex = '9999';
+                    modal.style.display = 'flex';
+                    modal.style.alignItems = 'center';
+                    modal.style.justifyContent = 'center';
+                    modal.style.overflowY = 'auto';
+                    modal.style.padding = '1rem';
                     document.body.classList.add('overflow-hidden');
+                    document.body.style.overflow = 'hidden';
+
+                    // Ensure inner modal dialog has max-height and auto scroll if viewport is short
+                    const dialogCard = modal.querySelector('.bg-slate-900, [class*="max-w-"], .modal-content');
+                    if (dialogCard) {
+                        dialogCard.style.margin = 'auto';
+                        dialogCard.style.maxHeight = '90vh';
+                        dialogCard.style.overflowY = 'auto';
+                    }
+
                     setTimeout(() => {
                         const firstInput = modal.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
                         if (firstInput) firstInput.focus();
@@ -860,10 +890,20 @@
                 } else {
                     modal.classList.add('hidden');
                     modal.classList.remove('flex');
-                    // Unlock body scroll if no other modal is currently visible
-                    const anyModalOpen = document.querySelector('.fixed.z-50:not(.hidden), .fixed.z-\\[100\\]:not(.hidden), .fixed.z-\\[50\\]:not(.hidden), [id$="-modal"]:not(.hidden):not(.fixed-bottom), [id^="modal-"]:not(.hidden)');
-                    if (!anyModalOpen) {
+                    modal.style.display = 'none';
+
+                    // Check if any other root modal overlay is genuinely open
+                    const otherOpenModals = Array.from(document.querySelectorAll('.fixed.inset-0, [id$="-modal"], [id^="modal-"]')).filter(m => {
+                        if (m === modal) return false;
+                        const isOverlay = m.classList.contains('fixed') || m.classList.contains('inset-0') || m.style.position === 'fixed';
+                        if (!isOverlay) return false;
+                        return !m.classList.contains('hidden') && m.style.display !== 'none';
+                    });
+
+                    if (otherOpenModals.length === 0) {
                         document.body.classList.remove('overflow-hidden');
+                        document.body.style.overflow = '';
+                        document.documentElement.style.overflow = '';
                     }
                 }
                 if (window.lucide) window.lucide.createIcons();
@@ -872,12 +912,24 @@
             // Global ESC key listener to close active modals
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
-                    const openModals = document.querySelectorAll('[id$="-modal"]:not(.hidden), [id^="modal-"]:not(.hidden), .fixed.z-50:not(.hidden), .fixed.z-\\[100\\]:not(.hidden)');
+                    const openModals = Array.from(document.querySelectorAll('.fixed.inset-0, [id$="-modal"], [id^="modal-"]')).filter(m => {
+                        const isOverlay = m.classList.contains('fixed') || m.classList.contains('inset-0') || m.style.position === 'fixed';
+                        if (!isOverlay) return false;
+                        return !m.classList.contains('hidden') && m.style.display !== 'none';
+                    });
                     openModals.forEach(m => {
                         if (m.id && typeof window.toggleModal === 'function') {
                             window.toggleModal(m.id);
                         }
                     });
+                }
+            });
+
+            // Global Click outside dialog backdrop listener
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.id && (e.target.classList && e.target.classList.contains('fixed') && e.target.classList.contains('inset-0')) && !e.target.classList.contains('hidden') && e.target.style.display !== 'none') {
+                    // Clicked directly on the modal backdrop container (not on inner card or inputs)
+                    window.toggleModal(e.target.id);
                 }
             });
         })();
@@ -1287,6 +1339,9 @@
                         window.history.pushState({ url: url }, newTitle, url);
                     }
 
+                    // Crucial: Clean up any orphan modal overlays that were moved directly to body during previous page visits
+                    document.querySelectorAll('body > .fixed.inset-0, body > [id$="-modal"], body > [id^="modal-"], body > [id*="barcode_modal"], body > [id*="_modal"]').forEach(m => m.remove());
+
                     mainContainer.innerHTML = newMain.innerHTML;
                     if (modalsContainer) {
                         modalsContainer.innerHTML = newModals ? newModals.innerHTML : '';
@@ -1303,16 +1358,26 @@
                         modalsContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
                     }
 
-                    // Re-execute all scripts in sequence
+                    // Re-execute all scripts in sequence safely
                     incomingScripts.forEach(oldScript => {
-                        const newScript = document.createElement('script');
-                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
                         if (oldScript.src) {
+                            const newScript = document.createElement('script');
+                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
                             newScript.src = oldScript.src;
+                            if (oldScript.parentNode) {
+                                oldScript.parentNode.replaceChild(newScript, oldScript);
+                            }
                         } else {
-                            newScript.text = oldScript.innerHTML || oldScript.textContent;
+                            const code = oldScript.innerHTML || oldScript.textContent;
+                            if (code && code.trim()) {
+                                try {
+                                    (0, eval)(code);
+                                } catch (e) {
+                                    console.error('Error executing inline PJAX script:', e);
+                                }
+                            }
+                            oldScript.remove();
                         }
-                        oldScript.parentNode.replaceChild(newScript, oldScript);
                     });
 
                     if (typeof syncSidebarGroupStates === 'function') {
@@ -1333,6 +1398,10 @@
                         if (overlay) overlay.classList.add('hidden');
                         document.body.classList.remove('overflow-hidden');
                     }
+
+                    document.body.classList.remove('overflow-hidden');
+                    document.body.style.overflow = '';
+                    document.documentElement.style.overflow = '';
 
                     window.scrollTo({ top: 0, behavior: 'instant' });
                     completeProgress();

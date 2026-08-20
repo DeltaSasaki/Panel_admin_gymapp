@@ -543,23 +543,7 @@
         toggleModal('modal-view-qr');
     }
 
-    function toggleModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
 
-        if (modal.parentElement !== document.body) {
-            document.body.appendChild(modal);
-        }
-
-        const isOpening = modal.classList.contains('hidden');
-        modal.classList.toggle('hidden');
-
-        if (isOpening) {
-            document.body.classList.add('overflow-hidden');
-        } else {
-            document.body.classList.remove('overflow-hidden');
-        }
-    }
 
     function onProviderChange(providerKey, existingCredentials = {}) {
         const container = document.getElementById('dynamic-credentials-container');

@@ -132,7 +132,7 @@
                                     @php
                                         $clientName = $sale->client ? (($sale->client->profile->first_name ?? '') . ' ' . ($sale->client->profile->last_name ?? '')) : 'Cliente General';
                                     @endphp
-                                    <button type="button" onclick="openSaleNoteModal('#{{ str_pad($sale->id, 5, '0', STR_PAD_LEFT) }}', {{ json_encode($sale->notes) }}, {{ json_encode($clientName) }}, '{{ \Carbon\Carbon::parse($sale->createdAt)->format('d/m/Y H:i') }}')" class="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold" title="Ver Nota Adicional">
+                                    <button type="button" onclick='openSaleNoteModal("#{{ str_pad($sale->id, 5, "0", STR_PAD_LEFT) }}", @json($sale->notes), @json($clientName), "{{ \Carbon\Carbon::parse($sale->createdAt)->format("d/m/Y H:i") }}")' class="p-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold" title="Ver Nota Adicional">
                                         <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
                                         <span>Nota</span>
                                     </button>

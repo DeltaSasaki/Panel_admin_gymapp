@@ -206,10 +206,10 @@
 </div>
 
 <script>
-    let currentTabFilter = 'all';
-    let currentPage = 1;
-    const itemsPerPage = 9;
-    let matchingCards = [];
+    var currentTabFilter = 'all';
+    var currentPage = 1;
+    var itemsPerPage = 9;
+    var matchingCards = [];
 
     function filterClients(filterType) {
         currentTabFilter = filterType;
@@ -230,7 +230,8 @@
     }
 
     function applyClientFilters() {
-        const rawQuery = (document.getElementById('client_search_input')?.value || '').toLowerCase().trim();
+        const searchInput = document.getElementById('client_search_input');
+        const rawQuery = (searchInput?.value || '').toLowerCase().trim();
         const cleanQuery = rawQuery.replace(/[^a-z0-9]/gi, '');
         const cards = document.querySelectorAll('[data-client-card]');
         matchingCards = [];
@@ -334,10 +335,11 @@
     window.applyClientFilters = applyClientFilters;
     window.changeClientsGridPage = changeClientsGridPage;
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyClientFilters);
-    } else {
+    function initClientesPage() {
         applyClientFilters();
     }
+
+    initClientesPage();
+    window.addEventListener('page:loaded', initClientesPage);
 </script>
 @endsection
