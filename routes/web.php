@@ -225,6 +225,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/retos/inscribir', [\App\Http\Controllers\GamificationController::class, 'enrollParticipant'])->name('retos.enroll_participant');
     Route::post('/retos/participantes/{id}/actualizar', [\App\Http\Controllers\GamificationController::class, 'updateParticipant'])->name('retos.update_participant');
     Route::post('/retos/medallas/otorgar', [\App\Http\Controllers\GamificationController::class, 'awardAchievementToUser'])->name('retos.award_achievement');
+    Route::post('/retos/medallas/evaluar-automaticos', [\App\Http\Controllers\GamificationController::class, 'evaluateAllAchievements'])->name('retos.evaluate_all_achievements');
 
     // Notification Center routes
     Route::get('/notificaciones', [NotificationController::class, 'index'])->name('notificaciones.index');

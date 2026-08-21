@@ -1199,6 +1199,7 @@ DELIMITER ;
 CREATE TABLE `user_achievements` (
   `id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
+  `achievement_definition_id` int(11) DEFAULT NULL,
   `achievement_type` varchar(100) NOT NULL,
   `description` varchar(300) DEFAULT NULL,
   `achieved_at` datetime DEFAULT NULL
@@ -1955,7 +1956,8 @@ ALTER TABLE `users`
 --
 ALTER TABLE `user_achievements`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`);
+  ADD KEY `user_id` (`user_id`),
+  ADD KEY `achievement_definition_id` (`achievement_definition_id`);
 
 --
 -- Indices de la tabla `user_assigned_routines`
@@ -2690,7 +2692,8 @@ ALTER TABLE `users`
 -- Filtros para la tabla `user_achievements`
 --
 ALTER TABLE `user_achievements`
-  ADD CONSTRAINT `user_achievements_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `user_achievements_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_user_achievements_definition` FOREIGN KEY (`achievement_definition_id`) REFERENCES `achievement_definitions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `user_assigned_routines`

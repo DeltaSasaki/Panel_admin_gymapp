@@ -138,4 +138,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserTrainerAssignment::class, 'user_id')->where('is_active', 1);
     }
+
+    public function achievements()
+    {
+        return $this->hasMany(UserAchievement::class, 'user_id')->with('definition');
+    }
+
+    public function gamificationStats()
+    {
+        return $this->hasOne(UserGamificationStat::class, 'user_id');
+    }
 }

@@ -17,6 +17,10 @@
         
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center gap-3">
+            <button type="button" onclick="triggerEvaluateAllAchievements()" id="btn-evaluate-auto-achievements" class="px-4 py-2.5 bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border border-amber-500/30 hover:border-amber-500/60 text-amber-400 hover:text-amber-300 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg active:scale-95">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400 animate-pulse"></i>
+                <span id="btn-evaluate-auto-text">Evaluar Logros Automáticos</span>
+            </button>
             <button type="button" onclick="openAwardAchievementModal()" class="px-4 py-2.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-slate-200 hover:text-slate-100 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 shadow-lg hover:border-amber-500/30">
                 <i data-lucide="medal" class="w-4 h-4 text-amber-400"></i>
                 Otorgar Medalla
@@ -33,10 +37,10 @@
     </div>
 
     <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
             <div>
-                <span class="block text-slate-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Desafíos del Gimnasio</span>
+                <span class="block text-slate-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Desafíos de Gimnasio</span>
                 <h3 class="text-2xl font-black text-slate-100"><span id="stat-total-challenges">{{ $challenges->count() }}</span> <span class="text-xs font-normal text-slate-400">Retos</span></h3>
             </div>
             <div class="p-3 bg-lime-500/10 border border-lime-500/20 rounded-2xl text-lime-400">
@@ -46,7 +50,7 @@
 
         <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
             <div>
-                <span class="block text-amber-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Medallas y Logros</span>
+                <span class="block text-amber-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Catálogo de Medallas</span>
                 <h3 class="text-2xl font-black text-amber-400"><span id="stat-total-achievements">{{ $achievements->count() }}</span> <span class="text-xs font-normal text-slate-400">Medallas</span></h3>
             </div>
             <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-400">
@@ -56,8 +60,20 @@
 
         <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
             <div>
-                <span class="block text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Atletas Destacados</span>
-                <h3 class="text-2xl font-black text-emerald-400"><span>{{ $leaderboard->count() }}</span> <span class="text-xs font-normal text-slate-400">Top Lideres</span></h3>
+                <span class="block text-yellow-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">Medallas Desbloqueadas</span>
+                <h3 class="text-2xl font-black text-yellow-400"><span id="stat-total-awarded">{{ number_format($totalAwardedAchievements ?? 0) }}</span> <span class="text-xs font-normal text-slate-400">Otorgadas</span></h3>
+            </div>
+            <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl text-yellow-400">
+                <i data-lucide="sparkles" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between">
+            <div>
+                <span class="block text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider mb-1">XP / Monedas Emitidas</span>
+                <h3 class="text-lg font-black text-emerald-400 truncate">
+                    ⚡ {{ number_format($totalXpDistributed ?? 0) }} <span class="text-xs font-normal text-slate-400">XP</span>
+                </h3>
             </div>
             <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400">
                 <i data-lucide="flame" class="w-6 h-6"></i>
@@ -357,22 +373,26 @@
         <div id="achievements-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @php
                 $condMap = [
-                    'workouts_completed' => 'Sesiones Completadas',
-                    'consecutive_days' => 'Días Consecutivos',
-                    'challenges_won' => 'Retos Superados',
-                    'special_event' => 'Evento Especial'
+                    'workouts_completed' => '🏋️ Sesiones Completadas',
+                    'consecutive_days' => '🔥 Días Consecutivos',
+                    'early_bird' => '🌅 Asistencia Madrugador (<8am)',
+                    'night_owl' => '🌙 Asistencia Nocturna (>=8pm)',
+                    'challenges_won' => '🏆 Retos Superados',
+                    'classes_attended' => '🧘 Clases Grupales',
+                    'special_event' => '✨ Evento Especial'
                 ];
             @endphp
             @forelse($achievements as $ach)
                 @php
                     $condLabel = $condMap[$ach->condition_type] ?? $ach->condition_type;
+                    $unlockedCount = $ach->userAchievements ? $ach->userAchievements->count() : 0;
                 @endphp
                 <div id="achievement_card_{{ $ach->id }}"
                      data-achievement-card
                      data-name="{{ strtolower($ach->name) }}"
                      data-desc="{{ strtolower($ach->description ?? '') }}"
                      data-active="{{ $ach->is_active ? 1 : 0 }}"
-                     class="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 hover:border-amber-500/40 hover:bg-slate-900/80 transition-all flex flex-col justify-between gap-5 relative overflow-hidden group shadow-xl backdrop-blur-sm {{ $ach->is_active ? '' : 'opacity-60 bg-slate-950/40 border-slate-850' }}">
+                     class="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 hover:border-amber-500/40 hover:bg-slate-900/80 transition-all flex flex-col justify-between gap-4 relative overflow-hidden group shadow-xl backdrop-blur-sm {{ $ach->is_active ? '' : 'opacity-60 bg-slate-950/40 border-slate-850' }}">
                     
                     <div class="space-y-3.5">
                         <div class="flex justify-between items-start gap-3">
@@ -389,7 +409,22 @@
                                 {{ $ach->is_active ? 'Activa' : 'Inactiva' }}
                             </span>
                         </div>
-                        <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-medium" id="achievement_desc_{{ $ach->id }}">{{ $ach->description ?? 'Sin descripción disponible.' }}</p>
+                        <p class="text-slate-400 text-xs leading-relaxed line-clamp-2 font-medium" id="achievement_desc_{{ $ach->id }}">{{ $ach->description ?? 'Sin descripción disponible.' }}</p>
+                    </div>
+
+                    <!-- Athletes Unlocked Pill -->
+                    <div class="flex items-center justify-between py-2 px-3.5 bg-slate-950/80 border border-slate-850 rounded-2xl">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
+                            <span class="text-xs text-slate-300 font-bold">
+                                <strong class="text-amber-400 font-black" id="achievement_users_count_{{ $ach->id }}">{{ $unlockedCount }}</strong>
+                                <span class="text-slate-400 font-medium">atletas la tienen</span>
+                            </span>
+                        </div>
+                        <button type="button" onclick="openViewAchievementAthletesModal({{ $ach->id }})" class="text-[11px] font-black text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-1 group/btn">
+                            <span>Ver Atletas</span>
+                            <i data-lucide="chevron-right" class="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform"></i>
+                        </button>
                     </div>
 
                     <!-- Rewards Pill Container -->
@@ -405,7 +440,7 @@
                     </div>
 
                     <!-- Actions Footer -->
-                    <div class="flex justify-between items-center border-t border-slate-800/80 pt-4 text-xs font-semibold text-slate-400">
+                    <div class="flex justify-between items-center border-t border-slate-800/80 pt-3 text-xs font-semibold text-slate-400">
                         <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                             {{ $ach->gym_id ? 'Medalla de Sucursal' : 'Medalla Global' }}
                         </span>
@@ -618,10 +653,13 @@
                 <div>
                     <label for="create_ach_condition_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Condición *</label>
                     <select name="condition_type" id="create_ach_condition_type" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                        <option value="workouts_completed">Sesiones Completadas</option>
-                        <option value="consecutive_days">Días Consecutivos</option>
-                        <option value="challenges_won">Retos Superados</option>
-                        <option value="special_event">Evento Especial</option>
+                        <option value="consecutive_days">🔥 Días Consecutivos (Racha)</option>
+                        <option value="workouts_completed">🏋️ Entrenamientos / Asistencias</option>
+                        <option value="early_bird">🌅 Madrugador (Antes de 8:00 AM)</option>
+                        <option value="night_owl">🌙 Nocturno (Después de 8:00 PM)</option>
+                        <option value="challenges_won">🏆 Retos de Gimnasio Superados</option>
+                        <option value="classes_attended">🧘 Clases Grupales Asistidas</option>
+                        <option value="special_event">✨ Evento Especial / Manual</option>
                     </select>
                 </div>
                 <div>
@@ -686,10 +724,13 @@
                 <div>
                     <label for="edit_ach_condition_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Condición *</label>
                     <select name="condition_type" id="edit_ach_condition_type" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                        <option value="workouts_completed">Sesiones Completadas</option>
-                        <option value="consecutive_days">Días Consecutivos</option>
-                        <option value="challenges_won">Retos Superados</option>
-                        <option value="special_event">Evento Especial</option>
+                        <option value="consecutive_days">🔥 Días Consecutivos (Racha)</option>
+                        <option value="workouts_completed">🏋️ Entrenamientos / Asistencias</option>
+                        <option value="early_bird">🌅 Madrugador (Antes de 8:00 AM)</option>
+                        <option value="night_owl">🌙 Nocturno (Después de 8:00 PM)</option>
+                        <option value="challenges_won">🏆 Retos de Gimnasio Superados</option>
+                        <option value="classes_attended">🧘 Clases Grupales Asistidas</option>
+                        <option value="special_event">✨ Evento Especial / Manual</option>
                     </select>
                 </div>
                 <div>
@@ -810,13 +851,60 @@
     </div>
 </div>
 
+<!-- ================= MODAL: VER ATLETAS CON LOGRO ================= -->
+<div id="modal-view-achievement-athletes" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl flex flex-col max-h-[85vh]">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+                    <i data-lucide="award" class="w-5 h-5" id="view_ach_athletes_modal_icon"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-wider" id="view_ach_athletes_modal_title">Atletas con esta Medalla</h3>
+                    <p class="text-[11px] text-amber-400 font-bold" id="view_ach_athletes_modal_subtitle">0 atletas han desbloqueado este logro</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('modal-view-achievement-athletes')" class="text-slate-400 hover:text-slate-100 transition-colors p-1.5 hover:bg-slate-800 rounded-xl">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Search input in modal -->
+        <div class="p-4 border-b border-slate-800/80 bg-slate-900">
+            <div class="relative w-full">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                <input type="text" id="search_modal_athletes_input" oninput="filterModalAthletes(this.value)" placeholder="Buscar atleta por nombre o cédula..." class="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-850 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50">
+            </div>
+        </div>
+
+        <!-- Athletes list container -->
+        <div class="p-4 overflow-y-auto flex-1 space-y-2.5" id="view_ach_athletes_list_container">
+            <!-- Dynamic items rendered by JS -->
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-slate-800 flex justify-end bg-slate-950/40">
+            <button type="button" onclick="toggleModal('modal-view-achievement-athletes')" class="px-5 py-2 bg-slate-850 hover:bg-slate-800 text-slate-200 font-bold text-xs rounded-xl border border-slate-750 transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    var ACHIEVEMENTS_DATA = @json($achievements);
+    var CURRENT_VIEWING_ACH_ID = null;
+
     // Condition Type Spanish Translation Map
     const conditionMap = {
-        'workouts_completed': 'Sesiones Completadas',
-        'consecutive_days': 'Días Consecutivos',
-        'challenges_won': 'Retos Superados',
-        'special_event': 'Evento Especial'
+        'workouts_completed': '🏋️ Sesiones Completadas',
+        'consecutive_days': '🔥 Días Consecutivos',
+        'early_bird': '🌅 Asistencia Madrugador (<8am)',
+        'night_owl': '🌙 Asistencia Nocturna (>=8pm)',
+        'challenges_won': '🏆 Retos Superados',
+        'classes_attended': '🧘 Clases Grupales',
+        'special_event': '✨ Evento Especial'
     };
 
     function getConditionLabel(cond) {
@@ -1617,6 +1705,20 @@
                     renderLeaderboardTable(data.leaderboard);
                 }
 
+                // Increment card users count
+                if (data.achievement) {
+                    const countEl = document.getElementById(`achievement_users_count_${data.achievement.id}`);
+                    if (countEl) {
+                        const current = parseInt(countEl.textContent) || 0;
+                        countEl.textContent = current + 1;
+                    }
+                    const statAwarded = document.getElementById('stat-total-awarded');
+                    if (statAwarded) {
+                        const currTotal = parseInt(statAwarded.textContent.replace(/,/g, '')) || 0;
+                        statAwarded.textContent = new Intl.NumberFormat().format(currTotal + 1);
+                    }
+                }
+
                 showToast(data.message, 'success');
             } else {
                 showToast(data.message || 'Error al otorgar la medalla.', 'error');
@@ -1626,6 +1728,130 @@
             showToast('Ocurrió un error al otorgar la medalla.', 'error');
         } finally {
             setBtnLoading(submitBtn, false);
+        }
+    }
+
+    // Modal: View Athletes with Achievement
+    function openViewAchievementAthletesModal(achId) {
+        CURRENT_VIEWING_ACH_ID = achId;
+        const ach = ACHIEVEMENTS_DATA.find(a => a.id == achId);
+        if (!ach) return;
+
+        const titleEl = document.getElementById('view_ach_athletes_modal_title');
+        const subtitleEl = document.getElementById('view_ach_athletes_modal_subtitle');
+        const iconEl = document.getElementById('view_ach_athletes_modal_icon');
+        const searchInput = document.getElementById('search_modal_athletes_input');
+
+        if (titleEl) titleEl.textContent = `Medalla: ${ach.name}`;
+        if (iconEl) iconEl.setAttribute('data-lucide', ach.icon_url || 'award');
+        if (searchInput) searchInput.value = '';
+
+        const userAchievements = ach.user_achievements || [];
+        if (subtitleEl) subtitleEl.textContent = `${userAchievements.length} atletas han desbloqueado este logro`;
+
+        renderModalAthletesList(userAchievements);
+        if (window.lucide) window.lucide.createIcons();
+
+        toggleModal('modal-view-achievement-athletes');
+    }
+
+    function renderModalAthletesList(list) {
+        const container = document.getElementById('view_ach_athletes_list_container');
+        if (!container) return;
+
+        if (!list || list.length === 0) {
+            container.innerHTML = `
+                <div class="py-12 text-center text-slate-500">
+                    <i data-lucide="users" class="w-10 h-10 mx-auto text-slate-700 mb-2"></i>
+                    <p class="font-bold text-slate-400 text-xs">Ningún atleta ha desbloqueado esta medalla aún</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">Se asignará automáticamente al cumplir la condición o puedes otorgarla manualmente.</p>
+                </div>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+            return;
+        }
+
+        container.innerHTML = list.map(ua => {
+            const user = ua.user || {};
+            const profile = user.profile || {};
+            const fName = (profile.first_name || 'Atleta').trim();
+            const lName = (profile.last_name || '').trim();
+            const name = escapeHtml(`${fName} ${lName}`);
+            const email = escapeHtml(user.email || 'Sin correo');
+            const dni = escapeHtml(profile.dni || '');
+            const photo = (profile.profile_photo) ? `/${profile.profile_photo}` : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+            const dateStr = ua.achieved_at ? new Date(ua.achieved_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Fecha no registrada';
+
+            return `
+                <div data-modal-athlete-item data-name="${name.toLowerCase()}" data-dni="${dni.toLowerCase()}" data-email="${email.toLowerCase()}" class="flex items-center justify-between p-3 bg-slate-950/60 border border-slate-850 hover:border-slate-800 rounded-2xl transition-colors">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <img src="${photo}" class="w-9 h-9 rounded-full object-cover border border-slate-750 shrink-0">
+                        <div class="min-w-0">
+                            <span class="block font-black text-slate-200 text-xs truncate">${name}</span>
+                            <span class="block text-[10px] text-slate-400 font-mono truncate">${dni ? `DNI: ${dni} • ` : ''}${email}</span>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                        <span class="block text-[10px] font-bold text-amber-400 font-mono">${dateStr}</span>
+                        <span class="block text-[9px] text-emerald-400 font-extrabold uppercase">Desbloqueado</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function filterModalAthletes(query) {
+        const q = (query || '').toLowerCase().trim();
+        const items = document.querySelectorAll('[data-modal-athlete-item]');
+        items.forEach(item => {
+            const name = item.getAttribute('data-name') || '';
+            const dni = item.getAttribute('data-dni') || '';
+            const email = item.getAttribute('data-email') || '';
+            if (!q || name.includes(q) || dni.includes(q) || email.includes(q)) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    }
+
+    // Trigger Batch Evaluation of Automatic Achievements
+    async function triggerEvaluateAllAchievements() {
+        const btn = document.getElementById('btn-evaluate-auto-achievements');
+        const btnText = document.getElementById('btn-evaluate-auto-text');
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.textContent = 'Evaluando atletas...';
+
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+            const response = await fetch("{{ route('retos.evaluate_all_achievements') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+                // Reload page cleanly to update all counters and dynamic modals
+                setTimeout(() => {
+                    if (window.location.reload) window.location.reload();
+                }, 1200);
+            } else {
+                showToast(data.message || 'Error al evaluar logros.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Error de red al evaluar logros automáticos.', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = 'Evaluar Logros Automáticos';
         }
     }
 

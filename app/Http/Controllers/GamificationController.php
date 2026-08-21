@@ -29,8 +29,16 @@ class GamificationController extends Controller
         }
         $challenges = $challengesQuery->orderBy('end_date', 'asc')->get();
 
-        // 2. Fetch Achievements
-        $achievementsQuery = AchievementDefinition::query();
+        // 2. Fetch Achievements with eager loaded user achievements and user profiles
+        $achievementsQuery = AchievementDefinition::with(['userAchievements' => function($q) use ($gymId) {
+            $q->orderBy('achieved_at', 'desc')->with('user.profile');
+            if ($gymId !== 'all') {
+                $q->whereHas('user', function($uq) use ($gymId) {
+                    $uq->where('gym_id', $gymId);
+                });
+            }
+        }]);
+
         if ($gymId !== 'all') {
             $achievementsQuery->where(function($q) use ($gymId) {
                 $q->where('gym_id', $gymId)->orWhereNull('gym_id');
@@ -52,7 +60,31 @@ class GamificationController extends Controller
         }
         $clients = $clientsQuery->get();
 
-        return view('retos.index', compact('challenges', 'achievements', 'leaderboard', 'clients'));
+        // 5. Global Gamification Stats
+        $statsQuery = UserGamificationStat::query();
+        if ($gymId !== 'all') {
+            $statsQuery->where('gym_id', $gymId);
+        }
+        $totalXpDistributed = (int)$statsQuery->sum('total_xp');
+        $totalTokensDistributed = (float)$statsQuery->sum('token_balance');
+
+        $userAchievementsCountQuery = UserAchievement::query();
+        if ($gymId !== 'all') {
+            $userAchievementsCountQuery->whereHas('user', function($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            });
+        }
+        $totalAwardedAchievements = $userAchievementsCountQuery->count();
+
+        return view('retos.index', compact(
+            'challenges', 
+            'achievements', 
+            'leaderboard', 
+            'clients',
+            'totalXpDistributed',
+            'totalTokensDistributed',
+            'totalAwardedAchievements'
+        ));
     }
 
     /**
@@ -403,11 +435,31 @@ class GamificationController extends Controller
 
                 $stats->increment('total_xp', $challenge->xp_reward);
                 $stats->increment('token_balance', $challenge->token_reward);
+
+                // Notify participant
+                \App\Models\Notification::create([
+                    'user_id' => $userChallenge->user_id,
+                    'title' => "🏆 ¡Reto Completado: {$challenge->title}!",
+                    'body' => "¡Felicitaciones! Has completado el desafío '{$challenge->title}'. Ganaste +{$challenge->xp_reward} XP y +{$challenge->token_reward} Monedas.",
+                    'type' => 'achievement',
+                    'is_read' => 0,
+                    'createdAt' => Carbon::now(),
+                ]);
             }
 
             $userChallenge->update($updateData);
 
             DB::commit();
+
+            // Evaluate automatic achievements (e.g. challenges_won, etc.)
+            if ($oldStatus !== 'completed' && $newStatus === 'completed') {
+                try {
+                    \App\Services\AchievementService::evaluateUserAchievements($userChallenge->user_id, $targetGymId);
+                } catch (\Exception $achEx) {
+                    \Illuminate\Support\Facades\Log::error("Error evaluating achievements on challenge completion: " . $achEx->getMessage());
+                }
+            }
+
             $message = 'Progreso de reto actualizado y recompensas aplicadas si corresponde.';
 
             if ($request->ajax() || $request->wantsJson()) {
@@ -433,7 +485,7 @@ class GamificationController extends Controller
     }
 
     /**
-     * Award achievement manually to user.
+     * Award achievement manually to user with notification and audit logging.
      */
     public function awardAchievementToUser(Request $request)
     {
@@ -442,66 +494,76 @@ class GamificationController extends Controller
             'achievement_definition_id' => 'required|exists:achievement_definitions,id',
         ]);
 
-        $def = AchievementDefinition::findOrFail($request->achievement_definition_id);
-        $user = User::findOrFail($request->user_id);
         $gymId = $this->getActiveGymId();
-        $targetGymId = ($gymId === 'all') ? $user->gym_id : $gymId;
+        $res = \App\Services\AchievementService::awardManually(
+            (int)$request->user_id,
+            (int)$request->achievement_definition_id,
+            auth()->id()
+        );
+
+        if (!$res['success']) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $res['message']], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $res['message']]);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            // Fetch updated leaderboard
+            $leaderboardQuery = UserGamificationStat::with('user.profile');
+            if ($gymId !== 'all') {
+                $leaderboardQuery->where('gym_id', $gymId);
+            }
+            $leaderboard = $leaderboardQuery->orderBy('total_xp', 'desc')->take(10)->get()->map(function($st) {
+                return [
+                    'id' => $st->id,
+                    'user_id' => $st->user_id,
+                    'name' => trim(($st->user->profile->first_name ?? 'Atleta') . ' ' . ($st->user->profile->last_name ?? '')),
+                    'email' => $st->user->email ?? '',
+                    'photo' => ($st->user->profile && $st->user->profile->profile_photo)
+                        ? asset($st->user->profile->profile_photo)
+                        : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                    'total_xp' => (int)$st->total_xp,
+                    'token_balance' => (float)$st->token_balance,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => $res['message'],
+                'leaderboard' => $leaderboard,
+                'achievement' => $res['achievement'] ?? null,
+                'user_achievement' => $res['user_achievement'] ?? null,
+            ]);
+        }
+
+        return redirect()->back()->with('success', $res['message']);
+    }
+
+    /**
+     * Batch evaluate automatic achievements across the gym/athletes.
+     */
+    public function evaluateAllAchievements(Request $request)
+    {
+        $gymId = $this->getActiveGymId();
 
         try {
-            DB::beginTransaction();
+            $summary = \App\Services\AchievementService::evaluateGymAchievements($gymId);
 
-            // Record user achievement
-            UserAchievement::create([
-                'user_id' => $request->user_id,
-                'achievement_type' => $def->name,
-                'description' => $def->description ?? "Otorgado manualmente: {$def->name}",
-                'achieved_at' => Carbon::now(),
-            ]);
-
-            // Reward the user: total_xp and token_balance
-            $stats = UserGamificationStat::firstOrCreate(
-                ['user_id' => $request->user_id],
-                ['gym_id' => $targetGymId, 'total_xp' => 0, 'token_balance' => 0.00]
-            );
-
-            $stats->increment('total_xp', $def->xp_reward);
-            $stats->increment('token_balance', $def->token_reward);
-
-            DB::commit();
-            $message = "¡Logro '{$def->name}' otorgado al atleta con éxito!";
+            $message = "Evaluación completada con éxito. Se evaluaron {$summary['evaluated_members']} atletas y se otorgaron {$summary['awarded_count']} nuevos logros automáticos.";
 
             if ($request->ajax() || $request->wantsJson()) {
-                // Fetch updated leaderboard
-                $leaderboardQuery = UserGamificationStat::with('user.profile');
-                if ($gymId !== 'all') {
-                    $leaderboardQuery->where('gym_id', $gymId);
-                }
-                $leaderboard = $leaderboardQuery->orderBy('total_xp', 'desc')->take(10)->get()->map(function($st) {
-                    return [
-                        'id' => $st->id,
-                        'user_id' => $st->user_id,
-                        'name' => trim(($st->user->profile->first_name ?? 'Atleta') . ' ' . ($st->user->profile->last_name ?? '')),
-                        'email' => $st->user->email ?? '',
-                        'photo' => ($st->user->profile && $st->user->profile->profile_photo)
-                            ? asset($st->user->profile->profile_photo)
-                            : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
-                        'total_xp' => (int)$st->total_xp,
-                        'token_balance' => (float)$st->token_balance,
-                    ];
-                });
-
                 return response()->json([
                     'success' => true,
                     'message' => $message,
-                    'leaderboard' => $leaderboard
+                    'summary' => $summary
                 ]);
             }
 
             return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            $errorMsg = 'Error al otorgar medalla: ' . $e->getMessage();
+            $errorMsg = 'Error al evaluar logros automáticos: ' . $e->getMessage();
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMsg], 500);

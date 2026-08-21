@@ -175,7 +175,19 @@ class AttendanceController extends Controller
                     ->log("Check-in ({$entryMethod}) registrado para socio #{$user->id}");
             }
 
+            // Automatic Achievement / Gamification Evaluation Trigger
+            $unlockedAchievements = [];
+            try {
+                $unlockedAchievements = \App\Services\AchievementService::evaluateUserAchievements($user->id, $gymId);
+            } catch (\Exception $achEx) {
+                \Illuminate\Support\Facades\Log::error("Error evaluating achievements on check-in: " . $achEx->getMessage());
+            }
+
             $msg = "¡Check-in exitoso para {$userName}!";
+            if (!empty($unlockedAchievements)) {
+                $achNames = implode(', ', array_map(fn($a) => $a->name, $unlockedAchievements));
+                $msg .= " 🏆 ¡Desbloqueó el logro: {$achNames}!";
+            }
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
@@ -186,6 +198,7 @@ class AttendanceController extends Controller
                     'user_name' => $userName,
                     'user_photo' => $userPhoto,
                     'user_dni' => $userDni,
+                    'unlocked_achievements' => $unlockedAchievements,
                 ]);
             }
 
