@@ -759,7 +759,7 @@
 
                     <!-- Notifications Dropdown Trigger -->
                     <div class="relative inline-block text-left animate-fade-in" id="notifications-menu-container">
-                        <button onclick="toggleNotificationsDropdown()" class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Notificaciones">
+                        <button type="button" onclick="window.toggleNotificationsDropdown(event)" class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Notificaciones">
                             <i data-lucide="bell" class="w-4 h-4"></i>
                             <span id="unread-dot" class="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-slate-900 hidden"></span>
                         </button>
@@ -767,10 +767,10 @@
                         <!-- Dropdown Panel (Fluid CSS Animated) -->
                         <div id="notifications-dropdown" class="dropdown-animate absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl z-50 py-2 overflow-hidden">
                             <div class="px-4 py-2 border-b border-slate-850 flex items-center justify-between">
-                                <span class="text-xs font-bold text-slate-200">Notificaciones</span>
+                                <span class="text-xs font-bold text-slate-200" id="notifications-dropdown-header-title">{{ $isSuperAdmin ? 'Auditoría & Bitácora' : 'Notificaciones' }}</span>
                                 <form action="{{ route('notificaciones.read_all') }}" method="POST" class="m-0 inline">
                                     @csrf
-                                    <button type="submit" class="text-[10px] text-lime-450 hover:text-lime-300 font-bold uppercase transition-colors">Leer todas</button>
+                                    <button type="submit" class="text-[10px] text-lime-450 hover:text-lime-300 font-bold uppercase transition-colors">{{ $isSuperAdmin ? 'Marcar vistas' : 'Leer todas' }}</button>
                                 </form>
                             </div>
                             
@@ -779,7 +779,9 @@
                             </div>
                             
                             <div class="p-2 border-t border-slate-850 text-center">
-                                <a href="{{ route('notificaciones.index') }}" class="block text-[10px] text-slate-400 hover:text-slate-200 font-bold uppercase py-1">Ver todo el historial</a>
+                                <a href="{{ $isSuperAdmin ? route('superadmin.audit.index') : route('notificaciones.index') }}" id="notifications-dropdown-footer-link" class="block text-[10px] text-slate-400 hover:text-slate-200 font-bold uppercase py-1">
+                                    {{ $isSuperAdmin ? 'Ver toda la Auditoría & Bitácoras' : 'Ver todo el historial' }}
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -1152,7 +1154,11 @@
             .catch(err => console.error('Error al cambiar sucursal:', err));
         }
 
-        function toggleNotificationsDropdown() {
+        window.toggleNotificationsDropdown = function(event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
             const dropdown = document.getElementById('notifications-dropdown');
             if (!dropdown) return;
 
@@ -1161,46 +1167,88 @@
                 dropdown.classList.remove('open');
             } else {
                 dropdown.classList.add('open');
-                loadNotifications();
+                window.loadNotifications();
             }
+        };
+
+        // Close dropdown when clicking outside safely
+        if (!window._notificationsClickListenerAttached) {
+            document.addEventListener('click', function(e) {
+                const container = document.getElementById('notifications-menu-container');
+                const dropdown = document.getElementById('notifications-dropdown');
+                if (container && dropdown && dropdown.classList.contains('open')) {
+                    if (!container.contains(e.target)) {
+                        dropdown.classList.remove('open');
+                    }
+                }
+            });
+            window._notificationsClickListenerAttached = true;
         }
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            const container = document.getElementById('notifications-menu-container');
-            const dropdown = document.getElementById('notifications-dropdown');
-            if (container && dropdown && !container.contains(e.target)) {
-                dropdown.classList.remove('open');
-            }
-        });
-
-        async function loadNotifications() {
+        window.loadNotifications = async function() {
             const listEl = document.getElementById('notifications-list');
+            if (!listEl) return;
+
             try {
-                const response = await fetch('/api/notifications/unread');
+                const response = await fetch('/api/notifications/unread', {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
                 if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 
                 // Update unread dot
                 const unreadDot = document.getElementById('unread-dot');
-                if (data.unread_count > 0) {
-                    unreadDot.classList.remove('hidden');
-                } else {
-                    unreadDot.classList.add('hidden');
+                if (unreadDot) {
+                    if (data.unread_count > 0) {
+                        unreadDot.classList.remove('hidden');
+                    } else {
+                        unreadDot.classList.add('hidden');
+                    }
+                }
+
+                // Adjust title and link if superadmin
+                const titleHeader = document.getElementById('notifications-dropdown-header-title');
+                const footerLink = document.getElementById('notifications-dropdown-footer-link');
+                if (data.is_superadmin_audit) {
+                    if (titleHeader) titleHeader.textContent = 'Auditoría & Bitácora';
+                    if (footerLink) {
+                        footerLink.textContent = 'Ver toda la Auditoría & Bitácoras';
+                        footerLink.href = '{{ route('superadmin.audit.index') }}';
+                    }
                 }
                 
-                if (data.notifications.length === 0) {
-                    listEl.innerHTML = '<div class="p-4 text-center text-xs text-slate-550">No tienes notificaciones pendientes.</div>';
+                if (!data.notifications || data.notifications.length === 0) {
+                    const emptyText = data.is_superadmin_audit ? 'No hay registros de auditoría recientes.' : 'No tienes notificaciones pendientes.';
+                    listEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-550">${emptyText}</div>`;
                     return;
                 }
                 
                 let html = '';
                 data.notifications.forEach(n => {
-                    const readClass = n.is_read ? 'opacity-65 bg-slate-900/10' : 'bg-slate-900/40 border-l-2 border-lime-500';
+                    const isAudit = n.type === 'audit_log';
+                    const readClass = n.is_read ? 'opacity-65 bg-slate-900/10' : 'bg-slate-900/40 border-l-2 ' + (isAudit ? 'border-amber-500' : 'border-lime-500');
+                    
                     let iconColor = 'text-lime-400 bg-lime-500/10';
                     let icon = 'bell';
                     
-                    if (n.type === 'membership_expiry' || n.type === 'payment_reminder') {
+                    if (isAudit) {
+                        if (n.action_type === 'INSERT') {
+                            iconColor = 'text-emerald-400 bg-emerald-500/10';
+                            icon = 'plus-circle';
+                        } else if (n.action_type === 'UPDATE') {
+                            iconColor = 'text-amber-400 bg-amber-500/10';
+                            icon = 'edit-3';
+                        } else if (n.action_type === 'DELETE' || n.action_type === 'LOGIN_FAILED') {
+                            iconColor = 'text-rose-400 bg-rose-500/10';
+                            icon = n.action_type === 'DELETE' ? 'trash-2' : 'alert-octagon';
+                        } else {
+                            iconColor = 'text-blue-400 bg-blue-500/10';
+                            icon = 'file-text';
+                        }
+                    } else if (n.type === 'membership_expiry' || n.type === 'payment_reminder') {
                         iconColor = 'text-amber-400 bg-amber-500/10';
                         icon = 'alert-triangle';
                     } else if (n.type === 'new_routine') {
@@ -1212,17 +1260,24 @@
                     }
                     
                     const timeAgo = formatTimeAgo(new Date(n.createdAt));
+                    const contextPill = n.recipient_name ? `<span class="inline-block text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-medium mr-1.5">${escapeHtml(n.recipient_name)}</span>` : '';
+                    const gymPill = n.gym_name ? `<span class="inline-block text-[9px] px-1.5 py-0.5 rounded bg-slate-850 text-slate-400 font-mono">${escapeHtml(n.gym_name)}</span>` : '';
+                    const clickUrl = n.url || `/notificaciones/${n.id}/read`;
 
                     html += `
-                        <a href="/notificaciones/${n.id}/read" class="block p-3.5 hover:bg-slate-850/60 transition-colors ${readClass}">
+                        <a href="${clickUrl}" class="block p-3.5 hover:bg-slate-850/60 transition-colors ${readClass}">
                             <div class="flex gap-2.5 items-start">
                                 <div class="p-1.5 rounded-lg shrink-0 ${iconColor}">
                                     <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
                                 </div>
-                                <div class="space-y-0.5">
-                                    <span class="block text-xs font-bold text-slate-200">${escapeHtml(n.title)}</span>
+                                <div class="space-y-0.5 min-w-0 flex-1">
+                                    <span class="block text-xs font-bold text-slate-200 truncate">${escapeHtml(n.title)}</span>
                                     <span class="block text-[10px] text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(n.body || '')}</span>
-                                    <span class="block text-[9px] text-slate-500 font-bold uppercase mt-1">${timeAgo}</span>
+                                    <div class="flex items-center gap-1 mt-1 text-[9px] text-slate-500 font-bold uppercase">
+                                        <span>${timeAgo}</span>
+                                        ${contextPill}
+                                        ${gymPill}
+                                    </div>
                                 </div>
                             </div>
                         </a>
@@ -1233,9 +1288,12 @@
                     lucide.createIcons();
                 }
             } catch (err) {
-                listEl.innerHTML = '<div class="p-4 text-center text-xs text-rose-500">Error al cargar notificaciones.</div>';
+                if (listEl) listEl.innerHTML = '<div class="p-4 text-center text-xs text-rose-500">Error al cargar notificaciones.</div>';
             }
-        }
+        };
+
+        // Load notifications status on initial boot
+        window.loadNotifications();
 
         function formatTimeAgo(date) {
             const now = new Date();
@@ -1254,19 +1312,6 @@
             return text.replace(/[&<>"']/g, function(m) { return map[m]; });
         }
 
-        // Check on load
-        document.addEventListener('DOMContentLoaded', () => {
-            loadNotifications();
-            
-            // Close dropdown if click outside
-            document.addEventListener('click', (e) => {
-                const container = document.getElementById('notifications-menu-container');
-                const dropdown = document.getElementById('notifications-dropdown');
-                if (container && !container.contains(e.target) && dropdown) {
-                    dropdown.classList.add('hidden');
-                }
-            });
-        });
     </script>
 
     <!-- Ultra-Fast Seamless SPA PJAX Navigation Engine -->

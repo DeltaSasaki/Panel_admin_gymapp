@@ -1760,38 +1760,167 @@ class AdminController extends Controller
      */
     public function getUnreadNotifications()
     {
-        $userId = auth()->id();
-        $unreadCount = Notification::where('user_id', $userId)->where('is_read', 0)->count();
-        $latestNotifications = Notification::where('user_id', $userId)
-            ->orderBy('createdAt', 'desc')
-            ->take(5)
-            ->get();
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['unread_count' => 0, 'notifications' => []]);
+        }
+
+        $gymId = $this->getActiveGymId();
+
+        // 1. SUPERADMIN: Focus exclusively on Auditoría & Bitácora / System Governance
+        if ($user->role === 'superadmin') {
+            $auditQuery = \App\Models\AdminAuditLog::with(['admin.profile', 'gym']);
+
+            if ($gymId !== 'all') {
+                $auditQuery->where('gym_id', $gymId);
+            }
+
+            $totalAuditsCount = (clone $auditQuery)->count();
+
+            $notifications = $auditQuery->orderBy('createdAt', 'desc')
+                ->take(10)
+                ->get()
+                ->map(function ($log) {
+                    $adminName = 'Sistema';
+                    if ($log->admin) {
+                        $profile = $log->admin->profile;
+                        $adminName = $profile ? trim("{$profile->first_name} {$profile->last_name}") : $log->admin->email;
+                    }
+
+                    $gymName = $log->gym ? $log->gym->name : 'Global / SuperAdmin';
+
+                    $actionIcons = [
+                        'INSERT' => '➕ Registro en',
+                        'UPDATE' => '✏️ Modificación en',
+                        'DELETE' => '🗑️ Eliminación en',
+                        'LOGIN_FAILED' => '⚠️ Acceso Fallido en',
+                        'EXPORT_DATA' => '📥 Exportación en',
+                    ];
+
+                    $actionPrefix = $actionIcons[$log->action_type] ?? '📋 Bitácora en';
+                    $title = "{$actionPrefix} {$log->table_name}";
+                    $recordInfo = $log->record_id ? " (ID #{$log->record_id})" : "";
+                    $body = "Admin {$adminName} ejecutó {$log->action_type} en tabla {$log->table_name}{$recordInfo}. IP: {$log->ip_address}";
+
+                    return [
+                        'id' => "audit_{$log->id}",
+                        'title' => $title,
+                        'body' => $body,
+                        'type' => 'audit_log',
+                        'action_type' => $log->action_type,
+                        'is_read' => false,
+                        'createdAt' => $log->createdAt,
+                        'recipient_name' => "Admin: {$adminName}",
+                        'gym_name' => $gymName,
+                        'url' => route('superadmin.audit.index'),
+                    ];
+                });
+
+            return response()->json([
+                'unread_count' => min($totalAuditsCount, 10),
+                'notifications' => $notifications,
+                'is_superadmin_audit' => true,
+            ]);
+        }
+
+        // 2. GYM ADMIN / OWNER / STAFF: Focus on Gym Operations & Member Alerts
+        $query = Notification::with(['user.profile', 'user.gym']);
+
+        if (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+            $userGymId = $user->gym_id;
+            $query->where(function ($q) use ($userGymId, $user) {
+                $q->where('user_id', $user->id)
+                  ->orWhereHas('user', function ($sub) use ($userGymId) {
+                      $sub->where('gym_id', $userGymId);
+                  });
+            });
+        } else {
+            // Regular athlete / client
+            $query->where('user_id', $user->id);
+        }
+
+        $unreadCount = (clone $query)->where('is_read', 0)->count();
+
+        $notifications = $query->orderBy('createdAt', 'desc')
+            ->take(10)
+            ->get()
+            ->map(function ($n) use ($user) {
+                $recipientName = null;
+                $gymName = null;
+
+                if ($n->user) {
+                    if ($n->user_id !== $user->id) {
+                        $profile = $n->user->profile;
+                        $recipientName = $profile ? trim("{$profile->first_name} {$profile->last_name}") : $n->user->email;
+                    }
+                    if ($n->user->gym) {
+                        $gymName = $n->user->gym->name;
+                    }
+                }
+
+                return [
+                    'id' => $n->id,
+                    'title' => $n->title,
+                    'body' => $n->body,
+                    'type' => $n->type,
+                    'is_read' => (bool)$n->is_read,
+                    'createdAt' => $n->createdAt,
+                    'recipient_name' => $recipientName,
+                    'gym_name' => $gymName,
+                    'target_user_id' => $n->user_id,
+                    'url' => route('notificaciones.read_and_redirect', $n->id),
+                ];
+            });
 
         return response()->json([
             'unread_count' => $unreadCount,
-            'notifications' => $latestNotifications,
+            'notifications' => $notifications,
+            'is_superadmin_audit' => false,
         ]);
     }
 
     /**
-     * Mark a notification as read and redirect based on type.
+     * Mark a notification as read and redirect based on type and context.
      */
     public function readAndRedirect($id)
     {
-        $userId = auth()->id();
-        $notification = Notification::where('user_id', $userId)->findOrFail($id);
-        
+        $user = auth()->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $query = Notification::with('user');
+        if ($user->role === 'superadmin') {
+            // Superadmin has global scope
+        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+            $userGymId = $user->gym_id;
+            $query->where(function ($q) use ($userGymId, $user) {
+                $q->where('user_id', $user->id)
+                  ->orWhereHas('user', function ($sub) use ($userGymId) {
+                      $sub->where('gym_id', $userGymId);
+                  });
+            });
+        } else {
+            $query->where('user_id', $user->id);
+        }
+
+        $notification = $query->findOrFail($id);
         $notification->update(['is_read' => 1]);
 
         switch ($notification->type) {
             case 'membership_expiry':
+                if ($notification->user_id && $notification->user_id !== $user->id) {
+                    return redirect()->route('clientes.show', $notification->user_id);
+                }
                 return redirect()->route('clientes.index');
             case 'payment_reminder':
                 return redirect()->route('finanzas.index');
             case 'new_routine':
                 return redirect()->route('rutinas.index');
+            case 'achievement':
+                return redirect()->route('retos.index');
             case 'general':
-                if (auth()->user()->role === 'superadmin') {
+                if ($user->role === 'superadmin') {
                     return redirect()->route('superadmin.gyms.index');
                 }
                 return redirect()->route('notificaciones.index');
@@ -1801,12 +1930,40 @@ class AdminController extends Controller
     }
 
     /**
-     * Mark all notifications of the active user as read.
+     * Mark all notifications of the active user / gym as read.
      */
     public function markAllAsRead()
     {
-        $userId = auth()->id();
-        Notification::where('user_id', $userId)->where('is_read', 0)->update(['is_read' => 1]);
+        $user = auth()->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $gymId = $this->getActiveGymId();
+        $query = Notification::query()->where('is_read', 0);
+
+        if ($user->role === 'superadmin') {
+            if ($gymId !== 'all') {
+                $query->where(function ($q) use ($gymId, $user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhereHas('user', function ($sub) use ($gymId) {
+                          $sub->where('gym_id', $gymId);
+                      });
+                });
+            }
+        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+            $userGymId = $user->gym_id;
+            $query->where(function ($q) use ($userGymId, $user) {
+                $q->where('user_id', $user->id)
+                  ->orWhereHas('user', function ($sub) use ($userGymId) {
+                      $sub->where('gym_id', $userGymId);
+                  });
+            });
+        } else {
+            $query->where('user_id', $user->id);
+        }
+
+        $query->update(['is_read' => 1]);
 
         return redirect()->back()->with('success', 'Todas las notificaciones se han marcado como leídas.');
     }
@@ -1816,12 +1973,7 @@ class AdminController extends Controller
      */
     public function notificationsHistory()
     {
-        $userId = auth()->id();
-        $notifications = Notification::where('user_id', $userId)
-            ->orderBy('createdAt', 'desc')
-            ->paginate(15);
-
-        return view('notificaciones.index', compact('notifications'));
+        return redirect()->route('notificaciones.index');
     }
 
     /**
