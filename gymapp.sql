@@ -306,6 +306,25 @@ CREATE TABLE `equipment` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `exchange_rates`
+--
+
+CREATE TABLE `exchange_rates` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) DEFAULT NULL COMMENT 'NULL para tasa global por defecto',
+  `rate_source` enum('bcv','enparalelovzla','custom') NOT NULL DEFAULT 'bcv',
+  `rate` decimal(12,4) NOT NULL COMMENT 'Tasa de cambio VES por 1 USD (Factor)',
+  `effective_date` date NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `notes` varchar(255) DEFAULT NULL,
+  `updated_by` int(11) DEFAULT NULL COMMENT 'Usuario que registró la tasa',
+  `createdAt` datetime NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `exercises`
 --
 
@@ -403,6 +422,11 @@ CREATE TABLE `gyms` (
   `slug` varchar(50) DEFAULT NULL,
   `current_plan_id` int(11) DEFAULT NULL,
   `subscription_status` enum('active','past_due','canceled','trialing') DEFAULT 'trialing',
+  `dollar_rate` decimal(12,4) NOT NULL DEFAULT 45.0000 COMMENT 'Tasa/Factor del dólar activa para el gimnasio',
+  `dollar_rate_type` enum('bcv','enparalelovzla','custom') NOT NULL DEFAULT 'bcv',
+  `dollar_rate_updated_at` datetime DEFAULT NULL,
+  `currency_symbol_primary` varchar(5) DEFAULT '$',
+  `currency_symbol_secondary` varchar(5) DEFAULT 'Bs.',
   `address` text DEFAULT NULL,
   `phone` varchar(20) DEFAULT NULL,
   `email` varchar(150) DEFAULT NULL,
@@ -660,8 +684,11 @@ CREATE TABLE `membership_payments` (
   `membership_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
   `promo_code_id` int(11) DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
+  `amount` decimal(10,2) NOT NULL COMMENT 'Monto base en Dólares USD',
+  `amount_ves` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Monto equivalente o pagado en Bolívares VES',
+  `exchange_rate` decimal(12,4) NOT NULL DEFAULT 1.0000 COMMENT 'Tasa/Factor de cambio USD/VES aplicada al pagar',
   `currency` varchar(10) DEFAULT 'USD',
+  `payment_currency` enum('USD','VES','EUR','USDT') NOT NULL DEFAULT 'USD' COMMENT 'Moneda física/digital en la que se efectuó el pago',
   `payment_method` enum('cash','card','transfer','other') DEFAULT 'cash',
   `payment_date` datetime DEFAULT NULL,
   `reference_code` varchar(100) DEFAULT NULL,
@@ -793,8 +820,11 @@ CREATE TABLE `product_sales` (
   `user_id` int(11) DEFAULT NULL,
   `promo_code_id` int(11) DEFAULT NULL,
   `sold_by` int(11) NOT NULL,
-  `total_amount` decimal(10,2) NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL COMMENT 'Total en Dólares USD',
+  `total_amount_ves` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Total cobrado en Bolívares VES',
+  `exchange_rate` decimal(12,4) NOT NULL DEFAULT 1.0000 COMMENT 'Tasa/Factor del dólar aplicada en la venta',
   `payment_method` enum('cash','card','transfer','other') DEFAULT 'cash',
+  `payment_currency` enum('USD','VES','EUR','USDT') NOT NULL DEFAULT 'USD' COMMENT 'Moneda de cobro',
   `sale_date` datetime DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `createdAt` datetime NOT NULL
@@ -961,7 +991,9 @@ CREATE TABLE `sale_items` (
   `product_id` int(11) NOT NULL,
   `quantity` int(11) NOT NULL,
   `unit_price` decimal(10,2) NOT NULL,
-  `subtotal` decimal(10,2) NOT NULL
+  `unit_price_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `subtotal` decimal(10,2) NOT NULL,
+  `subtotal_ves` decimal(14,2) NOT NULL DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -1388,7 +1420,9 @@ CREATE TABLE `user_credit_logs` (
   `received_by` int(11) DEFAULT NULL COMMENT 'Null si fue auto-recarga desde la App Móvil',
   `source` varchar(30) NOT NULL DEFAULT 'admin_panel' COMMENT 'admin_panel, mobile_app, web_gateway',
   `type` enum('abono_payment','credit_applied_to_plan','manual_adjustment') NOT NULL DEFAULT 'abono_payment',
-  `amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `amount` decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Monto en Dólares USD',
+  `amount_ves` decimal(14,2) NOT NULL DEFAULT 0.00 COMMENT 'Monto equivalente o pagado en Bolívares VES',
+  `exchange_rate` decimal(12,4) DEFAULT NULL COMMENT 'Tasa/Factor USD/VES aplicada al abono',
   `payment_method` varchar(50) NOT NULL DEFAULT 'cash',
   `reference_code` varchar(100) DEFAULT NULL,
   `daily_rate` decimal(10,2) DEFAULT NULL,
@@ -1614,6 +1648,14 @@ ALTER TABLE `class_schedules`
 ALTER TABLE `equipment`
   ADD PRIMARY KEY (`id`),
   ADD KEY `equipment_gym_fk` (`gym_id`);
+
+--
+-- Indices de la tabla `exchange_rates`
+--
+ALTER TABLE `exchange_rates`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `ex_rate_gym_fk` (`gym_id`),
+  ADD KEY `ex_rate_user_fk` (`updated_by`);
 
 --
 -- Indices de la tabla `exercises`
@@ -2081,6 +2123,12 @@ ALTER TABLE `equipment`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `exchange_rates`
+--
+ALTER TABLE `exchange_rates`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `exercises`
 --
 ALTER TABLE `exercises`
@@ -2424,6 +2472,13 @@ ALTER TABLE `class_schedules`
 --
 ALTER TABLE `equipment`
   ADD CONSTRAINT `equipment_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `exchange_rates`
+--
+ALTER TABLE `exchange_rates`
+  ADD CONSTRAINT `ex_rate_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ex_rate_user_fk` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Filtros para la tabla `exercises`
