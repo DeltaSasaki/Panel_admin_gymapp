@@ -20,6 +20,8 @@ class UserCreditLog extends Model
         'source',
         'type',
         'amount',
+        'amount_ves',
+        'exchange_rate',
         'payment_method',
         'reference_code',
         'daily_rate',

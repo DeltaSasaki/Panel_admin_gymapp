@@ -10,6 +10,8 @@ use App\Models\UserCreditLog;
 use App\Models\PromoCode;
 use App\Models\GymPromotion;
 use App\Models\User;
+use App\Models\Notification;
+use App\Models\Gym;
 use App\Models\AdminAuditLog;
 use Carbon\Carbon;
 
@@ -84,14 +86,25 @@ class FinanceController extends Controller
         }
         $gymPromotions = $gymPromosQuery->orderBy('id', 'desc')->get();
 
-        // Fetch pending verification payments (Binance, Pago Móvil, Transfers from Mobile App / API)
-        // Only include payments for memberships that are still pending or overdue (requiring manual admin verification)
+        // Fetch pending verification payments (Binance, Pago Móvil, Transfers from Mobile App / API, Abonos & Memberships)
         $pendingVerificationPayments = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'user.profile'])
-            ->whereHas('membership', function ($q) use ($gymId) {
-                $q->where('status', 'active')->whereIn('payment_status', ['pending', 'overdue']);
-                if ($gymId !== 'all') {
-                    $q->where('gym_id', $gymId);
-                }
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where(function ($sq) use ($gymId) {
+                    $sq->whereHas('membership', function ($mq) use ($gymId) {
+                        $mq->where('gym_id', $gymId);
+                    })->orWhereHas('user', function ($uq) use ($gymId) {
+                        $uq->where('gym_id', $gymId);
+                    });
+                });
+            })
+            ->where(function ($q) {
+                $q->where('notes', 'LIKE', '%[TOPUP_PENDIENTE]%')
+                    ->orWhere('notes', 'LIKE', '%[PAGO_MOVIL_PENDIENTE]%')
+                    ->orWhere('notes', 'LIKE', '%[PENDIENTE%')
+                    ->orWhereNull('received_by')
+                    ->orWhereHas('membership', function ($mq) {
+                        $mq->whereIn('payment_status', ['pending', 'overdue']);
+                    });
             })
             ->whereNotNull('reference_code')
             ->where('reference_code', '!=', '')
@@ -1141,120 +1154,141 @@ class FinanceController extends Controller
     }
 
     /**
-     * Approve a pending payment (Binance, Pago Móvil, Transfers) and activate/extend membership.
-     * SOPORTA ABONOS A LA BILLETERA ([TOPUP_PENDIENTE]).
+     * Approve a pending payment (Binance, Pago Móvil, Transfers) and activate/extend membership or credit abono balance.
      */
     public function approvePendingPayment(Request $request, $id)
     {
         $this->checkAdmin();
-        $payment = \App\Models\MembershipPayment::with(['membership.plan', 'membership.user.profile'])->findOrFail($id);
+        $payment = MembershipPayment::with(['membership.plan', 'membership.user.profile', 'user.profile'])->findOrFail($id);
         $membership = $payment->membership;
+        $user = $payment->user ?: ($membership->user ?? null);
 
-        if (!$membership) {
-            return redirect()->back()->withErrors(['error' => 'Membresía no encontrada para este pago.']);
+        if (!$user) {
+            $errMsg = 'Usuario asociado al pago no encontrado.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $errMsg], 404);
+            }
+            return redirect()->back()->withErrors(['error' => $errMsg]);
         }
 
-        $oldMembership = $membership->toArray();
+        $oldMembership = $membership ? $membership->toArray() : null;
         $oldPayment = $payment->toArray();
+        $gymId = $membership->gym_id ?? ($user->gym_id ?? 1);
 
-        $isTopUp = str_contains($payment->notes, '[TOPUP_PENDIENTE]');
+        $notes = $payment->notes ?? '';
+        $isTopUp = str_contains($notes, '[TOPUP_PENDIENTE]') || str_contains($notes, '[PAGO_MOVIL_PENDIENTE]') || str_contains(strtolower($notes), 'abono') || !$membership;
 
         if ($isTopUp) {
-            // --- LÓGICA DE ABONO A BILLETERA ---
-            $user = $membership->user;
-            if (!$user) {
-                return redirect()->back()->withErrors(['error' => 'Usuario no encontrado para esta membresía.']);
-            }
-
+            // --- LÓGICA DE ABONO A BILLETERA (SALDO A FAVOR) ---
             $parsedAmount = (float) $payment->amount;
-            $previousCredit = (float) $user->credit_balance;
+            $parsedAmountVes = (float) ($payment->amount_ves ?? 0);
+            $exchangeRate = (float) ($payment->exchange_rate ?? 0);
+            $previousCredit = (float) ($user->credit_balance ?? 0);
             $resultingCredit = $previousCredit + $parsedAmount;
 
-            // 1. Agregar a la billetera
-            \App\Models\UserCreditLog::create([
-                'gym_id' => $membership->gym_id,
+            // 1. Registrar Bitácora de Saldo / Abono
+            $creditLog = UserCreditLog::create([
+                'gym_id' => $gymId,
                 'user_id' => $user->id,
-                'source' => 'transfer',
-                'type' => 'add',
+                'membership_id' => $membership ? $membership->id : null,
+                'payment_id' => $payment->id,
+                'received_by' => auth()->id(),
+                'source' => 'mobile_app',
+                'type' => 'abono_payment',
                 'amount' => $parsedAmount,
+                'amount_ves' => $parsedAmountVes,
+                'exchange_rate' => $exchangeRate > 0 ? $exchangeRate : null,
                 'payment_method' => $payment->payment_method,
                 'reference_code' => $payment->reference_code,
+                'daily_rate' => null,
                 'previous_credit' => $previousCredit,
+                'days_added' => 0,
+                'credit_used' => 0.00,
                 'resulting_credit' => $resultingCredit,
-                'notes' => "Abono de saldo vía {$payment->payment_method} (Aprobado por admin)."
+                'notes' => "Abono de saldo vía {$payment->payment_method} (Ref: {$payment->reference_code}) verificado y aprobado por Admin #" . auth()->id() . "."
             ]);
 
-            $price = $membership->plan ? (float) $membership->plan->price : 0;
-            $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
+            // 2. Si el usuario tiene una membresía activa, verificar si se pueden acreditar días extra automáticamente
+            $activeMembership = $membership && $membership->status === 'active' ? $membership : UserMembership::where('user_id', $user->id)->where('status', 'active')->latest('id')->first();
             $daysAdded = 0;
 
-            if ($price > 0 && $durationDays > 0) {
+            if ($activeMembership && $activeMembership->plan) {
+                $price = (float) $activeMembership->plan->price;
+                $durationDays = max(1, (int) ($activeMembership->plan->duration_days ?: 30));
                 $dailyRate = $price / $durationDays;
-                $daysAdded = floor($resultingCredit / $dailyRate);
 
-                if ($daysAdded > 0) {
-                    $costToDeduct = $daysAdded * $dailyRate;
-                    $previousCreditBeforeExtend = $resultingCredit;
-                    $resultingCredit -= $costToDeduct;
+                if ($dailyRate > 0) {
+                    $daysAdded = (int) floor($resultingCredit / $dailyRate);
+                    if ($daysAdded > 0) {
+                        $costToDeduct = $daysAdded * $dailyRate;
+                        $previousCreditBeforeExtend = $resultingCredit;
+                        $resultingCredit = max(0, round($resultingCredit - $costToDeduct, 2));
 
-                    $today = \Carbon\Carbon::now();
-                    $currentEndDate = \Carbon\Carbon::parse($membership->end_date);
+                        $today = Carbon::now();
+                        $currentEndDate = Carbon::parse($activeMembership->end_date);
+                        $baseDate = $currentEndDate->lt($today) ? $today : $currentEndDate;
+                        $newEndDate = $baseDate->copy()->addDays($daysAdded)->toDateString();
 
-                    $baseDate = $currentEndDate->lt($today) ? $today : $currentEndDate;
-                    $newEndDate = $baseDate->copy()->addDays($daysAdded)->toDateString();
+                        $activeMembership->update([
+                            'status' => 'active',
+                            'end_date' => $newEndDate,
+                            'notes' => trim(($activeMembership->notes ?? '') . " | Auto-extensión por Abono Ref: {$payment->reference_code}"),
+                        ]);
 
-                    $membership->update([
-                        'status' => 'active',
-                        'end_date' => $newEndDate,
-                        'notes' => trim(($membership->notes ?? '') . " | Auto-extensión por Abono Ref: {$payment->reference_code}"),
-                    ]);
-
-                    \App\Models\UserCreditLog::create([
-                        'gym_id' => $membership->gym_id,
-                        'user_id' => $user->id,
-                        'membership_id' => $membership->id,
-                        'source' => 'system',
-                        'type' => 'use',
-                        'amount' => $costToDeduct,
-                        'daily_rate' => $dailyRate,
-                        'previous_credit' => $previousCreditBeforeExtend,
-                        'days_added' => $daysAdded,
-                        'credit_used' => $costToDeduct,
-                        'resulting_credit' => $resultingCredit,
-                        'notes' => "Extensión automática: +{$daysAdded} días por abono."
-                    ]);
+                        $creditLog->update([
+                            'daily_rate' => $dailyRate,
+                            'days_added' => $daysAdded,
+                            'credit_used' => $costToDeduct,
+                            'resulting_credit' => $resultingCredit,
+                        ]);
+                    }
                 }
             }
 
-            // Actualizar saldo final del usuario
+            // 3. Actualizar saldo en la tabla de usuarios
             $user->update(['credit_balance' => $resultingCredit]);
 
-            // Actualizar notas del pago
+            // 4. Actualizar notas del pago
+            $cleanNotes = str_replace(['[TOPUP_PENDIENTE]', '[PAGO_MOVIL_PENDIENTE]', '[PENDIENTE_VERIFICACION]', '[PENDIENTE]'], '[APROBADO]', $notes);
             $payment->update([
                 'received_by' => auth()->id(),
                 'payment_date' => now(),
-                'notes' => str_replace('[TOPUP_PENDIENTE]', '[TOPUP_APROBADO]', $payment->notes) . " [Aprobado por Admin #" . auth()->id() . "]",
+                'notes' => trim($cleanNotes . " [Aprobado por Admin #" . auth()->id() . " el " . now()->format('d/m/Y H:i') . "]"),
             ]);
 
-            \App\Models\AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+            // 5. In-App Notification para el Atleta
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => '¡Abono Aprobado! 🪙',
+                'body' => "Tu abono de \${$parsedAmount} (Ref: #{$payment->reference_code}) ha sido verificado y acreditado a tu saldo." . ($daysAdded > 0 ? " ¡Se sumaron +{$daysAdded} días de membresía!" : ""),
+                'type' => 'achievement',
+                'is_read' => false,
+                'createdAt' => now(),
+            ]);
 
-            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
-                $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
-                activity()
-                    ->performedOn($membership)
-                    ->causedBy(auth()->user())
-                    ->log("Aprobación de ABONO manual {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}.");
+            AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $gymId);
+
+            $msg = "Abono de \${$parsedAmount} (Ref: #{$payment->reference_code}) aprobado exitosamente. Saldo disponible: \${$resultingCredit}." . ($daysAdded > 0 ? " (+{$daysAdded} días acreditados)" : "");
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'is_abono' => true,
+                    'credit_balance' => $resultingCredit,
+                    'days_added' => $daysAdded,
+                    'payment' => $payment->fresh(['user.profile', 'membership.plan'])
+                ]);
             }
 
-            return redirect()->back()->with('success', 'Abono manual aprobado y saldo acreditado correctamente.');
+            return redirect()->back()->with('success', $msg);
 
         } else {
-            // --- LÓGICA NORMAL DE PAGO DE MEMBRESÍA ---
+            // --- LÓGICA DE PAGO DE MEMBRESÍA COMPLETA ---
             $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
 
-            // Calculate new start and end dates from today
-            $startDate = \Carbon\Carbon::now()->toDateString();
-            $endDate = \Carbon\Carbon::now()->addDays($durationDays)->toDateString();
+            $startDate = Carbon::now()->toDateString();
+            $endDate = Carbon::now()->addDays($durationDays)->toDateString();
 
             // Update membership status to paid and active
             $membership->update([
@@ -1266,28 +1300,43 @@ class FinanceController extends Controller
             ]);
 
             // Update payment record
+            $cleanNotes = str_replace(['[PENDIENTE_VERIFICACION]', '[PENDIENTE]', '[PAGO_MOVIL_PENDIENTE]'], '[APROBADO]', $notes);
             $payment->update([
                 'received_by' => auth()->id(),
                 'payment_date' => now(),
-                'notes' => trim(($payment->notes ?? '') . " [Aprobado por Admin #" . auth()->id() . "]"),
+                'notes' => trim($cleanNotes . " [Aprobado por Admin #" . auth()->id() . " el " . now()->format('d/m/Y H:i') . "]"),
+            ]);
+
+            // In-App Notification para el Atleta
+            $planName = $membership->plan->name ?? 'Membresía';
+            Notification::create([
+                'user_id' => $membership->user_id,
+                'title' => '¡Membresía Activada! 🚀',
+                'body' => "Tu pago para el plan '{$planName}' (Ref: #{$payment->reference_code}) ha sido verificado con éxito. ¡Vigencia hasta el " . Carbon::parse($endDate)->format('d/m/Y') . "!",
+                'type' => 'new_routine',
+                'is_read' => false,
+                'createdAt' => now(),
             ]);
 
             // Audit Log
-            \App\Models\AdminAuditLog::logAction('UPDATE', 'user_memberships', $membership->id, $oldMembership, $membership->fresh()->toArray(), $membership->gym_id);
-            \App\Models\AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+            AdminAuditLog::logAction('UPDATE', 'user_memberships', $membership->id, $oldMembership, $membership->fresh()->toArray(), $gymId);
+            AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $gymId);
 
-            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
-                $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
-                activity()
-                    ->performedOn($membership)
-                    ->causedBy(auth()->user())
-                    ->log("Aprobación manual de pago {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}. Membresía activada hasta {$endDate}");
+            $msg = "Pago para el plan '{$planName}' (Ref: #{$payment->reference_code}) aprobado y membresía activada hasta el " . Carbon::parse($endDate)->format('d/m/Y') . ".";
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'is_abono' => false,
+                    'end_date' => $endDate,
+                    'payment' => $payment->fresh(['user.profile', 'membership.plan'])
+                ]);
             }
 
-            return redirect()->back()->with('success', 'Pago aprobado y membresía activada/extendida con éxito.');
+            return redirect()->back()->with('success', $msg);
         }
     }
-
 
     /**
      * Reject a pending payment (invalid transaction / reference code).
@@ -1295,14 +1344,16 @@ class FinanceController extends Controller
     public function rejectPendingPayment(Request $request, $id)
     {
         $this->checkAdmin();
-        $payment = MembershipPayment::with(['membership.user.profile'])->findOrFail($id);
+        $payment = MembershipPayment::with(['membership.user.profile', 'user.profile'])->findOrFail($id);
         $membership = $payment->membership;
+        $user = $payment->user ?: ($membership->user ?? null);
 
-        $reason = $request->input('rejection_reason', 'Referencia de pago no verificada o rechazada por el administrador.');
+        $reason = $request->input('rejection_reason', 'Referencia de pago no encontrada en la cuenta bancaria o monto no recibido.');
 
         $oldPayment = $payment->toArray();
+        $cleanNotes = str_replace(['[PENDIENTE_VERIFICACION]', '[TOPUP_PENDIENTE]', '[PAGO_MOVIL_PENDIENTE]', '[PENDIENTE]'], '[RECHAZADO]', $payment->notes ?? '');
         $payment->update([
-            'notes' => trim(($payment->notes ?? '') . " [RECHAZADO por Admin: {$reason}]"),
+            'notes' => trim($cleanNotes . " [RECHAZADO por Admin #" . auth()->id() . ": {$reason}]"),
         ]);
 
         if ($membership && in_array($membership->payment_status, ['pending', 'overdue'])) {
@@ -1312,15 +1363,126 @@ class FinanceController extends Controller
             ]);
         }
 
+        // In-App Notification para el Atleta avisándole del rechazo
+        if ($user) {
+            Notification::create([
+                'user_id' => $user->id,
+                'title' => 'Pago No Aprobado ⚠️',
+                'body' => "Tu solicitud de pago (Ref: #{$payment->reference_code}) fue rechazada: {$reason}. Por favor verifica con tu banco o contacta a recepción.",
+                'type' => 'payment_reminder',
+                'is_read' => false,
+                'createdAt' => now(),
+            ]);
+        }
+
         AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $payment->gym_id ?? null);
 
         $msg = "El pago con referencia #{$payment->reference_code} ha sido marcado como RECHAZADO.";
 
         if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => $msg]);
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'payment' => $payment->fresh()
+            ]);
         }
 
         return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * REST API Endpoint for Mobile App / Web to submit payment proof for manual verification.
+     * POST /api/v1/payments/submit-proof
+     */
+    public function apiSubmitPaymentProof(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'gym_id' => 'nullable|exists:gyms,id',
+            'amount' => 'required|numeric|min:0.01',
+            'amount_ves' => 'nullable|numeric|min:0',
+            'exchange_rate' => 'nullable|numeric|min:0',
+            'payment_method' => 'required|string|max:50',
+            'reference_code' => 'required|string|max:100',
+            'concept_type' => 'nullable|in:abono,membership',
+            'plan_id' => 'nullable|exists:membership_plans,id',
+            'membership_id' => 'nullable|exists:user_memberships,id',
+            'receipt_image' => 'nullable|image|max:10240', // Max 10MB
+            'receipt_url' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+        $gymId = $request->gym_id ?: ($user->gym_id ?: 1);
+
+        // Process proof image if uploaded
+        $receiptUrl = $request->input('receipt_url');
+        if ($request->hasFile('receipt_image')) {
+            $file = $request->file('receipt_image');
+            $uploadDir = public_path('uploads/receipts');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = 'receipt_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            $receiptUrl = asset('uploads/receipts/' . $filename);
+        }
+
+        $conceptType = $request->input('concept_type', 'abono');
+        $membershipId = $request->membership_id;
+
+        // If it's a membership purchase and no membershipId passed, create/find a pending membership
+        if ($conceptType === 'membership' && !$membershipId && $request->filled('plan_id')) {
+            $plan = MembershipPlan::findOrFail($request->plan_id);
+            $startDate = Carbon::now()->toDateString();
+            $endDate = Carbon::now()->addDays($plan->duration_days)->toDateString();
+
+            $membership = UserMembership::create([
+                'user_id' => $user->id,
+                'gym_id' => $gymId,
+                'plan_id' => $plan->id,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'status' => 'pending',
+                'payment_status' => 'pending',
+                'notes' => 'Suscripción iniciada desde App Móvil (Esperando verificación de comprobante)'
+            ]);
+            $membershipId = $membership->id;
+        }
+
+        $tag = ($conceptType === 'abono') ? '[TOPUP_PENDIENTE]' : '[PENDIENTE_VERIFICACION]';
+        $userNotes = $request->filled('notes') ? " - Nota: " . $request->notes : "";
+        $fullNotes = "{$tag} Solicitud de pago desde App Móvil ({$request->payment_method}, Ref: {$request->reference_code}){$userNotes}";
+
+        $payment = MembershipPayment::create([
+            'membership_id' => $membershipId,
+            'user_id' => $user->id,
+            'amount' => $request->amount,
+            'amount_ves' => $request->amount_ves ?: 0.00,
+            'exchange_rate' => $request->exchange_rate ?: null,
+            'currency' => 'USD',
+            'payment_currency' => $request->filled('amount_ves') && $request->amount_ves > 0 ? 'VES' : 'USD',
+            'payment_method' => $request->payment_method,
+            'payment_date' => Carbon::now(),
+            'reference_code' => $request->reference_code,
+            'received_by' => null, // NULL indica que requiere verificación manual
+            'receipt_url' => $receiptUrl,
+            'notes' => $fullNotes,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comprobante de pago registrado exitosamente. Será verificado por el equipo del gimnasio a la brevedad.',
+            'payment' => [
+                'id' => $payment->id,
+                'concept_type' => $conceptType,
+                'amount' => $payment->amount,
+                'amount_ves' => $payment->amount_ves,
+                'reference_code' => $payment->reference_code,
+                'receipt_url' => $receiptUrl,
+                'status' => 'pending_verification'
+            ]
+        ], 201);
     }
 
     /**

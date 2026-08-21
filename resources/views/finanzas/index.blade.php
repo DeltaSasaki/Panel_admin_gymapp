@@ -453,10 +453,10 @@
 
                     <!-- Card Footer Actions -->
                     <div class="flex items-center justify-between pt-3 border-t border-slate-850/60">
-                        <button type="button" id="gym-promo-toggle-btn-{{ $gPromo->id }}" onclick="toggleGymPromoAjax({{ $gPromo->id }})" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-xs font-bold text-slate-300 rounded-xl transition-colors">
+                        <button type="button" id="gym-promo-toggle-btn-{{ $gPromo->id }}" onclick="toggleGymPromoAjax({{ $gPromo->id }})" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-855 border border-slate-800 text-xs font-bold text-slate-300 rounded-xl transition-colors">
                             {{ $gPromo->is_active ? 'Desactivar' : 'Activar' }}
                         </button>
-                        <button type="button" onclick="deleteGymPromoAjax({{ $gPromo->id }})" class="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer" title="Eliminar Promoción">
+                        <button type="button" onclick="openDeleteGymPromoModal({{ $gPromo->id }}, '{{ addslashes($gPromo->title) }}')" class="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer" title="Eliminar Promoción">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
@@ -593,135 +593,314 @@
         </div>
     </div>
 
-    <!-- Tab 5: Verificación de Pagos Pendientes (Binance, Pago Móvil, Transferencias) -->
-    <div id="tab-content-verificacion" class="finance-tab-content bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl hidden">
-        <div class="p-6 border-b border-slate-850 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <h3 class="font-bold text-lg text-slate-100 flex items-center gap-2">
-                    <i data-lucide="shield-check" class="w-5 h-5 text-purple-400"></i>
-                    Comprobación Manual de Pagos Pendientes (Binance, Pago Móvil)
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">Revisa los pagos registrados desde la App Móvil / API y apruébalos para activar o renovar la membresía del socio.</p>
+    <!-- Tab 5: Verificación de Pagos & Abonos Pendientes (App Móvil, Pago Móvil, Binance, Zelle, Transferencias) -->
+    <div id="tab-content-verificacion" class="finance-tab-content bg-slate-900/40 border border-slate-800 rounded-3xl overflow-hidden shadow-xl hidden space-y-6">
+        
+        <!-- Header & KPI Stat Cards for Verification -->
+        <div class="p-6 border-b border-slate-850 bg-slate-950/40">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="font-black text-xl text-slate-100 flex items-center gap-2.5">
+                        <span class="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                            <i data-lucide="shield-check" class="w-5 h-5"></i>
+                        </span>
+                        Verificación y Aprobación de Pagos (App Móvil & Manuales)
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">Revisa los pagos y abonos enviados por los atletas desde la App Móvil (Pago Móvil, Zelle, Binance, Transferencia), inspecciona el comprobante bancario y apruébalos o recházalos al instante.</p>
+                </div>
+                <div class="flex items-center gap-2 self-start lg:self-auto">
+                    <span class="px-3.5 py-2 bg-purple-500/10 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-black flex items-center gap-2 shadow-sm">
+                        <i data-lucide="clock" class="w-4 h-4 text-purple-400 animate-spin"></i>
+                        <span id="verif_badge_total_pending">{{ isset($pendingVerificationPayments) ? $pendingVerificationPayments->filter(fn($p) => !str_contains($p->notes ?? '', '[Aprobado') && !str_contains($p->notes ?? '', '[TOPUP_APROBADO]') && !str_contains($p->notes ?? '', '[APROBADO]') && !str_contains($p->notes ?? '', '[RECHAZADO'))->count() : 0 }}</span>
+                        <span>Pendientes de Revisión</span>
+                    </span>
+                </div>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="px-3 py-1.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-xl text-xs font-bold flex items-center gap-1.5">
-                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-                    <span>{{ isset($pendingVerificationPayments) ? $pendingVerificationPayments->count() : 0 }} Registros por Verificar</span>
-                </span>
+
+            <!-- 4 KPI Metrics for Verification -->
+            @php
+                $vPendingList = isset($pendingVerificationPayments) ? $pendingVerificationPayments->filter(fn($p) => !str_contains($p->notes ?? '', '[Aprobado') && !str_contains($p->notes ?? '', '[TOPUP_APROBADO]') && !str_contains($p->notes ?? '', '[APROBADO]') && !str_contains($p->notes ?? '', '[RECHAZADO')) : collect();
+                $vPendingAbonos = $vPendingList->filter(fn($p) => str_contains($p->notes ?? '', '[TOPUP_PENDIENTE]') || str_contains($p->notes ?? '', '[PAGO_MOVIL_PENDIENTE]') || str_contains(strtolower($p->notes ?? ''), 'abono') || !$p->membership_id)->count();
+                $vPendingPlans = $vPendingList->filter(fn($p) => !str_contains($p->notes ?? '', '[TOPUP_PENDIENTE]') && !str_contains($p->notes ?? '', '[PAGO_MOVIL_PENDIENTE]') && !str_contains(strtolower($p->notes ?? ''), 'abono') && $p->membership_id)->count();
+                $vPendingTotalUsd = $vPendingList->sum('amount');
+            @endphp
+            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total en Espera</span>
+                        <span id="verif_stat_pending_count" class="text-lg sm:text-xl font-black text-amber-400">{{ $vPendingList->count() }} Solicitudes</span>
+                    </div>
+                    <div class="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                        <i data-lucide="inbox" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Abonos (Saldo a Favor)</span>
+                        <span id="verif_stat_abonos_count" class="text-lg sm:text-xl font-black text-purple-400">{{ $vPendingAbonos }} Abonos</span>
+                    </div>
+                    <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                        <i data-lucide="coins" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Planes de Membresía</span>
+                        <span id="verif_stat_plans_count" class="text-lg sm:text-xl font-black text-lime-400">{{ $vPendingPlans }} Planes</span>
+                    </div>
+                    <div class="p-2.5 bg-lime-500/10 text-lime-400 rounded-xl border border-lime-500/20">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800/80 shadow-sm flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Monto por Acreditar</span>
+                        <span id="verif_stat_amount_usd" class="text-lg sm:text-xl font-black text-emerald-400">${{ number_format($vPendingTotalUsd, 2) }}</span>
+                    </div>
+                    <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                        <i data-lucide="dollar-sign" class="w-5 h-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
+        <!-- Filter Bar & Search for Verification -->
+        <div class="px-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Status Filter Pills -->
+                <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-850">
+                    <button type="button" onclick="setVerificationFilter('pending')" id="verif-filter-btn-pending" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-purple-400 border border-slate-800 transition-all">
+                        Pendientes (<span id="verif-count-pending">{{ $vPendingList->count() }}</span>)
+                    </button>
+                    <button type="button" onclick="setVerificationFilter('all')" id="verif-filter-btn-all" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Todos (<span id="verif-count-all">{{ isset($pendingVerificationPayments) ? $pendingVerificationPayments->count() : 0 }}</span>)
+                    </button>
+                    <button type="button" onclick="setVerificationFilter('abonos')" id="verif-filter-btn-abonos" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Solo Abonos
+                    </button>
+                    <button type="button" onclick="setVerificationFilter('memberships')" id="verif-filter-btn-memberships" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Solo Membresías
+                    </button>
+                    <button type="button" onclick="setVerificationFilter('approved')" id="verif-filter-btn-approved" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Aprobados
+                    </button>
+                    <button type="button" onclick="setVerificationFilter('rejected')" id="verif-filter-btn-rejected" class="verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all">
+                        Rechazados
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-72">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-500"></i>
+                <input 
+                    type="text" 
+                    id="verif_search_input" 
+                    oninput="onVerificationSearchInput()"
+                    placeholder="Buscar por atleta, ref, banco..." 
+                    class="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-850 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500/50 transition-colors">
+            </div>
+        </div>
+
+        <!-- Verification Table -->
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
                 <thead>
                     <tr class="border-b border-slate-850 bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                         <th class="p-4 pl-6">Socio / Atleta</th>
-                        <th class="p-4">Plan Solicitado</th>
+                        <th class="p-4">Tipo & Concepto</th>
                         <th class="p-4">Método / Pasarela</th>
-                        <th class="p-4">Ref. / ID Transacción</th>
-                        <th class="p-4 text-center">Monto</th>
-                        <th class="p-4 text-center">Fecha Registro</th>
+                        <th class="p-4">Ref. & Comprobante</th>
+                        <th class="p-4 text-center">Monto ($ / Bs.)</th>
+                        <th class="p-4 text-center">Fecha & Canal</th>
                         <th class="p-4 text-center">Estado</th>
                         <th class="p-4 pr-6 text-right">Acción de Verificación</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-850/60 text-slate-300">
+                <tbody id="verif-table-tbody" class="divide-y divide-slate-850/60 text-slate-300">
                     @forelse($pendingVerificationPayments ?? [] as $pay)
                         @php
                             $userProf = $pay->user ? $pay->user->profile : ($pay->membership->user->profile ?? null);
-                            $athleteName = trim(($userProf->first_name ?? 'Atleta') . ' ' . ($userProf->last_name ?? ''));
+                            $athleteName = trim(($userProf->first_name ?? 'Atleta') . ' ' . ($userProf->last_name ?? '')) ?: ($pay->user->email ?? 'Socio');
                             $athleteDni = $userProf->dni ?? 'Sin DNI';
+                            $athleteEmail = $pay->user->email ?? ($pay->membership->user->email ?? 'N/A');
                             $athletePhoto = $userProf->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
-                            $planName = $pay->membership->plan->name ?? 'Plan de Membresía';
-                            $isApproved = str_contains($pay->notes ?? '', '[Aprobado');
-                            $isRejected = str_contains($pay->notes ?? '', '[RECHAZADO');
+                            
+                            $notes = $pay->notes ?? '';
+                            $isAbono = str_contains($notes, '[TOPUP_PENDIENTE]') || str_contains($notes, '[PAGO_MOVIL_PENDIENTE]') || str_contains(strtolower($notes), 'abono') || !$pay->membership_id;
+                            $planName = $isAbono ? 'Recarga de Saldo a Favor' : ($pay->membership->plan->name ?? 'Plan de Membresía');
+                            
+                            $isApproved = str_contains($notes, '[Aprobado') || str_contains($notes, '[TOPUP_APROBADO]') || str_contains($notes, '[APROBADO]');
+                            $isRejected = str_contains($notes, '[RECHAZADO');
+                            $statusType = $isApproved ? 'approved' : ($isRejected ? 'rejected' : 'pending');
+
+                            $payMethod = strtolower($pay->payment_method ?? 'transfer');
+                            $hasReceipt = !empty($pay->receipt_url);
+                            $receiptUrl = $pay->receipt_url ?? '';
+
+                            $amountUsd = (float) $pay->amount;
+                            $amountVes = (float) ($pay->amount_ves ?? 0);
+                            $rate = (float) ($pay->exchange_rate ?? 0);
+
+                            $searchStr = strtolower("{$athleteName} {$athleteEmail} {$athleteDni} {$pay->reference_code} {$payMethod} {$planName} {$notes}");
                         @endphp
-                        <tr class="hover:bg-slate-850/30 transition-colors">
+                        <tr class="hover:bg-slate-850/30 transition-colors {{ $statusType !== 'pending' ? 'hidden' : '' }}"
+                            data-verification-row
+                            data-status="{{ $statusType }}"
+                            data-concept="{{ $isAbono ? 'abono' : 'membership' }}"
+                            data-search="{{ $searchStr }}"
+                            id="verif_row_{{ $pay->id }}">
+                            
+                            <!-- Socio / Atleta -->
                             <td class="p-4 pl-6">
                                 <div class="flex items-center gap-3">
                                     <img src="{{ $athletePhoto }}" class="w-9 h-9 rounded-full object-cover border border-slate-800 shrink-0">
                                     <div>
                                         <span class="block font-bold text-slate-100 text-xs">{{ $athleteName }}</span>
-                                        <span class="block text-[10px] text-slate-500 font-mono">DNI: {{ $athleteDni }}</span>
+                                        <span class="block text-[10px] text-slate-400 font-mono">DNI: {{ $athleteDni }}</span>
+                                        <span class="block text-[9px] text-slate-500">{{ $athleteEmail }}</span>
                                     </div>
                                 </div>
                             </td>
+
+                            <!-- Tipo & Concepto -->
                             <td class="p-4">
-                                <span class="block font-bold text-slate-200">{{ $planName }}</span>
-                                <span class="block text-[10px] text-slate-500">Membresía #{{ $pay->membership_id }}</span>
-                            </td>
-                            <td class="p-4">
-                                @if(str_contains(strtolower($pay->notes ?? ''), 'binance') || strtolower($pay->payment_method) === 'binance')
-                                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
-                                        🟡 Binance Pay
+                                @if($isAbono)
+                                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/25 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="coins" class="w-3 h-3"></i> Abono / Saldo a Favor
                                     </span>
-                                @elseif(strtolower($pay->payment_method) === 'transfer')
-                                    <span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
-                                        🏦 Transferencia / Pago Móvil
+                                    <span class="block text-[10px] text-slate-400 mt-1">Crédito para consumo o días</span>
+                                @else
+                                    <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-lg font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="award" class="w-3 h-3"></i> {{ $planName }}
+                                    </span>
+                                    <span class="block text-[10px] text-slate-500 mt-1">Membresía #{{ $pay->membership_id }}</span>
+                                @endif
+                            </td>
+
+                            <!-- Método / Pasarela -->
+                            <td class="p-4 whitespace-nowrap">
+                                @if(str_contains($payMethod, 'pago_movil') || str_contains($payMethod, 'pagomovil') || str_contains($notes, 'Pago Móvil'))
+                                    <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1.5">
+                                        <i data-lucide="smartphone" class="w-3 h-3"></i> Pago Móvil (VES)
+                                    </span>
+                                @elseif(str_contains($payMethod, 'zelle'))
+                                    <span class="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1.5">
+                                        <i data-lucide="dollar-sign" class="w-3 h-3"></i> Zelle (USD)
+                                    </span>
+                                @elseif(str_contains($payMethod, 'binance'))
+                                    <span class="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1.5">
+                                        <span>🟡</span> Binance Pay
+                                    </span>
+                                @elseif(str_contains($payMethod, 'transfer'))
+                                    <span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg font-bold text-[10px] inline-flex items-center gap-1.5">
+                                        <i data-lucide="landmark" class="w-3 h-3"></i> Transferencia
                                     </span>
                                 @else
-                                    <span class="px-2.5 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg font-bold text-[10px]">
+                                    <span class="px-2.5 py-1 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg font-bold text-[10px]">
                                         {{ strtoupper($pay->payment_method) }}
                                     </span>
                                 @endif
                             </td>
+
+                            <!-- Ref. & Comprobante -->
                             <td class="p-4">
-                                <code class="px-2.5 py-1 bg-slate-950 text-lime-400 border border-slate-800 rounded-lg text-xs font-mono font-bold select-all">
-                                    {{ $pay->reference_code }}
-                                </code>
-                            </td>
-                            <td class="p-4 text-center">
-                                <span class="font-extrabold text-slate-100 text-sm">${{ number_format($pay->amount, 2) }}</span>
-                                <span class="block text-[10px] text-slate-500">{{ $pay->currency ?? 'USD' }}</span>
-                            </td>
-                            <td class="p-4 text-center text-slate-400">
-                                <span class="block font-bold text-xs">{{ \Carbon\Carbon::parse($pay->createdAt)->format('d/m/Y') }}</span>
-                                <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($pay->createdAt)->format('H:i A') }}</span>
-                            </td>
-                            <td class="p-4 text-center">
-                                @if($isApproved)
-                                    <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px]">Aprobado</span>
-                                @elseif($isRejected)
-                                    <span class="px-2.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full font-bold text-[10px]">Rechazado</span>
+                                <div class="flex items-center gap-2">
+                                    <code class="px-2.5 py-1 bg-slate-950 text-lime-400 border border-slate-800 rounded-lg text-xs font-mono font-bold select-all inline-block" title="Copiar referencia">
+                                        #{{ $pay->reference_code }}
+                                    </code>
+                                    <button type="button" onclick="navigator.clipboard.writeText('{{ $pay->reference_code }}'); showFinanceToast('Referencia copiada al portapapeles', 'success');" class="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors" title="Copiar">
+                                        <i data-lucide="copy" class="w-3 h-3"></i>
+                                    </button>
+                                </div>
+                                @if($hasReceipt)
+                                    <button type="button" onclick="openReceiptModal('{{ $receiptUrl }}', '{{ addslashes($athleteName) }}', '{{ $pay->reference_code }}', '{{ number_format($amountUsd, 2) }}', '{{ number_format($amountVes, 2) }}', {{ $pay->id }}, {{ $isAbono ? 'true' : 'false' }}, '{{ addslashes($planName) }}')" class="mt-1.5 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer">
+                                        <i data-lucide="image" class="w-3 h-3 text-purple-400"></i>
+                                        <span>Ver Comprobante</span>
+                                    </button>
                                 @else
-                                    <span class="px-2.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full font-bold text-[10px] animate-pulse">Pendiente</span>
+                                    <span class="block text-[9px] text-slate-500 mt-1 italic">Sin captura adjunta</span>
                                 @endif
                             </td>
-                            <td class="p-4 pr-6 text-right">
+
+                            <!-- Monto ($ / Bs.) -->
+                            <td class="p-4 text-center">
+                                <span class="font-black text-slate-100 text-sm">${{ number_format($amountUsd, 2) }}</span>
+                                @if($amountVes > 0)
+                                    <span class="block text-[10px] font-extrabold text-emerald-400">Bs. {{ number_format($amountVes, 2) }}</span>
+                                    @if($rate > 0)
+                                        <span class="block text-[9px] text-slate-500">Tasa: {{ number_format($rate, 2) }} Bs/$</span>
+                                    @endif
+                                @endif
+                            </td>
+
+                            <!-- Fecha & Canal -->
+                            <td class="p-4 text-center text-slate-400">
+                                <span class="block font-bold text-xs">{{ \Carbon\Carbon::parse($pay->payment_date ?: $pay->createdAt)->format('d/m/Y') }}</span>
+                                <span class="block text-[10px] text-slate-500">{{ \Carbon\Carbon::parse($pay->payment_date ?: $pay->createdAt)->format('h:i A') }}</span>
+                                <span class="inline-flex items-center gap-1 text-[9px] text-purple-400 mt-0.5">
+                                    <i data-lucide="smartphone" class="w-2.5 h-2.5"></i> App Móvil
+                                </span>
+                            </td>
+
+                            <!-- Estado -->
+                            <td class="p-4 text-center" id="verif_status_badge_{{ $pay->id }}">
+                                @if($isApproved)
+                                    <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="check-circle" class="w-3 h-3"></i> Aprobado
+                                    </span>
+                                @elseif($isRejected)
+                                    <span class="px-2.5 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
+                                        <i data-lucide="x-circle" class="w-3 h-3"></i> Rechazado
+                                    </span>
+                                @else
+                                    <span class="px-2.5 py-1 bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded-full font-bold text-[10px] inline-flex items-center gap-1 animate-pulse">
+                                        <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i> Por Verificar
+                                    </span>
+                                @endif
+                            </td>
+
+                            <!-- Acción de Verificación -->
+                            <td class="p-4 pr-6 text-right" id="verif_actions_cell_{{ $pay->id }}">
                                 @if(!$isApproved && !$isRejected)
                                     <div class="flex items-center justify-end gap-2">
-                                        <form action="{{ route('finanzas.approve_payment', $pay->id) }}" method="POST" class="inline m-0">
-                                            @csrf
-                                            <button type="submit" onclick="return confirm('¿Confirmas que recibiste el pago #{{ $pay->reference_code }}? Se activará la membresía del socio automáticamente.')" class="px-3 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 text-xs font-bold rounded-xl transition-all shadow-md flex items-center gap-1">
-                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                                Aprobar
-                                            </button>
-                                        </form>
+                                        <button type="button" onclick="openApproveModal({{ $pay->id }}, '{{ $pay->reference_code }}', '{{ addslashes($athleteName) }}', '{{ number_format($amountUsd, 2) }}', '{{ number_format($amountVes, 2) }}', {{ $isAbono ? 'true' : 'false' }}, '{{ addslashes($planName) }}')" class="px-3 py-1.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1 cursor-pointer">
+                                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                            <span>Aprobar</span>
+                                        </button>
 
-                                        <form action="{{ route('finanzas.reject_payment', $pay->id) }}" method="POST" class="inline m-0">
-                                            @csrf
-                                            <button type="submit" onclick="return confirm('¿Deseas rechazar esta solicitud de pago #{{ $pay->reference_code }}?')" class="px-3 py-1.5 bg-slate-950 hover:bg-rose-950 text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl transition-all flex items-center gap-1">
-                                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
-                                                Rechazar
-                                            </button>
-                                        </form>
+                                        <button type="button" onclick="openRejectModal({{ $pay->id }}, '{{ $pay->reference_code }}', '{{ addslashes($athleteName) }}')" class="px-3 py-1.5 bg-slate-950 hover:bg-rose-950/60 text-rose-400 border border-rose-500/30 text-xs font-bold rounded-xl transition-all active:scale-95 flex items-center gap-1 cursor-pointer">
+                                            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                                            <span>Rechazar</span>
+                                        </button>
                                     </div>
                                 @else
-                                    <span class="text-xs text-slate-500 italic font-medium">Verificado</span>
+                                    <div class="text-right text-xs text-slate-500 italic">
+                                        <span>Auditado</span>
+                                    </div>
                                 @endif
                             </td>
                         </tr>
                     @empty
-                        <tr>
+                        <tr id="no_verif_logs_row">
                             <td colspan="8" class="p-12 text-center text-slate-500">
                                 <i data-lucide="shield-check" class="w-12 h-12 mx-auto text-slate-700 mb-3"></i>
                                 <span class="block font-bold text-sm text-slate-400">No hay pagos pendientes de verificación</span>
-                                <span class="block text-xs mt-1 text-slate-500">Todos los pagos enviados desde la app móvil o Binance han sido revisados.</span>
+                                <span class="block text-xs mt-1 text-slate-500">Todos los pagos y abonos enviados desde la App Móvil han sido revisados.</span>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        <!-- Empty search state -->
+        <div id="no_verif_search_row" class="hidden p-12 text-center text-slate-500 border-t border-slate-850">
+            <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i>
+            <span class="block font-bold text-slate-400 text-xs">No se encontraron solicitudes de pago que coincidan con la búsqueda.</span>
         </div>
     </div>
 
@@ -1576,6 +1755,238 @@
         <div class="pt-2 flex gap-3 border-t border-slate-800">
             <button type="button" onclick="toggleModal('abono-detail-modal')" class="w-full py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-855 text-slate-400 transition-colors">
                 Cerrar Comprobante
+            </button>
+        </div>
+<!-- ================= MODAL: VISOR DE COMPROBANTE BANCARIO / RECEIPT LIGHTBOX ================= -->
+<div id="receipt-preview-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl mx-auto my-auto shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-scale-up">
+        <!-- Header -->
+        <div class="p-5 border-b border-slate-850 flex items-center justify-between bg-slate-950/50">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <i data-lucide="image" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-base text-slate-100 flex items-center gap-2">
+                        <span>Comprobante de Pago</span>
+                        <span id="receipt_modal_ref_badge" class="px-2 py-0.5 rounded-lg bg-slate-950 text-lime-400 font-mono text-xs font-bold border border-slate-800">#REF</span>
+                    </h3>
+                    <p id="receipt_modal_subtitle" class="text-xs text-slate-400">Atleta: --- | Monto: $0.00</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="rotateReceiptImage()" class="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:border-slate-700 transition-colors" title="Rotar 90°">
+                    <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                </button>
+                <a id="receipt_modal_download_btn" href="#" target="_blank" download class="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-100 hover:border-slate-700 transition-colors" title="Abrir en pestaña nueva / Descargar">
+                    <i data-lucide="external-link" class="w-4 h-4"></i>
+                </a>
+                <button type="button" onclick="toggleModal('receipt-preview-modal')" class="p-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Image Container -->
+        <div class="p-4 bg-slate-950 flex-1 overflow-auto flex items-center justify-center min-h-[320px] max-h-[60vh] relative select-none">
+            <img id="receipt_modal_image" src="" alt="Comprobante de Pago" class="max-h-[55vh] max-w-full object-contain rounded-xl shadow-2xl transition-transform duration-200 border border-slate-850" style="transform: rotate(0deg) scale(1);">
+            <div id="receipt_modal_loading" class="hidden absolute inset-0 bg-slate-950/80 flex items-center justify-center">
+                <i data-lucide="loader" class="w-8 h-8 text-purple-400 animate-spin"></i>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-slate-850 bg-slate-950/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-xs text-slate-400">
+                <i data-lucide="info" class="w-4 h-4 text-slate-500"></i>
+                <span>Verifica que el N° de referencia y monto coincidan en la cuenta receptora.</span>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button type="button" id="receipt_modal_reject_btn" onclick="openRejectFromReceiptModal()" class="px-4 py-2 bg-slate-950 hover:bg-rose-950/60 text-rose-400 border border-rose-500/30 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                    <span>Rechazar</span>
+                </button>
+                <button type="button" id="receipt_modal_approve_btn" onclick="approveFromReceiptModal()" class="px-5 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    <span>Aprobar Pago</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: RECHAZAR SOLICITUD DE PAGO ================= -->
+<div id="reject-payment-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg mx-auto my-auto space-y-5 animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-850">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Rechazar Solicitud de Pago</h3>
+                    <p class="text-[11px] text-slate-400">Se notificará al atleta para que revise con su banco o reintente</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('reject-payment-modal')" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form id="reject-payment-form" onsubmit="submitRejectPaymentForm(event)" class="space-y-4">
+            <input type="hidden" id="reject_payment_id" name="payment_id">
+
+            <!-- Summary info box -->
+            <div class="p-3.5 bg-slate-950 rounded-2xl border border-slate-850 text-xs space-y-1">
+                <div class="flex justify-between text-slate-400">
+                    <span>Socio / Atleta:</span>
+                    <span id="reject_modal_athlete_name" class="font-bold text-slate-200">---</span>
+                </div>
+                <div class="flex justify-between text-slate-400">
+                    <span>N° Referencia:</span>
+                    <span id="reject_modal_ref_code" class="font-mono font-bold text-lime-400">---</span>
+                </div>
+            </div>
+
+            <!-- Predefined Reason Selector -->
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Motivo del Rechazo *</label>
+                <div class="space-y-2">
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-850 hover:border-slate-750 cursor-pointer transition-colors text-xs text-slate-300">
+                        <input type="radio" name="quick_reason" value="Referencia no encontrada en la cuenta bancaria del gimnasio." onchange="onQuickReasonChange(this)" checked class="mt-0.5 text-purple-500 focus:ring-purple-500">
+                        <span>Referencia no encontrada en la cuenta bancaria del gimnasio.</span>
+                    </label>
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-850 hover:border-slate-750 cursor-pointer transition-colors text-xs text-slate-300">
+                        <input type="radio" name="quick_reason" value="El monto transferido es menor al costo requerido o la tasa no coincide." onchange="onQuickReasonChange(this)" class="mt-0.5 text-purple-500 focus:ring-purple-500">
+                        <span>El monto transferido es incompleto o no coincide con la tasa del día.</span>
+                    </label>
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-850 hover:border-slate-750 cursor-pointer transition-colors text-xs text-slate-300">
+                        <input type="radio" name="quick_reason" value="Comprobante o captura adjunta ilegible o borrosa." onchange="onQuickReasonChange(this)" class="mt-0.5 text-purple-500 focus:ring-purple-500">
+                        <span>Comprobante o captura adjunta ilegible / borrosa.</span>
+                    </label>
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-850 hover:border-slate-750 cursor-pointer transition-colors text-xs text-slate-300">
+                        <input type="radio" name="quick_reason" value="custom" onchange="onQuickReasonChange(this)" class="mt-0.5 text-purple-500 focus:ring-purple-500">
+                        <span>Otro motivo personalizado...</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Custom reason notes -->
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Detalle / Mensaje para el Atleta</label>
+                <textarea id="reject_custom_reason" name="rejection_reason" rows="2" class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-rose-500/50 resize-none">Referencia no encontrada en la cuenta bancaria del gimnasio.</textarea>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-850">
+                <button type="button" onclick="toggleModal('reject-payment-modal')" class="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl border border-slate-850 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" id="reject_submit_btn" class="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="x-circle" class="w-4 h-4"></i>
+                    <span>Confirmar Rechazo</span>
+                </button>
+            </div>
+        </form>
+<!-- ================= MODAL: CONFIRMAR APROBACIÓN DE PAGO / ABONO ================= -->
+<div id="approve-payment-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-md mx-auto my-auto space-y-5 animate-scale-up shadow-2xl">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-850">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-lime-500/10 text-lime-400 border border-lime-500/20">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Aprobar Solicitud de Pago</h3>
+                    <p class="text-[11px] text-slate-400">Verificación y acreditación inmediata</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('approve-payment-modal')" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <input type="hidden" id="approve_modal_payment_id">
+
+        <!-- Summary info box -->
+        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-850 text-xs space-y-2.5">
+            <div class="flex items-center justify-between text-slate-400">
+                <span>Socio / Atleta:</span>
+                <span id="approve_modal_athlete_name" class="font-bold text-slate-100">---</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400">
+                <span>Concepto:</span>
+                <span id="approve_modal_concept_badge" class="font-bold text-purple-400">---</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400">
+                <span>Monto a Acreditar:</span>
+                <span id="approve_modal_amount_text" class="font-black text-lime-400 text-sm">$0.00 USD</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400">
+                <span>N° Referencia:</span>
+                <span id="approve_modal_ref_code" class="font-mono font-bold text-slate-200">---</span>
+            </div>
+        </div>
+
+        <!-- Info callout -->
+        <div class="p-3 bg-lime-500/5 border border-lime-500/15 rounded-xl text-[11px] text-slate-300 flex items-start gap-2.5">
+            <i data-lucide="info" class="w-4 h-4 text-lime-400 shrink-0 mt-0.5"></i>
+            <span>Al confirmar, el sistema acreditará el saldo o activará la membresía del socio automáticamente y le enviará una notificación a su App Móvil.</span>
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-850">
+            <button type="button" onclick="toggleModal('approve-payment-modal')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl border border-slate-850 transition-colors cursor-pointer">
+                Cancelar
+            </button>
+            <button type="button" id="approve_confirm_submit_btn" onclick="executeApprovePaymentAjax()" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-lime-500/10 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                <span>Confirmar Aprobación</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: CONFIRMAR ELIMINACIÓN DE PROMOCIÓN ================= -->
+<div id="delete-gym-promo-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-md mx-auto my-auto space-y-5 animate-scale-up shadow-2xl">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-850">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-100">Eliminar Promoción</h3>
+                    <p class="text-[11px] text-slate-400">Esta acción no se puede deshacer</p>
+                </div>
+            </div>
+            <button type="button" onclick="toggleModal('delete-gym-promo-modal')" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-100 cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <input type="hidden" id="delete_gym_promo_id">
+
+        <div class="space-y-3">
+            <p class="text-xs text-slate-300 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar permanentemente esta promoción del gimnasio?
+            </p>
+            <div class="p-3 bg-slate-950/60 border border-slate-850 rounded-xl flex items-center gap-2.5">
+                <div class="w-2 h-2 rounded-full bg-rose-500"></div>
+                <span class="text-xs font-bold text-slate-200" id="delete_gym_promo_title">---</span>
+            </div>
+        </div>
+
+        <!-- Footer Buttons -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-850">
+            <button type="button" onclick="toggleModal('delete-gym-promo-modal')" class="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl border border-slate-850 transition-colors cursor-pointer">
+                Cancelar
+            </button>
+            <button type="button" id="delete_promo_confirm_btn" onclick="executeDeleteGymPromoAjax()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-rose-600/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                <span>Eliminar Promoción</span>
             </button>
         </div>
     </div>
@@ -2964,8 +3375,19 @@
         }
     }
 
-    async function deleteGymPromoAjax(id) {
-        if (!confirm('¿Estás seguro de que deseas eliminar esta promoción?')) return;
+    function openDeleteGymPromoModal(id, title) {
+        document.getElementById('delete_gym_promo_id').value = id;
+        document.getElementById('delete_gym_promo_title').textContent = title || 'Promoción seleccionada';
+        toggleModal('delete-gym-promo-modal');
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function executeDeleteGymPromoAjax() {
+        const id = document.getElementById('delete_gym_promo_id').value;
+        const btn = document.getElementById('delete_promo_confirm_btn');
+        if (!id) return;
+
+        setBtnLoading(btn, true, 'Eliminando...');
 
         try {
             const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -2981,6 +3403,7 @@
 
             const data = await response.json();
             if (data.success) {
+                toggleModal('delete-gym-promo-modal');
                 showFinanceToast(data.message, 'success');
                 const card = document.getElementById(`gym-promo-card-${id}`);
                 if (card) card.remove();
@@ -2990,6 +3413,8 @@
         } catch (err) {
             console.error(err);
             showFinanceToast('Error de conexión.', 'error');
+        } finally {
+            setBtnLoading(btn, false);
         }
     }
 
@@ -3207,14 +3632,342 @@
         if (window.lucide) window.lucide.createIcons();
     }
 
+    // ==========================================
+    // VERIFICACIÓN DE PAGOS & ABONOS JS LOGIC
+    // ==========================================
+    let currentVerificationFilter = 'pending';
+    let currentReceiptPaymentId = null;
+    let currentReceiptRefCode = '';
+    let currentReceiptAthlete = '';
+    let currentReceiptAmount = '';
+    let currentReceiptIsAbono = false;
+    let receiptImageRotation = 0;
+
+    function setVerificationFilter(filter) {
+        currentVerificationFilter = filter;
+        document.querySelectorAll('.verif-filter-btn').forEach(btn => {
+            btn.className = "verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-200 transition-all";
+        });
+        const activeBtn = document.getElementById('verif-filter-btn-' + filter);
+        if (activeBtn) {
+            activeBtn.className = "verif-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-purple-400 border border-slate-800 transition-all";
+        }
+        filterVerificationRows();
+    }
+
+    function onVerificationSearchInput() {
+        filterVerificationRows();
+    }
+
+    function filterVerificationRows() {
+        const query = (document.getElementById('verif_search_input')?.value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('[data-verification-row]');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const status = row.getAttribute('data-status');
+            const concept = row.getAttribute('data-concept');
+            const search = row.getAttribute('data-search') || '';
+
+            let matchesFilter = true;
+            if (currentVerificationFilter === 'pending') {
+                matchesFilter = (status === 'pending');
+            } else if (currentVerificationFilter === 'approved') {
+                matchesFilter = (status === 'approved');
+            } else if (currentVerificationFilter === 'rejected') {
+                matchesFilter = (status === 'rejected');
+            } else if (currentVerificationFilter === 'abonos') {
+                matchesFilter = (concept === 'abono');
+            } else if (currentVerificationFilter === 'memberships') {
+                matchesFilter = (concept === 'membership');
+            } else if (currentVerificationFilter === 'all') {
+                matchesFilter = true;
+            }
+
+            let matchesSearch = true;
+            if (query) {
+                matchesSearch = search.includes(query);
+            }
+
+            if (matchesFilter && matchesSearch) {
+                row.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        const emptySearch = document.getElementById('no_verif_search_row');
+        if (emptySearch) {
+            if (visibleCount === 0 && rows.length > 0) {
+                emptySearch.classList.remove('hidden');
+            } else {
+                emptySearch.classList.add('hidden');
+            }
+        }
+
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function updateVerificationCounters() {
+        const allRows = Array.from(document.querySelectorAll('[data-verification-row]'));
+        const pendingRows = allRows.filter(r => r.getAttribute('data-status') === 'pending');
+        const countPending = pendingRows.length;
+        const countAll = allRows.length;
+
+        const countPendingEl = document.getElementById('verif-count-pending');
+        const countAllEl = document.getElementById('verif-count-all');
+        const badgePendingEl = document.getElementById('verif_badge_total_pending');
+        const statPendingCountEl = document.getElementById('verif_stat_pending_count');
+
+        if (countPendingEl) countPendingEl.textContent = countPending;
+        if (countAllEl) countAllEl.textContent = countAll;
+        if (badgePendingEl) badgePendingEl.textContent = countPending;
+        if (statPendingCountEl) statPendingCountEl.textContent = `${countPending} Solicitudes`;
+
+        // Update tab badge on the main navigation
+        const navBadge = document.querySelector('#tab-btn-verificacion span.rounded-full');
+        if (navBadge) {
+            if (countPending > 0) {
+                navBadge.textContent = countPending;
+                navBadge.classList.remove('hidden');
+            } else {
+                navBadge.classList.add('hidden');
+            }
+        }
+    }
+
+    // LIGHTBOX RECEIPT VIEWER
+    function openReceiptModal(imageUrl, athleteName, refCode, amountUsd, amountVes, paymentId, isAbono = false, conceptName = '') {
+        currentReceiptPaymentId = paymentId;
+        currentReceiptRefCode = refCode;
+        currentReceiptAthlete = athleteName;
+        currentReceiptAmount = amountUsd;
+        currentReceiptAmountVes = amountVes;
+        currentReceiptIsAbono = isAbono;
+        currentReceiptConcept = conceptName;
+        receiptImageRotation = 0;
+
+        const imgEl = document.getElementById('receipt_modal_image');
+        const subtitleEl = document.getElementById('receipt_modal_subtitle');
+        const refBadgeEl = document.getElementById('receipt_modal_ref_badge');
+        const downloadBtn = document.getElementById('receipt_modal_download_btn');
+
+        if (imgEl) {
+            imgEl.src = imageUrl;
+            imgEl.style.transform = `rotate(0deg)`;
+        }
+        if (refBadgeEl) refBadgeEl.textContent = `#${refCode}`;
+        if (subtitleEl) {
+            subtitleEl.textContent = `Atleta: ${athleteName} | Monto: $${amountUsd} USD` + (amountVes && parseFloat(amountVes) > 0 ? ` (Bs. ${amountVes})` : '');
+        }
+        if (downloadBtn) {
+            downloadBtn.href = imageUrl;
+        }
+
+        toggleModal('receipt-preview-modal');
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    function rotateReceiptImage() {
+        const imgEl = document.getElementById('receipt_modal_image');
+        if (!imgEl) return;
+        receiptImageRotation = (receiptImageRotation + 90) % 360;
+        imgEl.style.transform = `rotate(${receiptImageRotation}deg)`;
+    }
+
+    function approveFromReceiptModal() {
+        if (!currentReceiptPaymentId) return;
+        toggleModal('receipt-preview-modal');
+        openApproveModal(currentReceiptPaymentId, currentReceiptRefCode, currentReceiptAthlete, currentReceiptAmount, currentReceiptAmountVes, currentReceiptIsAbono, currentReceiptConcept);
+    }
+
+    function openRejectFromReceiptModal() {
+        if (!currentReceiptPaymentId) return;
+        toggleModal('receipt-preview-modal');
+        openRejectModal(currentReceiptPaymentId, currentReceiptRefCode, currentReceiptAthlete);
+    }
+
+    // APPROVE CONFIRMATION MODAL & AJAX
+    function openApproveModal(paymentId, refCode, athleteName, amountUsd, amountVes, isAbono, conceptName) {
+        document.getElementById('approve_modal_payment_id').value = paymentId;
+        document.getElementById('approve_modal_athlete_name').textContent = athleteName || 'Atleta';
+        document.getElementById('approve_modal_ref_code').textContent = `#${refCode || 'N/A'}`;
+
+        const conceptBadge = document.getElementById('approve_modal_concept_badge');
+        if (conceptBadge) {
+            if (isAbono) {
+                conceptBadge.className = "px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-bold inline-flex items-center gap-1";
+                conceptBadge.innerHTML = `<i data-lucide="coins" class="w-3 h-3"></i> Abono (Saldo a Favor)`;
+            } else {
+                conceptBadge.className = "px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold inline-flex items-center gap-1";
+                conceptBadge.innerHTML = `<i data-lucide="award" class="w-3 h-3"></i> ${conceptName || 'Plan de Membresía'}`;
+            }
+        }
+
+        const amountText = document.getElementById('approve_modal_amount_text');
+        if (amountText) {
+            let text = `$${amountUsd} USD`;
+            if (amountVes && parseFloat(amountVes) > 0) {
+                text += ` (Bs. ${amountVes})`;
+            }
+            amountText.textContent = text;
+        }
+
+        toggleModal('approve-payment-modal');
+        if (window.lucide) window.lucide.createIcons();
+    }
+
+    async function executeApprovePaymentAjax() {
+        const paymentId = document.getElementById('approve_modal_payment_id').value;
+        const submitBtn = document.getElementById('approve_confirm_submit_btn');
+        if (!paymentId) return;
+
+        setBtnLoading(submitBtn, true, 'Aprobando...');
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch(`/finanzas/pagos/${paymentId}/aprobar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toggleModal('approve-payment-modal');
+                showFinanceToast(data.message, 'success');
+
+                // Update Row UI in Verification Table
+                const row = document.getElementById(`verif_row_${paymentId}`);
+                if (row) {
+                    row.setAttribute('data-status', 'approved');
+                    const statusBadgeCell = document.getElementById(`verif_status_badge_${paymentId}`);
+                    if (statusBadgeCell) {
+                        statusBadgeCell.innerHTML = `<span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i data-lucide="check-circle" class="w-3 h-3"></i> Aprobado</span>`;
+                    }
+                    const actionsCell = document.getElementById(`verif_actions_cell_${paymentId}`);
+                    if (actionsCell) {
+                        actionsCell.innerHTML = `<div class="text-right text-xs text-slate-500 italic"><span>Aprobado</span></div>`;
+                    }
+                }
+
+                updateVerificationCounters();
+                filterVerificationRows();
+                if (window.lucide) window.lucide.createIcons();
+            } else {
+                showFinanceToast(data.message || 'Error al aprobar el pago.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Error al conectar con el servidor.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
+    // REJECT MODAL LOGIC
+    function openRejectModal(paymentId, refCode, athleteName) {
+        document.getElementById('reject_payment_id').value = paymentId;
+        document.getElementById('reject_modal_athlete_name').textContent = athleteName || 'Atleta';
+        document.getElementById('reject_modal_ref_code').textContent = `#${refCode || 'N/A'}`;
+
+        const defaultReason = "Referencia no encontrada en la cuenta bancaria del gimnasio.";
+        document.getElementById('reject_custom_reason').value = defaultReason;
+
+        // Reset radio
+        const firstRadio = document.querySelector('input[name="quick_reason"][value="' + defaultReason + '"]');
+        if (firstRadio) firstRadio.checked = true;
+
+        toggleModal('reject-payment-modal');
+    }
+
+    function onQuickReasonChange(radioEl) {
+        const textarea = document.getElementById('reject_custom_reason');
+        if (radioEl.value === 'custom') {
+            textarea.value = '';
+            textarea.focus();
+            textarea.placeholder = 'Describe el motivo del rechazo para el cliente...';
+        } else {
+            textarea.value = radioEl.value;
+        }
+    }
+
+    async function submitRejectPaymentForm(e) {
+        e.preventDefault();
+        const form = e.target;
+        const submitBtn = document.getElementById('reject_submit_btn');
+        const paymentId = document.getElementById('reject_payment_id').value;
+        const reason = document.getElementById('reject_custom_reason').value.trim();
+
+        if (!reason) {
+            showFinanceToast('Por favor especifica un motivo de rechazo.', 'error');
+            return;
+        }
+
+        setBtnLoading(submitBtn, true, 'Rechazando...');
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const response = await fetch(`/finanzas/pagos/${paymentId}/rechazar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ rejection_reason: reason })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toggleModal('reject-payment-modal');
+                showFinanceToast(data.message, 'success');
+
+                const row = document.getElementById(`verif_row_${paymentId}`);
+                if (row) {
+                    row.setAttribute('data-status', 'rejected');
+                    const statusBadgeCell = document.getElementById(`verif_status_badge_${paymentId}`);
+                    if (statusBadgeCell) {
+                        statusBadgeCell.innerHTML = `<span class="px-2.5 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full font-bold text-[10px] inline-flex items-center gap-1"><i data-lucide="x-circle" class="w-3 h-3"></i> Rechazado</span>`;
+                    }
+                    const actionsCell = document.getElementById(`verif_actions_cell_${paymentId}`);
+                    if (actionsCell) {
+                        actionsCell.innerHTML = `<div class="text-right text-xs text-rose-400/80 italic font-semibold"><span>Rechazado</span></div>`;
+                    }
+                }
+
+                updateVerificationCounters();
+                filterVerificationRows();
+                if (window.lucide) window.lucide.createIcons();
+            } else {
+                showFinanceToast(data.message || 'Error al rechazar la solicitud.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showFinanceToast('Error al conectar con el servidor.', 'error');
+        } finally {
+            setBtnLoading(submitBtn, false);
+        }
+    }
+
     function initFinanzasPage() {
         if (typeof updateMembershipCounters === 'function') updateMembershipCounters();
         if (typeof updatePlanCounters === 'function') updatePlanCounters();
         if (typeof updatePromoTabCounters === 'function') updatePromoTabCounters();
         if (typeof updateAbonoCounters === 'function') updateAbonoCounters();
+        if (typeof updateVerificationCounters === 'function') updateVerificationCounters();
         if (typeof switchFinanceTab === 'function') switchFinanceTab(currentFinanceTab || 'membresias');
         if (typeof renderMembershipPage === 'function') renderMembershipPage();
         if (typeof renderAbonoPage === 'function') renderAbonoPage();
+        if (typeof filterVerificationRows === 'function') filterVerificationRows();
     }
 
     initFinanzasPage();

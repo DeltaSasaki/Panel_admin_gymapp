@@ -129,8 +129,9 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/recetas/{id}', [CatalogController::class, 'deleteRecipe'])->name('catalogos.delete_recipe');
     Route::post('/recetas/categorias', [CatalogController::class, 'storeRecipeCategory'])->name('catalogos.store_recipe_category');
 
-    // Notificaciones routes
+    // API y Pasarelas de Pago
     Route::get('/api/v1/gyms/{gym_id}/payment-gateways', [PaymentGatewayController::class, 'apiGetGymGateways'])->name('api.v1.gym_payment_gateways');
+    Route::post('/api/v1/payments/submit-proof', [FinanceController::class, 'apiSubmitPaymentProof'])->name('api.v1.payments.submit_proof');
     Route::get('/api/notifications/unread', [AdminController::class, 'getUnreadNotifications'])->name('api.notifications.unread');
     Route::get('/api/aforo', [AdminController::class, 'getAforoApi'])->name('api.aforo');
     Route::get('/notificaciones/{id}/read', [AdminController::class, 'readAndRedirect'])->name('notificaciones.read_and_redirect');

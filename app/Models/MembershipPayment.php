@@ -14,8 +14,12 @@ class MembershipPayment extends Model
     protected $fillable = [
         'membership_id',
         'user_id',
+        'promo_code_id',
         'amount',
+        'amount_ves',
+        'exchange_rate',
         'currency',
+        'payment_currency',
         'payment_method', // 'cash', 'card', 'transfer', 'other'
         'payment_date',
         'reference_code',
