@@ -71,7 +71,7 @@ class FinanceController extends Controller
         // Fetch promo codes
         $promosQuery = PromoCode::with('gym');
         if ($gymId !== 'all') {
-            $promosQuery->where(function($q) use ($gymId) {
+            $promosQuery->where(function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId)->orWhereNull('gym_id');
             });
         }
@@ -112,14 +112,14 @@ class FinanceController extends Controller
             ->sum('credit_balance');
 
         return view('finanzas.index', compact(
-            'plans', 
-            'memberships', 
-            'activeMemberships', 
-            'clients', 
-            'totalCollected', 
-            'pendingAmount', 
-            'promos', 
-            'gymPromotions', 
+            'plans',
+            'memberships',
+            'activeMemberships',
+            'clients',
+            'totalCollected',
+            'pendingAmount',
+            'promos',
+            'gymPromotions',
             'pendingVerificationPayments',
             'abonoLogs',
             'totalAbonosAmount',
@@ -395,7 +395,7 @@ class FinanceController extends Controller
         if ($request->filled('promo_code')) {
             $promo = PromoCode::where('code', $request->promo_code)
                 ->where('is_active', 1)
-                ->where(function($q) use ($gymId) {
+                ->where(function ($q) use ($gymId) {
                     if ($gymId !== 'all') {
                         $q->where('gym_id', $gymId)->orWhereNull('gym_id');
                     }
@@ -445,8 +445,8 @@ class FinanceController extends Controller
                 'status' => 'active',
             ]);
 
-            $userName = ($membership->user && $membership->user->profile) 
-                ? $membership->user->profile->first_name . ' ' . $membership->user->profile->last_name 
+            $userName = ($membership->user && $membership->user->profile)
+                ? $membership->user->profile->first_name . ' ' . $membership->user->profile->last_name
                 : ($membership->user->email ?? 'Socio');
 
             AdminAuditLog::logAction(
@@ -524,8 +524,8 @@ class FinanceController extends Controller
             }
 
             $plan = $membership->plan;
-            $durationDays = max(1, (int)$plan->duration_days);
-            $dailyRate = (float)$plan->price / $durationDays;
+            $durationDays = max(1, (int) $plan->duration_days);
+            $dailyRate = (float) $plan->price / $durationDays;
 
             if ($dailyRate <= 0) {
                 $errMsg = 'El plan de membresía actual no tiene una tarifa diaria válida para abonar.';
@@ -550,7 +550,7 @@ class FinanceController extends Controller
                 $user->update(['credit_balance' => $newCredit]);
 
                 $notes = "ABONO EN CREDITOS: Monto \${$payAmount} guardado en Saldo a Favor. Saldo total acumulado: \${$newCredit}. (Tarifa diaria: \$" . number_format($dailyRate, 2) . "/día).";
-                
+
                 $payment = MembershipPayment::create([
                     'membership_id' => $membership->id,
                     'user_id' => $membership->user_id,
@@ -588,7 +588,7 @@ class FinanceController extends Controller
                 }
 
                 $msg = "Abono de \${$payAmount} guardado como Saldo a Favor. Crédito acumulado total: \${$newCredit}. Faltan \$" . number_format($dailyRate - $newCredit, 2) . " para 1 día extra.";
-                
+
                 if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                     return response()->json([
                         'success' => true,
@@ -627,7 +627,7 @@ class FinanceController extends Controller
             $formattedRate = number_format($dailyRate, 2);
             $creditText = $newCredit > 0 ? " (Saldo a favor restante: \${$newCredit})" : "";
             $notes = "ABONO ADELANTADO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} saldo previo" : "") . " otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
-            
+
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
                 'user_id' => $membership->user_id,
@@ -806,11 +806,11 @@ class FinanceController extends Controller
                 ]);
             }
 
-            $userName = ($user->profile) 
-                ? $user->profile->first_name . ' ' . $user->profile->last_name 
+            $userName = ($user->profile)
+                ? $user->profile->first_name . ' ' . $user->profile->last_name
                 : $user->email;
 
-            $actionNote = $isPaidNow 
+            $actionNote = $isPaidNow
                 ? "Membresía '{$plan->name}' asignada y PAGADA de contado por el socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')})."
                 : "Membresía '{$plan->name}' asignada al socio {$userName} (Vigencia: {$startDate->format('d/m/Y')} - {$endDate->format('d/m/Y')}).";
 
@@ -873,7 +873,7 @@ class FinanceController extends Controller
         ]);
 
         $gymId = $this->getActiveGymId();
-        
+
         $targetGymId = $gymId;
         if ($gymId === 'all') {
             if (auth()->user()->role === 'superadmin') {
@@ -971,7 +971,7 @@ class FinanceController extends Controller
 
         $promo = PromoCode::where('code', $code)
             ->where('is_active', 1)
-            ->where(function($q) use ($gymId) {
+            ->where(function ($q) use ($gymId) {
                 if ($gymId !== 'all') {
                     $q->where('gym_id', $gymId)->orWhereNull('gym_id');
                 }
@@ -999,7 +999,7 @@ class FinanceController extends Controller
         return response()->json([
             'valid' => true,
             'discount_type' => $promo->discount_type,
-            'discount_value' => (float)$promo->discount_value,
+            'discount_value' => (float) $promo->discount_value,
             'id' => $promo->id,
         ]);
     }
@@ -1142,11 +1142,12 @@ class FinanceController extends Controller
 
     /**
      * Approve a pending payment (Binance, Pago Móvil, Transfers) and activate/extend membership.
+     * SOPORTA ABONOS A LA BILLETERA ([TOPUP_PENDIENTE]).
      */
     public function approvePendingPayment(Request $request, $id)
     {
         $this->checkAdmin();
-        $payment = MembershipPayment::with(['membership.plan', 'membership.user.profile'])->findOrFail($id);
+        $payment = \App\Models\MembershipPayment::with(['membership.plan', 'membership.user.profile'])->findOrFail($id);
         $membership = $payment->membership;
 
         if (!$membership) {
@@ -1156,49 +1157,137 @@ class FinanceController extends Controller
         $oldMembership = $membership->toArray();
         $oldPayment = $payment->toArray();
 
-        $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
+        $isTopUp = str_contains($payment->notes, '[TOPUP_PENDIENTE]');
 
-        // Calculate new start and end dates from today
-        $startDate = Carbon::now()->toDateString();
-        $endDate = Carbon::now()->addDays($durationDays)->toDateString();
+        if ($isTopUp) {
+            // --- LÓGICA DE ABONO A BILLETERA ---
+            $user = $membership->user;
+            if (!$user) {
+                return redirect()->back()->withErrors(['error' => 'Usuario no encontrado para esta membresía.']);
+            }
 
-        // Update membership status to paid and active
-        $membership->update([
-            'status' => 'active',
-            'payment_status' => 'paid',
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-            'notes' => trim(($membership->notes ?? '') . " | Pago Ref: {$payment->reference_code} APROBADO por Admin el " . now()->format('d/m/Y H:i')),
-        ]);
+            $parsedAmount = (float) $payment->amount;
+            $previousCredit = (float) $user->credit_balance;
+            $resultingCredit = $previousCredit + $parsedAmount;
 
-        // Update payment record
-        $payment->update([
-            'received_by' => auth()->id(),
-            'payment_date' => now(),
-            'notes' => trim(($payment->notes ?? '') . " [Aprobado por Admin #" . auth()->id() . "]"),
-        ]);
+            // 1. Agregar a la billetera
+            \App\Models\UserCreditLog::create([
+                'gym_id' => $membership->gym_id,
+                'user_id' => $user->id,
+                'source' => 'transfer',
+                'type' => 'add',
+                'amount' => $parsedAmount,
+                'payment_method' => $payment->payment_method,
+                'reference_code' => $payment->reference_code,
+                'previous_credit' => $previousCredit,
+                'resulting_credit' => $resultingCredit,
+                'notes' => "Abono de saldo vía {$payment->payment_method} (Aprobado por admin)."
+            ]);
 
-        // Audit Log
-        AdminAuditLog::logAction('UPDATE', 'user_memberships', $membership->id, $oldMembership, $membership->fresh()->toArray(), $membership->gym_id);
-        AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+            $price = $membership->plan ? (float) $membership->plan->price : 0;
+            $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
+            $daysAdded = 0;
 
-        if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
-            $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
-            activity()
-                ->performedOn($membership)
-                ->causedBy(auth()->user())
-                ->log("Aprobación manual de pago {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}. Membresía activada hasta {$endDate}");
+            if ($price > 0 && $durationDays > 0) {
+                $dailyRate = $price / $durationDays;
+                $daysAdded = floor($resultingCredit / $dailyRate);
+
+                if ($daysAdded > 0) {
+                    $costToDeduct = $daysAdded * $dailyRate;
+                    $previousCreditBeforeExtend = $resultingCredit;
+                    $resultingCredit -= $costToDeduct;
+
+                    $today = \Carbon\Carbon::now();
+                    $currentEndDate = \Carbon\Carbon::parse($membership->end_date);
+
+                    $baseDate = $currentEndDate->lt($today) ? $today : $currentEndDate;
+                    $newEndDate = $baseDate->copy()->addDays($daysAdded)->toDateString();
+
+                    $membership->update([
+                        'status' => 'active',
+                        'end_date' => $newEndDate,
+                        'notes' => trim(($membership->notes ?? '') . " | Auto-extensión por Abono Ref: {$payment->reference_code}"),
+                    ]);
+
+                    \App\Models\UserCreditLog::create([
+                        'gym_id' => $membership->gym_id,
+                        'user_id' => $user->id,
+                        'membership_id' => $membership->id,
+                        'source' => 'system',
+                        'type' => 'use',
+                        'amount' => $costToDeduct,
+                        'daily_rate' => $dailyRate,
+                        'previous_credit' => $previousCreditBeforeExtend,
+                        'days_added' => $daysAdded,
+                        'credit_used' => $costToDeduct,
+                        'resulting_credit' => $resultingCredit,
+                        'notes' => "Extensión automática: +{$daysAdded} días por abono."
+                    ]);
+                }
+            }
+
+            // Actualizar saldo final del usuario
+            $user->update(['credit_balance' => $resultingCredit]);
+
+            // Actualizar notas del pago
+            $payment->update([
+                'received_by' => auth()->id(),
+                'payment_date' => now(),
+                'notes' => str_replace('[TOPUP_PENDIENTE]', '[TOPUP_APROBADO]', $payment->notes) . " [Aprobado por Admin #" . auth()->id() . "]",
+            ]);
+
+            \App\Models\AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
+                activity()
+                    ->performedOn($membership)
+                    ->causedBy(auth()->user())
+                    ->log("Aprobación de ABONO manual {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}.");
+            }
+
+            return redirect()->back()->with('success', 'Abono manual aprobado y saldo acreditado correctamente.');
+
+        } else {
+            // --- LÓGICA NORMAL DE PAGO DE MEMBRESÍA ---
+            $durationDays = $membership->plan ? ($membership->plan->duration_days ?: 30) : 30;
+
+            // Calculate new start and end dates from today
+            $startDate = \Carbon\Carbon::now()->toDateString();
+            $endDate = \Carbon\Carbon::now()->addDays($durationDays)->toDateString();
+
+            // Update membership status to paid and active
+            $membership->update([
+                'status' => 'active',
+                'payment_status' => 'paid',
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'notes' => trim(($membership->notes ?? '') . " | Pago Ref: {$payment->reference_code} APROBADO por Admin el " . now()->format('d/m/Y H:i')),
+            ]);
+
+            // Update payment record
+            $payment->update([
+                'received_by' => auth()->id(),
+                'payment_date' => now(),
+                'notes' => trim(($payment->notes ?? '') . " [Aprobado por Admin #" . auth()->id() . "]"),
+            ]);
+
+            // Audit Log
+            \App\Models\AdminAuditLog::logAction('UPDATE', 'user_memberships', $membership->id, $oldMembership, $membership->fresh()->toArray(), $membership->gym_id);
+            \App\Models\AdminAuditLog::logAction('UPDATE', 'membership_payments', $payment->id, $oldPayment, $payment->fresh()->toArray(), $membership->gym_id);
+
+            if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
+                $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
+                activity()
+                    ->performedOn($membership)
+                    ->causedBy(auth()->user())
+                    ->log("Aprobación manual de pago {$payment->payment_method} (Ref: {$payment->reference_code}) para socio {$userName}. Membresía activada hasta {$endDate}");
+            }
+
+            return redirect()->back()->with('success', 'Pago aprobado y membresía activada/extendida con éxito.');
         }
-
-        $userName = trim(($membership->user->profile->first_name ?? '') . ' ' . ($membership->user->profile->last_name ?? ''));
-        $msg = "¡Pago Ref: {$payment->reference_code} comprobado y APROBADO! La membresía de {$userName} fue activada exitosamente hasta el {$endDate}.";
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => $msg]);
-        }
-
-        return redirect()->back()->with('success', $msg);
     }
+
 
     /**
      * Reject a pending payment (invalid transaction / reference code).
