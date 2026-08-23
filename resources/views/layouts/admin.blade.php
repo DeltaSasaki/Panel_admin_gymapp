@@ -388,7 +388,16 @@
                             <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full animate-pulse"></span>
                         </div>
                         <div class="overflow-hidden">
-                            <h4 class="font-bold text-xs text-slate-100 truncate tracking-wide">Coach {{ auth()->user()->profile->first_name ?? 'Admin' }}</h4>
+                            @php
+                                $sidebarRoleTitle = match(auth()->user()->role) {
+                                    'superadmin' => 'SuperAdmin',
+                                    'admin' => 'Admin',
+                                    'cajero' => 'Cajero',
+                                    'trainer' => 'Coach',
+                                    default => 'Usuario'
+                                };
+                            @endphp
+                            <h4 class="font-bold text-xs text-slate-100 truncate tracking-wide">{{ $sidebarRoleTitle }} {{ auth()->user()->profile->first_name ?? 'Usuario' }}</h4>
                             <p class="text-[10px] text-lime-400 font-semibold truncate uppercase tracking-widest mt-0.5">{{ auth()->user()->gym->name ?? ($isSuperAdmin ? 'Superadministrador Global' : 'Sin Gimnasio') }}</p>
                         </div>
                     </div>
@@ -400,7 +409,7 @@
                         $isPrincipalActive = Request::is('dashboard') || Request::is('/') || Request::is('clientes*') || Request::is('asistencia*');
                         $isCajaActive = Request::is('tienda*') || Request::is('finanzas*') || Request::is('cierre-caja*');
                         $isEntrenamientoActive = Request::is('rutinas*') || Request::is('nutricion*') || Request::is('ingredientes*') || Request::is('recetas*') || Request::is('ejercicios*') || Request::is('equipamiento*') || Request::is('clases*') || Request::is('retos*') || Request::is('notificaciones*');
-                        $isSaaSActive = Request::is('staff*');
+                        $isSaaSActive = Request::is('staff*') || Request::is('cajeros*');
                         $isSuperadminActive = Request::is('superadmin*');
                     @endphp
 
@@ -475,7 +484,7 @@
                                         <span>Historial Ventas</span>
                                     </a>
                                     <a href="{{ url('/finanzas') }}" 
-                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('finanzas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('finanzas*') && !Request::is('finanzas/pasarelas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
                                         <i data-lucide="credit-card" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Finanzas & Pagos</span>
                                     </a>
@@ -484,6 +493,8 @@
                                         <i data-lucide="qr-code" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Pasarelas de Pago</span>
                                     </a>
+                                @endif
+                                @if(in_array(auth()->user()->role, ['admin', 'superadmin', 'cajero']))
                                     <a href="{{ url('/cierre-caja') }}" 
                                        class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('cierre-caja*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
                                         <i data-lucide="calculator" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
@@ -495,71 +506,73 @@
                     </div>
 
                     <!-- Group 3: Entrenamiento & Nutrición (Recuadro Box) -->
-                    <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
-                        <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
-                            <span class="flex items-center gap-2.5">
-                                <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
-                                    <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                    @if(in_array(auth()->user()->role, ['admin', 'superadmin', 'trainer']))
+                        <div class="sidebar-group-box rounded-2xl border p-2.5 transition-all duration-300 {{ $isEntrenamientoActive ? 'bg-slate-900/60 border-slate-800/90 shadow-md shadow-lime-500/[0.01]' : 'bg-slate-950/20 border-slate-900/60 hover:border-slate-800/60 hover:bg-slate-900/30' }}">
+                            <button onclick="toggleSidebarGroup('group-entrenamiento')" class="w-full flex items-center justify-between text-[11px] uppercase font-bold text-slate-300 hover:text-slate-100 px-1 py-0.5 transition-colors focus:outline-none cursor-pointer group/header">
+                                <span class="flex items-center gap-2.5">
+                                    <div class="p-1.5 {{ $isEntrenamientoActive ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850 group-hover/header:text-slate-300' }} rounded-lg transition-all duration-200">
+                                        <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="tracking-wider">Programas & Catálogos</span>
+                                </span>
+                                <div class="p-1 rounded-lg hover:bg-slate-800/50">
+                                    <i data-lucide="chevron-down" id="chevron-group-entrenamiento" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isEntrenamientoActive ? '' : '-rotate-90' }}"></i>
                                 </div>
-                                <span class="tracking-wider">Programas & Catálogos</span>
-                            </span>
-                            <div class="p-1 rounded-lg hover:bg-slate-800/50">
-                                <i data-lucide="chevron-down" id="chevron-group-entrenamiento" class="sidebar-chevron w-3.5 h-3.5 text-slate-500 {{ $isEntrenamientoActive ? '' : '-rotate-90' }}"></i>
-                            </div>
-                        </button>
-                        <div id="group-entrenamiento" class="sidebar-accordion-wrapper {{ $isEntrenamientoActive ? 'open' : '' }}">
-                            <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
-                                <a href="{{ url('/rutinas') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('rutinas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="dumbbell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Planes de Rutinas</span>
-                                </a>
-                                <a href="{{ url('/nutricion') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('nutricion*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="apple" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Planes de Nutrición</span>
-                                </a>
-                                <a href="{{ url('/ingredientes') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ingredientes*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Ingredientes & Macros</span>
-                                </a>
-                                <a href="{{ url('/recetas') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('recetas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="utensils" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Recetario & Platos</span>
-                                </a>
-                                <a href="{{ url('/ejercicios') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ejercicios*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="book-open" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Ejercicios & Biblioteca</span>
-                                </a>
-                                <a href="{{ url('/equipamiento') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('equipamiento*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Equipamiento Gym</span>
-                                </a>
-                                <a href="{{ url('/clases') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('clases*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="calendar-heart" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Clases & Eventos</span>
-                                </a>
-                                <a href="{{ url('/retos') }}" 
-                                   class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('retos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                    <span>Retos & Incentivos</span>
-                                </a>
-                                <a href="{{ url('/notificaciones') }}" 
-                                   class="sidebar-link flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('notificaciones*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
-                                    <span class="flex items-center gap-3">
-                                        <i data-lucide="bell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
-                                        <span>Notificaciones</span>
-                                    </span>
-                                    <span class="px-2 py-0.5 text-[9px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full">Pro</span>
-                                </a>
+                            </button>
+                            <div id="group-entrenamiento" class="sidebar-accordion-wrapper {{ $isEntrenamientoActive ? 'open' : '' }}">
+                                <div class="sidebar-accordion-inner pl-3 border-l border-slate-800/60 space-y-1 mt-2.5">
+                                    <a href="{{ url('/rutinas') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('rutinas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="dumbbell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Planes de Rutinas</span>
+                                    </a>
+                                    <a href="{{ url('/nutricion') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('nutricion*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="apple" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Planes de Nutrición</span>
+                                    </a>
+                                    <a href="{{ url('/ingredientes') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ingredientes*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="banana" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Ingredientes & Macros</span>
+                                    </a>
+                                    <a href="{{ url('/recetas') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('recetas*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="utensils" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Recetario & Platos</span>
+                                    </a>
+                                    <a href="{{ url('/ejercicios') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('ejercicios*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="book-open" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Ejercicios & Biblioteca</span>
+                                    </a>
+                                    <a href="{{ url('/equipamiento') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('equipamiento*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="wrench" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Equipamiento Gym</span>
+                                    </a>
+                                    <a href="{{ url('/clases') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('clases*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="calendar-heart" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Clases & Eventos</span>
+                                    </a>
+                                    <a href="{{ url('/retos') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('retos*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="trophy" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Retos & Incentivos</span>
+                                    </a>
+                                    <a href="{{ url('/notificaciones') }}" 
+                                       class="sidebar-link flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('notificaciones*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <span class="flex items-center gap-3">
+                                            <i data-lucide="bell" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                            <span>Notificaciones</span>
+                                        </span>
+                                        <span class="px-2 py-0.5 text-[9px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full">Pro</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @endif
 
                     <!-- Group 4: Configuración & Administración (Recuadro Box) -->
                     @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
@@ -582,6 +595,11 @@
                                        class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('staff*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
                                         <i data-lucide="users-2" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Entrenadores (Staff)</span>
+                                    </a>
+                                    <a href="{{ url('/cajeros') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('cajeros*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="calculator" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Cajeros (Recepción)</span>
                                     </a>
                                 </div>
                             </div>
@@ -789,7 +807,16 @@
                     <!-- Profile quick dropdown (Desktop) -->
                     <div class="flex items-center gap-3 pl-3 border-l border-slate-850">
                         <div class="text-right hidden xl:block">
-                            <span class="block text-xs font-semibold text-slate-200">Coach {{ auth()->user()->profile->first_name }}</span>
+                            @php
+                                $roleDisplay = match(auth()->user()->role) {
+                                    'superadmin' => 'SuperAdmin',
+                                    'admin' => 'Admin',
+                                    'cajero' => 'Cajero',
+                                    'trainer' => 'Coach',
+                                    default => 'Usuario'
+                                };
+                            @endphp
+                            <span class="block text-xs font-semibold text-slate-200">{{ $roleDisplay }} {{ auth()->user()->profile->first_name ?? '' }}</span>
                             <span class="block text-[10px] text-lime-400">Online</span>
                         </div>
                         <img src="{{ auth()->user()->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop' }}" 
@@ -1035,7 +1062,11 @@
                                 data.forEach(user => {
                                     const roleBadge = user.role === 'trainer' 
                                         ? '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded uppercase tracking-wider">Entrenador</span>' 
-                                        : '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded uppercase tracking-wider">Atleta</span>';
+                                        : (user.role === 'cajero'
+                                            ? '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded uppercase tracking-wider">Cajero</span>'
+                                            : (user.role === 'admin'
+                                                ? '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded uppercase tracking-wider">Admin</span>'
+                                                : '<span class="px-1.5 py-0.5 text-[8px] font-extrabold bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded uppercase tracking-wider">Atleta</span>'));
                                     
                                     html += `
                                         <a href="${user.url}" class="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-800/60 transition-colors group">
@@ -1371,7 +1402,9 @@
 
                     const newMain = doc.querySelector('main');
                     const newModals = doc.querySelector('#pjax-modals-container');
+                    const newScripts = doc.querySelector('#pjax-scripts-container');
                     const modalsContainer = document.getElementById('pjax-modals-container');
+                    const scriptsContainer = document.getElementById('pjax-scripts-container');
                     const newTitle = doc.querySelector('title') ? doc.querySelector('title').innerText : document.title;
 
                     if (!newMain || !mainContainer) {
@@ -1391,32 +1424,42 @@
                     if (modalsContainer) {
                         modalsContainer.innerHTML = newModals ? newModals.innerHTML : '';
                     }
+                    if (scriptsContainer) {
+                        scriptsContainer.innerHTML = newScripts ? newScripts.innerHTML : '';
+                    }
                     mainContainer.style.opacity = '1';
                     mainContainer.classList.remove('animate-fade-in');
                     void mainContainer.offsetWidth;
                     mainContainer.classList.add('animate-fade-in');
 
-                    // Collect all scripts from mainContainer and modalsContainer
+                    // Collect all scripts from mainContainer, modalsContainer and scriptsContainer
                     const incomingScripts = [];
                     mainContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
                     if (modalsContainer) {
                         modalsContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
                     }
+                    if (scriptsContainer) {
+                        scriptsContainer.querySelectorAll('script').forEach(s => incomingScripts.push(s));
+                    }
 
                     // Re-execute all scripts in sequence safely
                     incomingScripts.forEach(oldScript => {
+                        const newScript = document.createElement('script');
                         if (oldScript.src) {
-                            const newScript = document.createElement('script');
                             Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
                             newScript.src = oldScript.src;
                             if (oldScript.parentNode) {
                                 oldScript.parentNode.replaceChild(newScript, oldScript);
+                            } else {
+                                document.body.appendChild(newScript);
                             }
                         } else {
                             const code = oldScript.innerHTML || oldScript.textContent;
                             if (code && code.trim()) {
                                 try {
-                                    (0, eval)(code);
+                                    newScript.textContent = code;
+                                    document.body.appendChild(newScript);
+                                    newScript.remove();
                                 } catch (e) {
                                     console.error('Error executing inline PJAX script:', e);
                                 }
@@ -1581,6 +1624,8 @@
     <div id="pjax-modals-container">
         @stack('modals')
     </div>
-    @stack('scripts')
+    <div id="pjax-scripts-container">
+        @stack('scripts')
+    </div>
 </body>
 </html>

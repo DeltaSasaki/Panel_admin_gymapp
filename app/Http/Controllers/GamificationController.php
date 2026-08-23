@@ -8,6 +8,10 @@ use App\Models\UserChallenge;
 use App\Models\AchievementDefinition;
 use App\Models\UserAchievement;
 use App\Models\UserGamificationStat;
+use App\Models\WorkoutRoutine;
+use App\Models\Exercise;
+use App\Models\WorkoutSession;
+use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\AdminAuditLog;
 use Carbon\Carbon;
@@ -22,8 +26,8 @@ class GamificationController extends Controller
     {
         $gymId = $this->getActiveGymId();
 
-        // 1. Fetch Challenges
-        $challengesQuery = Challenge::query();
+        // 1. Fetch Challenges with relationships
+        $challengesQuery = Challenge::with(['routine', 'exercise', 'badge', 'userChallenges']);
         if ($gymId !== 'all') {
             $challengesQuery->where('gym_id', $gymId);
         }
@@ -46,21 +50,34 @@ class GamificationController extends Controller
         }
         $achievements = $achievementsQuery->orderBy('id', 'desc')->get();
 
-        // 3. Fetch Leaderboard (Top 10 athletes)
+        // 3. Fetch Routines and Exercises for Challenge Creation/Edit
+        $routinesQuery = WorkoutRoutine::where('is_active', 1);
+        if ($gymId !== 'all') {
+            $routinesQuery->where('gym_id', $gymId);
+        }
+        $routines = $routinesQuery->orderBy('name', 'asc')->get();
+
+        $exercisesQuery = Exercise::where('is_active', 1);
+        if ($gymId !== 'all') {
+            $exercisesQuery->where('gym_id', $gymId);
+        }
+        $exercises = $exercisesQuery->orderBy('name', 'asc')->get();
+
+        // 4. Fetch Leaderboard (Top 10 athletes)
         $leaderboardQuery = UserGamificationStat::with('user.profile');
         if ($gymId !== 'all') {
             $leaderboardQuery->where('gym_id', $gymId);
         }
         $leaderboard = $leaderboardQuery->orderBy('total_xp', 'desc')->take(10)->get();
 
-        // 4. Fetch Clients for quick modal operations
+        // 5. Fetch Clients for quick modal operations
         $clientsQuery = User::where('role', 'member')->where('is_active', 1)->with('profile');
         if ($gymId !== 'all') {
             $clientsQuery->where('gym_id', $gymId);
         }
         $clients = $clientsQuery->get();
 
-        // 5. Global Gamification Stats
+        // 6. Global Gamification Stats
         $statsQuery = UserGamificationStat::query();
         if ($gymId !== 'all') {
             $statsQuery->where('gym_id', $gymId);
@@ -79,6 +96,8 @@ class GamificationController extends Controller
         return view('retos.index', compact(
             'challenges', 
             'achievements', 
+            'routines',
+            'exercises',
             'leaderboard', 
             'clients',
             'totalXpDistributed',
@@ -88,17 +107,23 @@ class GamificationController extends Controller
     }
 
     /**
-     * Create a new gym challenge.
+     * Create a new gym challenge with goal configuration.
      */
     public function storeChallenge(Request $request)
     {
         $request->validate([
             'title' => 'required|string|max:150',
             'description' => 'nullable|string',
+            'goal_type' => 'required|in:routine,exercise,attendance,custom',
+            'routine_id' => 'nullable|required_if:goal_type,routine|exists:workout_routines,id',
+            'exercise_id' => 'nullable|required_if:goal_type,exercise|exists:exercises,id',
+            'target_value' => 'required|integer|min:1',
+            'target_unit' => 'nullable|string|max:50',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'xp_reward' => 'required|integer|min:0',
             'token_reward' => 'required|numeric|min:0',
+            'badge_id' => 'nullable|exists:achievement_definitions,id',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -110,20 +135,37 @@ class GamificationController extends Controller
             return redirect()->back()->withInput()->withErrors(['error' => $errorMsg]);
         }
 
+        // Determine default unit if not provided
+        $unit = $request->target_unit;
+        if (empty($unit)) {
+            if ($request->goal_type === 'routine') $unit = 'sesiones';
+            elseif ($request->goal_type === 'exercise') $unit = 'repeticiones';
+            elseif ($request->goal_type === 'attendance') $unit = 'días';
+            else $unit = 'puntos';
+        }
+
         $challenge = Challenge::create([
             'gym_id' => $gymId,
             'title' => $request->title,
             'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'routine_id' => $request->goal_type === 'routine' ? $request->routine_id : null,
+            'exercise_id' => $request->goal_type === 'exercise' ? $request->exercise_id : null,
+            'target_value' => (int) $request->target_value,
+            'target_unit' => $unit,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
-            'xp_reward' => $request->xp_reward,
-            'token_reward' => $request->token_reward,
+            'xp_reward' => (int) $request->xp_reward,
+            'token_reward' => (float) $request->token_reward,
+            'badge_id' => $request->filled('badge_id') ? $request->badge_id : null,
             'is_active' => 1,
         ]);
 
+        $challenge->load(['routine', 'exercise', 'badge']);
+
         AdminAuditLog::logAction('INSERT', 'challenges', $challenge->id, null, $challenge->toArray(), $gymId);
 
-        $message = 'Reto de gimnasio creado exitosamente.';
+        $message = 'Reto de gimnasio creado exitosamente con meta configurada.';
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
@@ -144,10 +186,16 @@ class GamificationController extends Controller
         $request->validate([
             'title' => 'required|string|max:150',
             'description' => 'nullable|string',
+            'goal_type' => 'required|in:routine,exercise,attendance,custom',
+            'routine_id' => 'nullable|required_if:goal_type,routine|exists:workout_routines,id',
+            'exercise_id' => 'nullable|required_if:goal_type,exercise|exists:exercises,id',
+            'target_value' => 'required|integer|min:1',
+            'target_unit' => 'nullable|string|max:50',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'xp_reward' => 'required|integer|min:0',
             'token_reward' => 'required|numeric|min:0',
+            'badge_id' => 'nullable|exists:achievement_definitions,id',
         ]);
 
         $gymId = $this->getActiveGymId();
@@ -157,14 +205,30 @@ class GamificationController extends Controller
         }
         $challenge = $challengeQuery->findOrFail($id);
 
+        $unit = $request->target_unit;
+        if (empty($unit)) {
+            if ($request->goal_type === 'routine') $unit = 'sesiones';
+            elseif ($request->goal_type === 'exercise') $unit = 'repeticiones';
+            elseif ($request->goal_type === 'attendance') $unit = 'días';
+            else $unit = 'puntos';
+        }
+
         $challenge->update([
             'title' => $request->title,
             'description' => $request->description,
+            'goal_type' => $request->goal_type,
+            'routine_id' => $request->goal_type === 'routine' ? $request->routine_id : null,
+            'exercise_id' => $request->goal_type === 'exercise' ? $request->exercise_id : null,
+            'target_value' => (int) $request->target_value,
+            'target_unit' => $unit,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
-            'xp_reward' => $request->xp_reward,
-            'token_reward' => $request->token_reward,
+            'xp_reward' => (int) $request->xp_reward,
+            'token_reward' => (float) $request->token_reward,
+            'badge_id' => $request->filled('badge_id') ? $request->badge_id : null,
         ]);
+
+        $challenge->load(['routine', 'exercise', 'badge']);
 
         $message = 'Reto de gimnasio actualizado exitosamente.';
 
@@ -335,7 +399,7 @@ class GamificationController extends Controller
     public function challengeParticipants($id)
     {
         $gymId = $this->getActiveGymId();
-        $challenge = Challenge::findOrFail($id);
+        $challenge = Challenge::with(['routine', 'exercise', 'badge'])->findOrFail($id);
 
         if ($gymId !== 'all' && $challenge->gym_id != $gymId) {
             abort(403, 'No tienes permisos para ver este reto.');
@@ -436,6 +500,18 @@ class GamificationController extends Controller
                 $stats->increment('total_xp', $challenge->xp_reward);
                 $stats->increment('token_balance', $challenge->token_reward);
 
+                // If challenge has a badge linked, award the badge!
+                if ($challenge->badge_id) {
+                    UserAchievement::firstOrCreate(
+                        ['user_id' => $userChallenge->user_id, 'achievement_definition_id' => $challenge->badge_id],
+                        [
+                            'achievement_type' => 'challenge_badge',
+                            'description' => 'Obtenido al superar el reto: ' . $challenge->title,
+                            'achieved_at' => Carbon::now()
+                        ]
+                    );
+                }
+
                 // Notify participant
                 \App\Models\Notification::create([
                     'user_id' => $userChallenge->user_id,
@@ -482,6 +558,123 @@ class GamificationController extends Controller
 
             return redirect()->back()->withErrors(['error' => $errorMsg]);
         }
+    }
+
+    /**
+     * Automatically evaluate real progression for participants in a challenge.
+     */
+    public function evaluateChallengeProgress(Request $request, $id)
+    {
+        $challenge = Challenge::with(['routine', 'exercise', 'badge'])->findOrFail($id);
+        $gymId = $this->getActiveGymId();
+        $targetGymId = ($gymId === 'all') ? $challenge->gym_id : $gymId;
+
+        $activeParticipants = UserChallenge::where('challenge_id', $id)
+            ->where('status', 'active')
+            ->with('user.profile')
+            ->get();
+
+        $completedCount = 0;
+        $updatedCount = 0;
+
+        foreach ($activeParticipants as $p) {
+            $userId = $p->user_id;
+            $newProgress = 0;
+
+            if ($challenge->goal_type === 'routine') {
+                // Count completed workout sessions of the linked routine within challenge dates
+                $newProgress = WorkoutSession::where('user_id', $userId)
+                    ->where('routine_id', $challenge->routine_id)
+                    ->whereDate('session_date', '>=', $challenge->start_date)
+                    ->whereDate('session_date', '<=', $challenge->end_date)
+                    ->count();
+            } elseif ($challenge->goal_type === 'attendance') {
+                // Count gym attendances within challenge dates
+                $newProgress = AttendanceLog::where('user_id', $userId)
+                    ->whereDate('access_time', '>=', $challenge->start_date)
+                    ->whereDate('access_time', '<=', $challenge->end_date)
+                    ->count();
+            } elseif ($challenge->goal_type === 'exercise') {
+                // Sum sets completed for the specific exercise within challenge dates
+                $newProgress = (int) DB::table('session_exercises')
+                    ->join('workout_sessions', 'session_exercises.session_id', '=', 'workout_sessions.id')
+                    ->where('workout_sessions.user_id', $userId)
+                    ->where('session_exercises.exercise_id', $challenge->exercise_id)
+                    ->whereDate('workout_sessions.session_date', '>=', $challenge->start_date)
+                    ->whereDate('workout_sessions.session_date', '<=', $challenge->end_date)
+                    ->sum('session_exercises.sets_completed');
+            } else {
+                // Custom goal: Keep existing progress
+                $newProgress = $p->progress_value;
+            }
+
+            $targetVal = max(1, (int) $challenge->target_value);
+            $isNowCompleted = ($newProgress >= $targetVal);
+
+            if ($isNowCompleted) {
+                $p->update([
+                    'progress_value' => $newProgress,
+                    'status' => 'completed',
+                    'completed_at' => Carbon::now(),
+                ]);
+
+                // Reward XP and tokens
+                $stats = UserGamificationStat::firstOrCreate(
+                    ['user_id' => $userId],
+                    ['gym_id' => $targetGymId, 'total_xp' => 0, 'token_balance' => 0.00]
+                );
+                $stats->increment('total_xp', $challenge->xp_reward);
+                $stats->increment('token_balance', $challenge->token_reward);
+
+                // If challenge has a badge/medal linked, award it!
+                if ($challenge->badge_id) {
+                    UserAchievement::firstOrCreate(
+                        ['user_id' => $userId, 'achievement_definition_id' => $challenge->badge_id],
+                        [
+                            'achievement_type' => 'challenge_badge',
+                            'description' => 'Obtenido al superar el reto: ' . $challenge->title,
+                            'achieved_at' => Carbon::now()
+                        ]
+                    );
+                }
+
+                // Notify participant
+                \App\Models\Notification::create([
+                    'user_id' => $userId,
+                    'title' => "🏆 ¡Reto Superado: {$challenge->title}!",
+                    'body' => "¡Felicitaciones! Has completado la meta del reto '{$challenge->title}'. Ganaste +{$challenge->xp_reward} XP y +{$challenge->token_reward} Monedas.",
+                    'type' => 'achievement',
+                    'is_read' => 0,
+                    'createdAt' => Carbon::now(),
+                ]);
+
+                $completedCount++;
+                $updatedCount++;
+            } else {
+                if ($newProgress != $p->progress_value) {
+                    $p->update(['progress_value' => $newProgress]);
+                    $updatedCount++;
+                }
+            }
+        }
+
+        $msg = "Evaluación completada. {$updatedCount} participantes actualizados ({$completedCount} completaron el reto).";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            $refreshedParticipants = UserChallenge::where('challenge_id', $id)
+                ->with('user.profile')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'updated_count' => $updatedCount,
+                'completed_count' => $completedCount,
+                'participants' => $refreshedParticipants
+            ]);
+        }
+
+        return redirect()->back()->with('success', $msg);
     }
 
     /**

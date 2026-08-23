@@ -1589,24 +1589,28 @@
             <!-- Calculadora en Vivo (Live Preview Box) -->
             <div id="abono_preview_box" class="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2.5 text-xs">
                 <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
-                    <span class="font-semibold">Precio del Plan:</span>
+                    <span class="font-semibold">Costo del Plan Activo:</span>
                     <span id="abono_preview_plan_price" class="font-bold text-slate-200">$0.00</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
-                    <span class="font-semibold">Costo Diario (1 Día):</span>
-                    <span id="abono_preview_daily_rate" class="font-bold text-amber-400">$0.00 / día</span>
-                </div>
-                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
                     <span class="font-semibold">Saldo a Favor Previo:</span>
-                    <span id="abono_preview_prev_credit" class="font-bold text-blue-400">$0.00</span>
+                    <span id="abono_preview_prev_credit" class="font-bold text-amber-400">$0.00</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-300 border-b border-slate-850/60 pb-2 font-bold">
+                    <span>Total Fondos Acumulados:</span>
+                    <span id="abono_preview_total_funds" class="font-black text-slate-100">$0.00</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
-                    <span class="font-semibold">Días Otorgados:</span>
-                    <span id="abono_preview_extra_days" class="font-black text-lime-400 text-sm">+0 Días</span>
+                    <span class="font-semibold">Estado de Renovación:</span>
+                    <span id="abono_preview_status_pill" class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">Acumulando Saldo</span>
+                </div>
+                <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2" id="abono_preview_missing_row">
+                    <span class="font-semibold">Falta para 1 Mes Completo:</span>
+                    <span id="abono_preview_missing_amount" class="font-bold text-rose-400">$0.00</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400 border-b border-slate-850/60 pb-2">
-                    <span class="font-semibold">Nuevo Saldo a Favor:</span>
-                    <span id="abono_preview_new_credit" class="font-bold text-emerald-400">$0.00</span>
+                    <span class="font-semibold">Saldo a Favor Restante:</span>
+                    <span id="abono_preview_new_credit" class="font-bold text-amber-400">$0.00</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-300 font-bold pt-1">
                     <span>Nueva Fecha de Vencimiento:</span>
@@ -2024,17 +2028,23 @@
         const amountInput = document.getElementById('abono_amount_input');
         
         const priceEl = document.getElementById('abono_preview_plan_price');
-        const rateEl = document.getElementById('abono_preview_daily_rate');
         const prevCreditEl = document.getElementById('abono_preview_prev_credit');
-        const extraDaysEl = document.getElementById('abono_preview_extra_days');
+        const totalFundsEl = document.getElementById('abono_preview_total_funds');
+        const statusPillEl = document.getElementById('abono_preview_status_pill');
+        const missingRowEl = document.getElementById('abono_preview_missing_row');
+        const missingAmountEl = document.getElementById('abono_preview_missing_amount');
         const newCreditEl = document.getElementById('abono_preview_new_credit');
         const newEndDateEl = document.getElementById('abono_preview_new_end_date');
 
         if (!select || !select.value) {
             if (priceEl) priceEl.textContent = '$0.00';
-            if (rateEl) rateEl.textContent = '$0.00 / día';
             if (prevCreditEl) prevCreditEl.textContent = '$0.00';
-            if (extraDaysEl) extraDaysEl.textContent = '+0 Días';
+            if (totalFundsEl) totalFundsEl.textContent = '$0.00';
+            if (statusPillEl) {
+                statusPillEl.textContent = 'Selecciona Membresía';
+                statusPillEl.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-slate-800 text-slate-400 border border-slate-700';
+            }
+            if (missingRowEl) missingRowEl.style.display = 'none';
             if (newCreditEl) newCreditEl.textContent = '$0.00';
             if (newEndDateEl) newEndDateEl.textContent = '--/--/----';
             return;
@@ -2047,29 +2057,52 @@
         const prevCredit = parseFloat(opt.getAttribute('data-credit-balance') || '0');
         const amount = parseFloat(amountInput ? amountInput.value : '0') || 0;
 
-        const totalFunds = amount + prevCredit;
-        const dailyRate = planDays > 0 ? (planPrice / planDays) : 0;
-        const extraDays = dailyRate > 0 ? Math.floor(totalFunds / dailyRate) : 0;
-        const costUsed = extraDays * dailyRate;
-        const newCredit = Math.max(0, totalFunds - costUsed);
+        const totalFunds = Math.round((amount + prevCredit) * 100) / 100;
+        const fullPeriods = planPrice > 0 ? Math.floor(totalFunds / planPrice) : 0;
+        const costUsed = fullPeriods * planPrice;
+        const newCredit = Math.max(0, Math.round((totalFunds - costUsed) * 100) / 100);
+        const missing = Math.max(0, Math.round((planPrice - totalFunds) * 100) / 100);
 
         if (priceEl) priceEl.textContent = '$' + planPrice.toFixed(2) + ' (' + planDays + ' días)';
-        if (rateEl) rateEl.textContent = '$' + dailyRate.toFixed(2) + ' / día';
         if (prevCreditEl) prevCreditEl.textContent = '$' + prevCredit.toFixed(2);
-        if (extraDaysEl) extraDaysEl.textContent = '+' + extraDays + ' Días';
+        if (totalFundsEl) totalFundsEl.textContent = '$' + totalFunds.toFixed(2);
         if (newCreditEl) newCreditEl.textContent = '$' + newCredit.toFixed(2);
 
-        if (endDateStr) {
-            let baseDate = new Date(endDateStr);
-            let now = new Date();
-            if (isNaN(baseDate.getTime()) || baseDate < now) {
-                baseDate = now;
+        if (fullPeriods >= 1) {
+            const daysAdded = fullPeriods * planDays;
+            if (statusPillEl) {
+                statusPillEl.textContent = `¡Renovará +${daysAdded} Días (${fullPeriods} Mes)!`;
+                statusPillEl.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
             }
-            baseDate.setDate(baseDate.getDate() + extraDays);
-            const day = String(baseDate.getDate()).padStart(2, '0');
-            const month = String(baseDate.getMonth() + 1).padStart(2, '0');
-            const year = baseDate.getFullYear();
-            if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year}`;
+            if (missingRowEl) missingRowEl.style.display = 'none';
+
+            if (endDateStr) {
+                let baseDate = new Date(endDateStr);
+                let now = new Date();
+                if (isNaN(baseDate.getTime()) || baseDate < now) {
+                    baseDate = now;
+                }
+                baseDate.setDate(baseDate.getDate() + daysAdded);
+                const day = String(baseDate.getDate()).padStart(2, '0');
+                const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+                const year = baseDate.getFullYear();
+                if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year}`;
+            }
+        } else {
+            if (statusPillEl) {
+                statusPillEl.textContent = 'Acumulando en Saldo';
+                statusPillEl.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            }
+            if (missingRowEl) missingRowEl.style.display = 'flex';
+            if (missingAmountEl) missingAmountEl.textContent = '$' + missing.toFixed(2);
+
+            if (endDateStr) {
+                let baseDate = new Date(endDateStr);
+                const day = String(baseDate.getDate()).padStart(2, '0');
+                const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+                const year = baseDate.getFullYear();
+                if (newEndDateEl) newEndDateEl.textContent = `${day}/${month}/${year} (Sin cambio)`;
+            }
         }
     }
 

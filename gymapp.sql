@@ -222,10 +222,17 @@ CREATE TABLE `challenges` (
   `gym_id` int(11) NOT NULL,
   `title` varchar(150) NOT NULL,
   `description` text DEFAULT NULL,
+  `goal_type` enum('routine','exercise','attendance','custom') NOT NULL DEFAULT 'custom',
+  `routine_id` int(11) DEFAULT NULL,
+  `exercise_id` int(11) DEFAULT NULL,
+  `target_value` int(11) NOT NULL DEFAULT 1,
+  `target_unit` varchar(50) NOT NULL DEFAULT 'sesiones',
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
   `xp_reward` int(11) DEFAULT 0,
   `token_reward` decimal(10,2) DEFAULT 0.00,
+  `badge_id` int(11) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `createdAt` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1138,7 +1145,7 @@ CREATE TABLE `users` (
   `gym_id` int(11) DEFAULT NULL,
   `email` varchar(150) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `role` enum('member','trainer','admin','superadmin') DEFAULT 'member',
+  `role` enum('member','trainer','admin','superadmin','cajero') DEFAULT 'member',
   `is_active` tinyint(1) DEFAULT 1,
   `email_verified` tinyint(1) DEFAULT 0,
   `credit_balance` decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Saldo a favor acumulado por abonos fraccionados',
@@ -2694,7 +2701,8 @@ ALTER TABLE `session_exercises`
 -- Filtros para la tabla `trainers`
 --
 ALTER TABLE `trainers`
-  ADD CONSTRAINT `trainers_ibfk_1` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `trainers_ibfk_1` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `trainers_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `users`

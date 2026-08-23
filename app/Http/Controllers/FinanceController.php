@@ -392,7 +392,7 @@ class FinanceController extends Controller
      */
     public function recordPayment(Request $request)
     {
-        $this->checkAdmin();
+        $this->checkCashierOrAdmin();
         $request->validate([
             'user_membership_id' => 'required|exists:user_memberships,id',
             'amount' => 'required|numeric|min:0',
@@ -506,7 +506,7 @@ class FinanceController extends Controller
      */
     public function recordAbono(Request $request)
     {
-        $this->checkAdmin();
+        $this->checkCashierOrAdmin();
         $request->validate([
             'user_membership_id' => 'required|exists:user_memberships,id',
             'amount' => 'required|numeric|min:0.01',
@@ -537,11 +537,11 @@ class FinanceController extends Controller
             }
 
             $plan = $membership->plan;
-            $durationDays = max(1, (int) $plan->duration_days);
-            $dailyRate = (float) $plan->price / $durationDays;
+            $planPrice = (float) $plan->price;
+            $planDays = max(1, (int) ($plan->duration_days ?: 30));
 
-            if ($dailyRate <= 0) {
-                $errMsg = 'El plan de membresía actual no tiene una tarifa diaria válida para abonar.';
+            if ($planPrice <= 0) {
+                $errMsg = 'El plan de membresía actual no tiene un costo válido configurado.';
                 if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                     return response()->json(['error' => $errMsg], 422);
                 }
@@ -551,18 +551,21 @@ class FinanceController extends Controller
             $user = $membership->user;
             $prevCredit = (float) ($user->credit_balance ?? 0);
             $payAmount = (float) $request->amount;
-            $totalFunds = $payAmount + $prevCredit;
-
-            $extraDays = (int) floor($totalFunds / $dailyRate);
+            $totalFunds = round($payAmount + $prevCredit, 2);
 
             $receiverId = auth()->check() ? auth()->user()->id : null;
             $source = $request->input('source', $receiverId ? 'admin_panel' : 'mobile_app');
 
-            if ($extraDays < 1) {
-                $newCredit = round($totalFunds, 2);
+            // Calculate how many full plan cycles (periods) can be covered by total funds
+            $fullPeriods = (int) floor($totalFunds / $planPrice);
+
+            // Case A: Funds are insufficient to cover a full plan period ($totalFunds < $planPrice)
+            if ($fullPeriods < 1) {
+                $newCredit = $totalFunds;
                 $user->update(['credit_balance' => $newCredit]);
 
-                $notes = "ABONO EN CREDITOS: Monto \${$payAmount} guardado en Saldo a Favor. Saldo total acumulado: \${$newCredit}. (Tarifa diaria: \$" . number_format($dailyRate, 2) . "/día).";
+                $missingAmount = round($planPrice - $newCredit, 2);
+                $notes = "ABONO EN SALDO A FAVOR: Recarga de \${$payAmount}" . ($prevCredit > 0 ? " (+ \${$prevCredit} previo)" : "") . ". Saldo acumulado: \${$newCredit} / \${$planPrice}. Faltan \${$missingAmount} para completar el plan '{$plan->name}'.";
 
                 $payment = MembershipPayment::create([
                     'membership_id' => $membership->id,
@@ -587,7 +590,7 @@ class FinanceController extends Controller
                     'amount' => $payAmount,
                     'payment_method' => $request->payment_method,
                     'reference_code' => $request->reference_number,
-                    'daily_rate' => $dailyRate,
+                    'daily_rate' => $planPrice,
                     'previous_credit' => $prevCredit,
                     'days_added' => 0,
                     'credit_used' => 0.00,
@@ -596,18 +599,17 @@ class FinanceController extends Controller
                 ]);
                 $creditLog->load(['user.profile', 'membership.plan', 'receiver.profile', 'payment']);
 
-                if ($membership->payment_status === 'pending') {
-                    $membership->update(['payment_status' => 'paid']);
-                }
-
-                $msg = "Abono de \${$payAmount} guardado como Saldo a Favor. Crédito acumulado total: \${$newCredit}. Faltan \$" . number_format($dailyRate - $newCredit, 2) . " para 1 día extra.";
+                $msg = "Abono de \${$payAmount} guardado en Saldo a Favor. Total acumulado: \${$newCredit}. Faltan \${$missingAmount} para renovar el plan ({$plan->name} - \${$planPrice}).";
 
                 if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                     return response()->json([
                         'success' => true,
                         'message' => $msg,
                         'extra_days' => 0,
+                        'full_periods' => 0,
                         'credit_balance' => $newCredit,
+                        'plan_price' => $planPrice,
+                        'missing_amount' => $missingAmount,
                         'log' => $creditLog,
                         'membership' => $membership->fresh(['user.profile', 'plan']),
                     ]);
@@ -616,8 +618,9 @@ class FinanceController extends Controller
                 return redirect()->back()->with('success', $msg);
             }
 
-            // Calculate cost used for extra days & remaining new credit
-            $costUsed = $extraDays * $dailyRate;
+            // Case B: Funds are enough to cover 1 or more full periods ($totalFunds >= $planPrice)
+            $costUsed = round($fullPeriods * $planPrice, 2);
+            $daysToAdd = $fullPeriods * $planDays;
             $newCredit = max(0, round($totalFunds - $costUsed, 2));
 
             // Update user credit balance
@@ -627,7 +630,7 @@ class FinanceController extends Controller
             $oldData = $membership->toArray();
             $currentEndDate = Carbon::parse($membership->end_date);
             $baseDate = $currentEndDate->isPast() ? Carbon::now() : $currentEndDate;
-            $newEndDate = $baseDate->copy()->addDays($extraDays);
+            $newEndDate = $baseDate->copy()->addDays($daysToAdd);
 
             // Update membership end date and status
             $membership->update([
@@ -636,10 +639,8 @@ class FinanceController extends Controller
                 'payment_status' => 'paid',
             ]);
 
-            // Record transaction
-            $formattedRate = number_format($dailyRate, 2);
             $creditText = $newCredit > 0 ? " (Saldo a favor restante: \${$newCredit})" : "";
-            $notes = "ABONO ADELANTADO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} saldo previo" : "") . " otorgó +{$extraDays} día(s) extra a \${$formattedRate}/día. Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
+            $notes = "RENOVACIÓN POR ABONO COMPLETO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} saldo acumulado previo" : "") . " cubrió el costo del plan '{$plan->name}' (\${$planPrice}). Se otorgaron +{$daysToAdd} días ({$fullPeriods} mes(es) / período(s)). Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
 
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
@@ -664,9 +665,9 @@ class FinanceController extends Controller
                 'amount' => $payAmount,
                 'payment_method' => $request->payment_method,
                 'reference_code' => $request->reference_number,
-                'daily_rate' => $dailyRate,
+                'daily_rate' => $planPrice,
                 'previous_credit' => $prevCredit,
-                'days_added' => $extraDays,
+                'days_added' => $daysToAdd,
                 'credit_used' => $costUsed,
                 'resulting_credit' => $newCredit,
                 'notes' => $notes,
@@ -675,22 +676,25 @@ class FinanceController extends Controller
 
             AdminAuditLog::logAction(
                 'TRANSACCION',
-                'Abono Adelantado',
-                "Abono de \${$payAmount} registrado para {$user->email} (+{$extraDays} días extra hasta " . $newEndDate->format('d/m/Y') . ").",
+                'Abono Plan Completo',
+                "Abono de \${$payAmount} completó el plan '{$plan->name}' para {$user->email} (+{$daysToAdd} días hasta " . $newEndDate->format('d/m/Y') . ").",
                 $oldData,
                 $membership->toArray(),
                 $membership->gym_id
             );
 
-            $msg = "¡Abono de \${$payAmount} registrado exitosamente! Se otorgaron +{$extraDays} día(s) adicionales de vigencia." . ($newCredit > 0 ? " Saldo a favor: \${$newCredit}" : "");
+            $periodText = $fullPeriods > 1 ? "{$fullPeriods} meses / períodos" : "1 mes / período completo (+{$daysToAdd} días)";
+            $msg = "¡Abono de \${$payAmount} registrado! Se completó el costo del plan ({$plan->name} - \${$planPrice}). Se renovó {$periodText} hasta el " . $newEndDate->format('d/m/Y') . "." . ($newCredit > 0 ? " Saldo restante a favor: \${$newCredit}" : "");
 
             if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 return response()->json([
                     'success' => true,
                     'message' => $msg,
-                    'extra_days' => $extraDays,
+                    'extra_days' => $daysToAdd,
+                    'full_periods' => $fullPeriods,
                     'new_end_date' => $newEndDate->format('Y-m-d'),
                     'new_end_date_formatted' => $newEndDate->format('d/m/Y'),
+                    'credit_balance' => $newCredit,
                     'log' => $creditLog,
                     'membership' => $membership->fresh(['user.profile', 'plan']),
                 ]);
@@ -723,7 +727,7 @@ class FinanceController extends Controller
      */
     public function renewMembership(Request $request)
     {
-        $this->checkAdmin();
+        $this->checkCashierOrAdmin();
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'plan_id' => 'required|exists:membership_plans,id',
@@ -1486,12 +1490,22 @@ class FinanceController extends Controller
     }
 
     /**
-     * Helper block for role protection.
+     * Helper block for role protection (Admin only for global finance metrics and plan creation).
      */
     private function checkAdmin()
     {
         if (!in_array(auth()->user()->role, ['admin', 'superadmin'])) {
-            abort(403, 'Acceso Denegado. Solo administradores pueden gestionar las finanzas.');
+            abort(403, 'Acceso Denegado. Solo administradores pueden gestionar las finanzas globales.');
+        }
+    }
+
+    /**
+     * Helper block for cashier and admin payment operations.
+     */
+    private function checkCashierOrAdmin()
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'superadmin', 'cajero'])) {
+            abort(403, 'Acceso Denegado. Solo personal autorizado puede registrar pagos.');
         }
     }
 }

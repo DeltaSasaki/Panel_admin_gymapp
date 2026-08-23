@@ -7,6 +7,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\StaffController;
+use App\Http\Controllers\CashierController;
 use App\Http\Controllers\CashClosingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentGatewayController;
@@ -165,10 +166,19 @@ Route::middleware(['auth'])->group(function () {
 
     // Staff / Entrenadores routes (restricted to admin/superadmin)
     Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+    Route::get('/staff/{id}/detalles', [StaffController::class, 'showDetails'])->name('staff.show_details');
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
     Route::put('/staff/{id}', [StaffController::class, 'update'])->name('staff.update');
     Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->name('staff.destroy');
     Route::post('/staff/{id}/toggle', [StaffController::class, 'toggleStatus'])->name('staff.toggle_status');
+
+    // Cajeros / Personal de Caja routes (restricted to admin/superadmin)
+    Route::get('/cajeros', [CashierController::class, 'index'])->name('cajeros.index');
+    Route::get('/cajeros/{id}/detalles', [CashierController::class, 'showDetails'])->name('cajeros.show_details');
+    Route::post('/cajeros', [CashierController::class, 'store'])->name('cajeros.store');
+    Route::put('/cajeros/{id}', [CashierController::class, 'update'])->name('cajeros.update');
+    Route::delete('/cajeros/{id}', [CashierController::class, 'destroy'])->name('cajeros.destroy');
+    Route::post('/cajeros/{id}/toggle', [CashierController::class, 'toggleStatus'])->name('cajeros.toggle_status');
 
     // Superadmin context switcher route
     Route::post('/superadmin/switch-gym', [AuthController::class, 'switchGym'])->name('superadmin.switch_gym');
@@ -222,6 +232,7 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/retos/medallas/{id}', [\App\Http\Controllers\GamificationController::class, 'updateAchievement'])->name('retos.update_achievement');
     Route::delete('/retos/medallas/{id}', [\App\Http\Controllers\GamificationController::class, 'deleteAchievement'])->name('retos.delete_achievement');
     Route::get('/retos/{id}/participantes', [\App\Http\Controllers\GamificationController::class, 'challengeParticipants'])->name('retos.participants');
+    Route::post('/retos/{id}/evaluar-progreso', [\App\Http\Controllers\GamificationController::class, 'evaluateChallengeProgress'])->name('retos.evaluate_progress');
     Route::post('/retos/inscribir', [\App\Http\Controllers\GamificationController::class, 'enrollParticipant'])->name('retos.enroll_participant');
     Route::post('/retos/participantes/{id}/actualizar', [\App\Http\Controllers\GamificationController::class, 'updateParticipant'])->name('retos.update_participant');
     Route::post('/retos/medallas/otorgar', [\App\Http\Controllers\GamificationController::class, 'awardAchievementToUser'])->name('retos.award_achievement');

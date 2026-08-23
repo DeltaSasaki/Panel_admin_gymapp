@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use App\Models\AdminAuditLog;
 use App\Models\User;
 
@@ -29,12 +31,27 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
         ]);
+        
+        $throttleKey = Str::lower(trim($request->input('email'))) . '|' . $request->ip();
 
-        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']])) {
+        // 1. Check if too many failed attempts (Max 5 attempts, lockout 60s)
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return back()->withErrors([
+                'email' => "Demasiados intentos fallidos de inicio de sesión. Por favor, intenta de nuevo en {$seconds} segundos.",
+            ])->withInput($request->only('email'));
+        }
+
+        $remember = $request->boolean('remember');
+
+        if (Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $remember)) {
+            // Clear failed rate limit attempts on success
+            RateLimiter::clear($throttleKey);
+
             $user = Auth::user();
             
-            // Check if the user is a trainer, admin, or superadmin
-            if (in_array($user->role, ['trainer', 'admin', 'superadmin'])) {
+            // Check if the user is a trainer, admin, superadmin, or cajero
+            if (in_array($user->role, ['trainer', 'admin', 'superadmin', 'cajero'])) {
                 if (!$user->is_active) {
                     AdminAuditLog::logAction('LOGIN_FAILED', 'users', $user->id, null, ['reason' => 'Cuenta desactivada', 'email' => $credentials['email']], $user->gym_id, $user->id);
                     Auth::logout();
@@ -52,9 +69,12 @@ class AuthController extends Controller
             AdminAuditLog::logAction('LOGIN_FAILED', 'users', $user->id, null, ['reason' => 'Intento de acceso por rol cliente', 'email' => $credentials['email']], $user->gym_id, $user->id);
             Auth::logout();
             return back()->withErrors([
-                'email' => 'Acceso restringido. Este panel es exclusivo para entrenadores y administradores.',
+                'email' => 'Acceso restringido. Este panel es exclusivo para personal administrativo, cajeros y entrenadores.',
             ]);
         }
+
+        // Increment failed attempt counter (lock for 60 seconds after 5 failures)
+        RateLimiter::hit($throttleKey, 60);
 
         // Failed credentials
         $targetUser = User::where('email', $credentials['email'])->first();
@@ -70,7 +90,7 @@ class AuthController extends Controller
 
         return back()->withErrors([
             'email' => 'Las credenciales no coinciden con nuestros registros.',
-        ]);
+        ])->withInput($request->only('email'));
     }
 
     /**

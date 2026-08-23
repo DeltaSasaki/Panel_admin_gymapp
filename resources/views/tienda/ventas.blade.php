@@ -97,7 +97,20 @@
                                 @endif
                             </td>
                             <td class="p-4 text-slate-300 whitespace-nowrap">
-                                {{ $sale->seller ? 'Coach ' . ($sale->seller->profile->first_name ?? $sale->seller->email) : 'Sistema' }}
+                                @if($sale->seller)
+                                    @php
+                                        $sellerPrefix = match($sale->seller->role) {
+                                            'cajero' => 'Cajero ',
+                                            'trainer' => 'Coach ',
+                                            'superadmin' => 'SuperAdmin ',
+                                            'admin' => 'Admin ',
+                                            default => ''
+                                        };
+                                    @endphp
+                                    {{ $sellerPrefix . ($sale->seller->profile->first_name ?? $sale->seller->email) }}
+                                @else
+                                    Sistema
+                                @endif
                             </td>
                             <td class="p-4">
                                 <ul class="space-y-0.5 list-inside list-disc text-slate-400 text-[10px]">

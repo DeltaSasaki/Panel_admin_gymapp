@@ -1725,7 +1725,7 @@ class AdminController extends Controller
             return response()->json([]);
         }
 
-        $users = User::whereIn('role', ['member', 'trainer'])
+        $users = User::whereIn('role', ['member', 'trainer', 'cajero'])
             ->when($gymId !== 'all', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
@@ -1823,10 +1823,10 @@ class AdminController extends Controller
             ]);
         }
 
-        // 2. GYM ADMIN / OWNER / STAFF: Focus on Gym Operations & Member Alerts
+        // 2. GYM ADMIN / OWNER / STAFF / CAJERO: Focus on Gym Operations & Member Alerts
         $query = Notification::with(['user.profile', 'user.gym']);
 
-        if (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+        if (in_array($user->role, ['admin', 'owner', 'trainer', 'staff', 'cajero'])) {
             $userGymId = $user->gym_id;
             $query->where(function ($q) use ($userGymId, $user) {
                 $q->where('user_id', $user->id)
@@ -1892,7 +1892,7 @@ class AdminController extends Controller
         $query = Notification::with('user');
         if ($user->role === 'superadmin') {
             // Superadmin has global scope
-        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff', 'cajero'])) {
             $userGymId = $user->gym_id;
             $query->where(function ($q) use ($userGymId, $user) {
                 $q->where('user_id', $user->id)
@@ -1951,7 +1951,7 @@ class AdminController extends Controller
                       });
                 });
             }
-        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff'])) {
+        } elseif (in_array($user->role, ['admin', 'owner', 'trainer', 'staff', 'cajero'])) {
             $userGymId = $user->gym_id;
             $query->where(function ($q) use ($userGymId, $user) {
                 $q->where('user_id', $user->id)

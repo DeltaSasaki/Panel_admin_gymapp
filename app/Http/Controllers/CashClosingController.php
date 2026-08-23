@@ -239,8 +239,8 @@ class CashClosingController extends Controller
      */
     private function checkAdmin()
     {
-        if (!in_array(auth()->user()->role, ['admin', 'superadmin'])) {
-            abort(403, 'Acceso Denegado. Solo administradores pueden realizar el cierre de caja.');
+        if (!in_array(auth()->user()->role, ['admin', 'superadmin', 'cajero'])) {
+            abort(403, 'Acceso Denegado. Solo administradores y cajeros pueden realizar el cierre de caja.');
         }
     }
 }

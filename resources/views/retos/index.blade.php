@@ -153,30 +153,79 @@
                         <div class="flex justify-between items-start gap-3">
                             <div class="flex items-center gap-3">
                                 <div class="p-3 rounded-2xl bg-gradient-to-br from-lime-500/20 to-emerald-500/10 border border-lime-500/30 text-lime-400 shrink-0 shadow-inner">
-                                    <i data-lucide="trophy" class="w-5 h-5"></i>
+                                    @if($challenge->goal_type === 'routine')
+                                        <i data-lucide="dumbbell" class="w-5 h-5"></i>
+                                    @elseif($challenge->goal_type === 'exercise')
+                                        <i data-lucide="activity" class="w-5 h-5"></i>
+                                    @elseif($challenge->goal_type === 'attendance')
+                                        <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                                    @else
+                                        <i data-lucide="trophy" class="w-5 h-5"></i>
+                                    @endif
                                 </div>
                                 <div class="min-w-0">
                                     <h3 class="font-black text-base text-slate-100 group-hover:text-lime-400 transition-colors truncate" id="challenge_title_{{ $challenge->id }}">{{ $challenge->title }}</h3>
-                                    <span class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Desafío Oficial</span>
+                                    <span class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                        @if($challenge->goal_type === 'routine')
+                                            🎯 Meta por Rutina
+                                        @elseif($challenge->goal_type === 'exercise')
+                                            🏋️ Meta por Ejercicio
+                                        @elseif($challenge->goal_type === 'attendance')
+                                            📅 Meta de Asistencia
+                                        @else
+                                            ⭐ Reto Personalizado
+                                        @endif
+                                    </span>
                                 </div>
                             </div>
                             <span id="challenge_status_badge_{{ $challenge->id }}" class="px-2.5 py-0.5 text-[9px] font-black uppercase rounded-lg border tracking-wider shrink-0 {{ $challenge->is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20' }}">
                                 {{ $challenge->is_active ? 'Activo' : 'Inactivo' }}
                             </span>
                         </div>
-                        <p class="text-slate-400 text-xs leading-relaxed line-clamp-3 font-medium" id="challenge_desc_{{ $challenge->id }}">{{ $challenge->description ?? 'Sin descripción disponible.' }}</p>
+                        
+                        <p class="text-slate-400 text-xs leading-relaxed line-clamp-2 font-medium" id="challenge_desc_{{ $challenge->id }}">{{ $challenge->description ?? 'Sin descripción disponible.' }}</p>
+
+                        <!-- Goal Target Banner -->
+                        <div class="p-2.5 bg-slate-950/90 border border-slate-850 rounded-2xl flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-semibold flex items-center gap-1.5 truncate">
+                                <i data-lucide="target" class="w-3.5 h-3.5 text-lime-400 shrink-0"></i>
+                                <span class="truncate">
+                                    @if($challenge->goal_type === 'routine')
+                                        Rutina: <strong class="text-slate-200">{{ $challenge->routine->name ?? 'Asignada' }}</strong>
+                                    @elseif($challenge->goal_type === 'exercise')
+                                        Ejercicio: <strong class="text-slate-200">{{ $challenge->exercise->name ?? 'Asignado' }}</strong>
+                                    @elseif($challenge->goal_type === 'attendance')
+                                        Asistencia al Gym
+                                    @else
+                                        Meta de Reto
+                                    @endif
+                                </span>
+                            </span>
+                            <span class="px-2 py-0.5 bg-lime-500/10 border border-lime-500/20 text-lime-400 font-black text-[10px] rounded-lg shrink-0">
+                                {{ $challenge->target_value }} {{ $challenge->target_unit ?: 'sesiones' }}
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Rewards Pill Container -->
-                    <div class="grid grid-cols-2 gap-2.5 p-3 bg-slate-950/70 border border-slate-850 rounded-2xl">
-                        <div class="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 font-extrabold text-xs">
-                            <i data-lucide="zap" class="w-4 h-4 shrink-0"></i>
-                            <span id="challenge_xp_{{ $challenge->id }}">+{{ number_format($challenge->xp_reward) }} XP</span>
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-2 gap-2.5 p-2.5 bg-slate-950/70 border border-slate-850 rounded-2xl">
+                            <div class="flex items-center gap-2 p-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 font-extrabold text-xs">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span id="challenge_xp_{{ $challenge->id }}">+{{ number_format($challenge->xp_reward) }} XP</span>
+                            </div>
+                            <div class="flex items-center gap-2 p-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 font-extrabold text-xs">
+                                <i data-lucide="coins" class="w-3.5 h-3.5 shrink-0"></i>
+                                <span id="challenge_token_{{ $challenge->id }}">+{{ number_format($challenge->token_reward, 2) }}</span>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 font-extrabold text-xs">
-                            <i data-lucide="coins" class="w-4 h-4 shrink-0"></i>
-                            <span id="challenge_token_{{ $challenge->id }}">+{{ number_format($challenge->token_reward, 2) }} Monedas</span>
-                        </div>
+
+                        @if($challenge->badge)
+                            <div class="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-yellow-400 text-xs font-bold truncate">
+                                <i data-lucide="medal" class="w-3.5 h-3.5 text-yellow-400 shrink-0"></i>
+                                <span class="truncate">Medalla: <strong>{{ $challenge->badge->name }}</strong></span>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- Dates & Actions Footer -->
@@ -397,7 +446,7 @@
                     <div class="space-y-3.5">
                         <div class="flex justify-between items-start gap-3">
                             <div class="flex items-center gap-3">
-                                <div class="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 text-amber-400 shrink-0 shadow-inner">
+                                <div class="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 text-amber-400 shrink-0 shadow-inner" id="achievement_icon_wrapper_{{ $ach->id }}">
                                     <i data-lucide="{{ $ach->icon_url ?? 'award' }}" class="w-6 h-6"></i>
                                 </div>
                                 <div class="min-w-0">
@@ -413,7 +462,7 @@
                     </div>
 
                     <!-- Athletes Unlocked Pill -->
-                    <div class="flex items-center justify-between py-2 px-3.5 bg-slate-950/80 border border-slate-850 rounded-2xl">
+                    <div class="flex items-center justify-between py-2 px-3.5 bg-slate-950/80 border border-slate-855 rounded-2xl">
                         <div class="flex items-center gap-2">
                             <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
                             <span class="text-xs text-slate-300 font-bold">
@@ -446,7 +495,7 @@
                         </span>
                         
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick='openEditAchievementModal({{ json_encode($ach) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Medalla">
+                            <button type="button" id="achievement_edit_btn_{{ $ach->id }}" onclick='openEditAchievementModal({{ json_encode($ach) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Medalla">
                                 <i data-lucide="edit-3" class="w-4 h-4"></i>
                             </button>
                             <button type="button" onclick="openDeleteAchievementModal({{ $ach->id }}, '{{ addslashes($ach->name) }}', {{ $ach->is_active ? 1 : 0 }})" 
@@ -491,8 +540,8 @@
 
 <!-- ================= MODAL: CREAR RETO ================= -->
 <div id="modal-create-challenge" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl">
-        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
             <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-widest flex items-center gap-2">
                 <i data-lucide="trophy" class="w-4 h-4 text-lime-400"></i> Crear Nuevo Reto del Gimnasio
             </h3>
@@ -504,12 +553,58 @@
             @csrf
             <div>
                 <label for="create_challenge_title" class="block text-slate-400 uppercase tracking-wider mb-1.5">Título del Reto *</label>
-                <input type="text" name="title" id="create_challenge_title" required placeholder="Ej: Maratón de 100K Calorías, Desafío de Fuerza..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
+                <input type="text" name="title" id="create_challenge_title" required placeholder="Ej: Maratón de Piernas, Reto Bench Press, Reto Asistencia..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50 font-bold">
             </div>
             <div>
                 <label for="create_challenge_description" class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción</label>
-                <textarea name="description" id="create_challenge_description" rows="3" placeholder="Detalla los requisitos para completar este reto..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50"></textarea>
+                <textarea name="description" id="create_challenge_description" rows="2" placeholder="Detalla los requisitos para completar este reto..." class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50"></textarea>
             </div>
+
+            <!-- Tipo de Objetivo / Meta -->
+            <div>
+                <label for="create_challenge_goal_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Objetivo / Condición *</label>
+                <select name="goal_type" id="create_challenge_goal_type" onchange="toggleChallengeGoalFields('create')" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                    <option value="routine">🎯 Por Rutina de Entrenamiento</option>
+                    <option value="exercise">🏋️ Por Ejercicio Específico</option>
+                    <option value="attendance">📅 Por Asistencias al Gimnasio</option>
+                    <option value="custom">⭐ Reto Libre / Puntos Personalizados</option>
+                </select>
+            </div>
+
+            <!-- Contenedor Condicional: Rutina -->
+            <div id="create_goal_routine_container">
+                <label for="create_challenge_routine_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">Seleccionar Rutina del Catálogo *</label>
+                <select name="routine_id" id="create_challenge_routine_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="" disabled selected>-- Elige una rutina activa --</option>
+                    @foreach($routines as $r)
+                        <option value="{{ $r->id }}">{{ $r->name }} ({{ $r->difficulty ?: 'General' }} - {{ $r->days_per_week ?: 3 }} días/sem)</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Contenedor Condicional: Ejercicio -->
+            <div id="create_goal_exercise_container" class="hidden">
+                <label for="create_challenge_exercise_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">Seleccionar Ejercicio del Catálogo *</label>
+                <select name="exercise_id" id="create_challenge_exercise_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="" disabled selected>-- Elige un ejercicio --</option>
+                    @foreach($exercises as $ex)
+                        <option value="{{ $ex->id }}">{{ $ex->name }} ({{ $ex->muscle_group ?: 'General' }})</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Meta Cantidad y Unidad -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="create_challenge_target_value" class="block text-slate-400 uppercase tracking-wider mb-1.5">Cantidad Meta *</label>
+                    <input type="number" name="target_value" id="create_challenge_target_value" required min="1" value="10" placeholder="Ej: 10" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
+                </div>
+                <div>
+                    <label for="create_challenge_target_unit" class="block text-slate-400 uppercase tracking-wider mb-1.5">Unidad de Medida *</label>
+                    <input type="text" name="target_unit" id="create_challenge_target_unit" required value="sesiones" placeholder="Ej: sesiones, días, repeticiones" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="create_challenge_start_date" class="block text-slate-400 uppercase tracking-wider mb-1.5">Fecha Inicio *</label>
@@ -520,15 +615,28 @@
                     <input type="date" name="end_date" id="create_challenge_end_date" required onclick="this.showPicker()" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
                 </div>
             </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="create_challenge_xp_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (XP) *</label>
-                    <input type="number" name="xp_reward" id="create_challenge_xp_reward" required min="0" placeholder="Ej: 500" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" name="xp_reward" id="create_challenge_xp_reward" required min="0" placeholder="Ej: 500" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
                 <div>
                     <label for="create_challenge_token_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (Monedas) *</label>
-                    <input type="number" step="0.01" name="token_reward" id="create_challenge_token_reward" required min="0" placeholder="Ej: 25.00" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" step="0.01" name="token_reward" id="create_challenge_token_reward" required min="0" placeholder="Ej: 25.00" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
+            </div>
+
+            <!-- Vincular Medalla Opcional -->
+            <div>
+                <label for="create_challenge_badge_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">🏅 Medalla de Recompensa (Opcional)</label>
+                <select name="badge_id" id="create_challenge_badge_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="">-- Sin medalla vinculada --</option>
+                    @foreach($achievements as $ach)
+                        <option value="{{ $ach->id }}">{{ $ach->name }} (+{{ number_format($ach->xp_reward) }} XP)</option>
+                    @endforeach
+                </select>
+                <p class="text-[10px] text-slate-500 mt-1 font-medium">Si seleccionas una medalla, se desbloqueará en el perfil del atleta automáticamente al ganar el reto.</p>
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -541,8 +649,8 @@
 
 <!-- ================= MODAL: EDITAR RETO ================= -->
 <div id="modal-edit-challenge" class="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl">
-        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg mx-auto my-auto overflow-hidden animate-scale-up shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
             <h3 class="font-extrabold text-sm text-slate-100 uppercase tracking-widest flex items-center gap-2">
                 <i data-lucide="edit-3" class="w-4 h-4 text-amber-400"></i> Editar Reto del Gimnasio
             </h3>
@@ -555,12 +663,58 @@
             @method('PUT')
             <div>
                 <label for="edit_challenge_title" class="block text-slate-400 uppercase tracking-wider mb-1.5">Título del Reto *</label>
-                <input type="text" name="title" id="edit_challenge_title" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <input type="text" name="title" id="edit_challenge_title" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 font-bold">
             </div>
             <div>
                 <label for="edit_challenge_description" class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción</label>
-                <textarea name="description" id="edit_challenge_description" rows="3" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                <textarea name="description" id="edit_challenge_description" rows="2" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
             </div>
+
+            <!-- Tipo de Objetivo / Meta -->
+            <div>
+                <label for="edit_challenge_goal_type" class="block text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Objetivo / Condición *</label>
+                <select name="goal_type" id="edit_challenge_goal_type" onchange="toggleChallengeGoalFields('edit')" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                    <option value="routine">🎯 Por Rutina de Entrenamiento</option>
+                    <option value="exercise">🏋️ Por Ejercicio Específico</option>
+                    <option value="attendance">📅 Por Asistencias al Gimnasio</option>
+                    <option value="custom">⭐ Reto Libre / Puntos Personalizados</option>
+                </select>
+            </div>
+
+            <!-- Contenedor Condicional: Rutina -->
+            <div id="edit_goal_routine_container">
+                <label for="edit_challenge_routine_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">Seleccionar Rutina del Catálogo *</label>
+                <select name="routine_id" id="edit_challenge_routine_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="" disabled selected>-- Elige una rutina activa --</option>
+                    @foreach($routines as $r)
+                        <option value="{{ $r->id }}">{{ $r->name }} ({{ $r->difficulty ?: 'General' }} - {{ $r->days_per_week ?: 3 }} días/sem)</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Contenedor Condicional: Ejercicio -->
+            <div id="edit_goal_exercise_container" class="hidden">
+                <label for="edit_challenge_exercise_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">Seleccionar Ejercicio del Catálogo *</label>
+                <select name="exercise_id" id="edit_challenge_exercise_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="" disabled selected>-- Elige un ejercicio --</option>
+                    @foreach($exercises as $ex)
+                        <option value="{{ $ex->id }}">{{ $ex->name }} ({{ $ex->muscle_group ?: 'General' }})</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <!-- Meta Cantidad y Unidad -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="edit_challenge_target_value" class="block text-slate-400 uppercase tracking-wider mb-1.5">Cantidad Meta *</label>
+                    <input type="number" name="target_value" id="edit_challenge_target_value" required min="1" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
+                </div>
+                <div>
+                    <label for="edit_challenge_target_unit" class="block text-slate-400 uppercase tracking-wider mb-1.5">Unidad de Medida *</label>
+                    <input type="text" name="target_unit" id="edit_challenge_target_unit" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="edit_challenge_start_date" class="block text-slate-400 uppercase tracking-wider mb-1.5">Fecha Inicio *</label>
@@ -571,15 +725,28 @@
                     <input type="date" name="end_date" id="edit_challenge_end_date" required onclick="this.showPicker()" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
                 </div>
             </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="edit_challenge_xp_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (XP) *</label>
-                    <input type="number" name="xp_reward" id="edit_challenge_xp_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" name="xp_reward" id="edit_challenge_xp_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
                 <div>
                     <label for="edit_challenge_token_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (Monedas) *</label>
-                    <input type="number" step="0.01" name="token_reward" id="edit_challenge_token_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" step="0.01" name="token_reward" id="edit_challenge_token_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
+            </div>
+
+            <!-- Vincular Medalla Opcional -->
+            <div>
+                <label for="edit_challenge_badge_id" class="block text-slate-400 uppercase tracking-wider mb-1.5">🏅 Medalla de Recompensa (Opcional)</label>
+                <select name="badge_id" id="edit_challenge_badge_id" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                    <option value="">-- Sin medalla vinculada --</option>
+                    @foreach($achievements as $ach)
+                        <option value="{{ $ach->id }}">{{ $ach->name }} (+{{ number_format($ach->xp_reward) }} XP)</option>
+                    @endforeach
+                </select>
+                <p class="text-[10px] text-slate-500 mt-1 font-medium">Si seleccionas una medalla, se desbloqueará en el perfil del atleta automáticamente al ganar el reto.</p>
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -679,15 +846,27 @@
             </div>
             <div>
                 <label for="create_ach_icon" class="block text-slate-400 uppercase tracking-wider mb-1.5">Icono de la Medalla</label>
-                <select name="icon_url" id="create_ach_icon" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                    <option value="award">Medalla (Insignia)</option>
-                    <option value="trophy">Trofeo de Victoria</option>
-                    <option value="crown">Corona Imperial</option>
-                    <option value="zap">Rayo de Energía</option>
-                    <option value="flame">Fuego Intenso</option>
-                    <option value="star">Estrella Brillante</option>
-                    <option value="shield">Escudo de Protección</option>
-                </select>
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0 shadow-inner flex items-center justify-center w-11 h-11" id="create_ach_icon_preview">
+                        <i data-lucide="award" class="w-6 h-6"></i>
+                    </div>
+                    <select name="icon_url" id="create_ach_icon" onchange="updateIconPreview('create')" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                        <option value="award">🏅 Medalla (Insignia de Honor)</option>
+                        <option value="trophy">🏆 Trofeo de Victoria</option>
+                        <option value="crown">👑 Corona de Campeón</option>
+                        <option value="zap">⚡ Rayo de Energía / Récord</option>
+                        <option value="flame">🔥 Fuego Intenso / Racha</option>
+                        <option value="star">⭐ Estrella Brillante</option>
+                        <option value="shield">🛡️ Escudo de Resistencia</option>
+                        <option value="dumbbell">🏋️ Pesa / Fuerza Pura</option>
+                        <option value="target">🎯 Diana / Precisión y Meta</option>
+                        <option value="medal">🥇 Medalla de Oro Olímpica</option>
+                        <option value="heart">❤️ Cardio y Vitalidad</option>
+                        <option value="activity">📈 Rendimiento Atlético</option>
+                        <option value="sparkles">✨ Brillo Legendario</option>
+                        <option value="flag">🚩 Meta Conquistada</option>
+                    </select>
+                </div>
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -714,7 +893,7 @@
             @method('PUT')
             <div>
                 <label for="edit_ach_name" class="block text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Medalla *</label>
-                <input type="text" name="name" id="edit_ach_name" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                <input type="text" name="name" id="edit_ach_name" required class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 font-bold">
             </div>
             <div>
                 <label for="edit_ach_description" class="block text-slate-400 uppercase tracking-wider mb-1.5">Descripción</label>
@@ -735,30 +914,42 @@
                 </div>
                 <div>
                     <label for="edit_ach_target_value" class="block text-slate-400 uppercase tracking-wider mb-1.5">Valor Meta *</label>
-                    <input type="number" name="target_value" id="edit_ach_target_value" required min="1" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" name="target_value" id="edit_ach_target_value" required min="1" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label for="edit_ach_xp_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (XP) *</label>
-                    <input type="number" name="xp_reward" id="edit_ach_xp_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" name="xp_reward" id="edit_ach_xp_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
                 <div>
                     <label for="edit_ach_token_reward" class="block text-slate-400 uppercase tracking-wider mb-1.5">Recompensa (Monedas) *</label>
-                    <input type="number" step="0.01" name="token_reward" id="edit_ach_token_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50">
+                    <input type="number" step="0.01" name="token_reward" id="edit_ach_token_reward" required min="0" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 font-bold focus:outline-none focus:border-lime-500/50">
                 </div>
             </div>
             <div>
                 <label for="edit_ach_icon" class="block text-slate-400 uppercase tracking-wider mb-1.5">Icono de la Medalla</label>
-                <select name="icon_url" id="edit_ach_icon" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                    <option value="award">Medalla (Insignia)</option>
-                    <option value="trophy">Trofeo de Victoria</option>
-                    <option value="crown">Corona Imperial</option>
-                    <option value="zap">Rayo de Energía</option>
-                    <option value="flame">Fuego Intenso</option>
-                    <option value="star">Estrella Brillante</option>
-                    <option value="shield">Escudo de Protección</option>
-                </select>
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0 shadow-inner flex items-center justify-center w-11 h-11" id="edit_ach_icon_preview">
+                        <i data-lucide="award" class="w-6 h-6"></i>
+                    </div>
+                    <select name="icon_url" id="edit_ach_icon" onchange="updateIconPreview('edit')" class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-lime-500/50 cursor-pointer font-bold">
+                        <option value="award">🏅 Medalla (Insignia de Honor)</option>
+                        <option value="trophy">🏆 Trofeo de Victoria</option>
+                        <option value="crown">👑 Corona de Campeón</option>
+                        <option value="zap">⚡ Rayo de Energía / Récord</option>
+                        <option value="flame">🔥 Fuego Intenso / Racha</option>
+                        <option value="star">⭐ Estrella Brillante</option>
+                        <option value="shield">🛡️ Escudo de Resistencia</option>
+                        <option value="dumbbell">🏋️ Pesa / Fuerza Pura</option>
+                        <option value="target">🎯 Diana / Precisión y Meta</option>
+                        <option value="medal">🥇 Medalla de Oro Olímpica</option>
+                        <option value="heart">❤️ Cardio y Vitalidad</option>
+                        <option value="activity">📈 Rendimiento Atlético</option>
+                        <option value="sparkles">✨ Brillo Legendario</option>
+                        <option value="flag">🚩 Meta Conquistada</option>
+                    </select>
+                </div>
             </div>
 
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -1037,8 +1228,31 @@
 
 
 
+    function toggleChallengeGoalFields(prefix) {
+        const goalTypeEl = document.getElementById(`${prefix}_challenge_goal_type`);
+        const routineBox = document.getElementById(`${prefix}_goal_routine_container`);
+        const exerciseBox = document.getElementById(`${prefix}_goal_exercise_container`);
+        const unitInput = document.getElementById(`${prefix}_challenge_target_unit`);
+
+        if (!goalTypeEl) return;
+        const val = goalTypeEl.value;
+
+        if (routineBox) routineBox.classList.toggle('hidden', val !== 'routine');
+        if (exerciseBox) exerciseBox.classList.toggle('hidden', val !== 'exercise');
+
+        if (unitInput && !unitInput.dataset.manualEdited) {
+            if (val === 'routine') unitInput.value = 'sesiones';
+            else if (val === 'exercise') unitInput.value = 'repeticiones';
+            else if (val === 'attendance') unitInput.value = 'días';
+            else if (val === 'custom') unitInput.value = 'puntos';
+        }
+    }
+
     function openCreateChallengeModal() {
         document.getElementById('create-challenge-form').reset();
+        const goalSelect = document.getElementById('create_challenge_goal_type');
+        if (goalSelect) goalSelect.value = 'routine';
+        toggleChallengeGoalFields('create');
         toggleModal('modal-create-challenge');
     }
 
@@ -1046,11 +1260,28 @@
         document.getElementById('edit-challenge-form').action = `/retos/${item.id}`;
         document.getElementById('edit_challenge_title').value = item.title;
         document.getElementById('edit_challenge_description').value = item.description || '';
+        
+        const editGoalType = document.getElementById('edit_challenge_goal_type');
+        if (editGoalType) editGoalType.value = item.goal_type || 'custom';
+
+        const editRoutine = document.getElementById('edit_challenge_routine_id');
+        if (editRoutine && item.routine_id) editRoutine.value = item.routine_id;
+
+        const editExercise = document.getElementById('edit_challenge_exercise_id');
+        if (editExercise && item.exercise_id) editExercise.value = item.exercise_id;
+
+        document.getElementById('edit_challenge_target_value').value = item.target_value || 10;
+        document.getElementById('edit_challenge_target_unit').value = item.target_unit || 'sesiones';
+
         document.getElementById('edit_challenge_start_date').value = item.start_date;
         document.getElementById('edit_challenge_end_date').value = item.end_date;
         document.getElementById('edit_challenge_xp_reward').value = item.xp_reward;
         document.getElementById('edit_challenge_token_reward').value = item.token_reward;
 
+        const editBadge = document.getElementById('edit_challenge_badge_id');
+        if (editBadge) editBadge.value = item.badge_id || '';
+
+        toggleChallengeGoalFields('edit');
         toggleModal('modal-edit-challenge');
     }
 
@@ -1076,8 +1307,18 @@
         toggleModal('modal-delete-challenge');
     }
 
+    function updateIconPreview(prefix) {
+        const sel = document.getElementById(`${prefix}_ach_icon`);
+        const box = document.getElementById(`${prefix}_ach_icon_preview`);
+        if (sel && box) {
+            box.innerHTML = `<i data-lucide="${sel.value || 'award'}" class="w-6 h-6"></i>`;
+            if (window.lucide) window.lucide.createIcons();
+        }
+    }
+
     function openCreateAchievementModal() {
         document.getElementById('create-achievement-form').reset();
+        updateIconPreview('create');
         toggleModal('modal-create-achievement');
     }
 
@@ -1089,7 +1330,8 @@
         document.getElementById('edit_ach_target_value').value = item.target_value;
         document.getElementById('edit_ach_xp_reward').value = item.xp_reward;
         document.getElementById('edit_ach_token_reward').value = item.token_reward;
-        if (item.icon_url) document.getElementById('edit_ach_icon').value = item.icon_url;
+        document.getElementById('edit_ach_icon').value = item.icon_url || 'award';
+        updateIconPreview('edit');
 
         toggleModal('modal-edit-achievement');
     }
@@ -1479,7 +1721,7 @@
                     <div class="space-y-3.5">
                         <div class="flex justify-between items-start gap-3">
                             <div class="flex items-center gap-3">
-                                <div class="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 text-amber-400 shrink-0 shadow-inner">
+                                <div class="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-500/10 border border-amber-500/30 text-amber-400 shrink-0 shadow-inner" id="achievement_icon_wrapper_${ach.id}">
                                     <i data-lucide="${iconName}" class="w-6 h-6"></i>
                                 </div>
                                 <div class="min-w-0">
@@ -1511,7 +1753,7 @@
                         </span>
                         
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick='openEditAchievementModal(${achJsonStr})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Medalla">
+                            <button type="button" id="achievement_edit_btn_${ach.id}" onclick='openEditAchievementModal(${achJsonStr})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Medalla">
                                 <i data-lucide="edit-3" class="w-4 h-4"></i>
                             </button>
                             <button type="button" onclick="openDeleteAchievementModal(${ach.id}, '${safeName.replace(/'/g, "\\'")}', 1)" id="achievement_toggle_btn_${ach.id}" class="p-2 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Medalla">
@@ -1584,12 +1826,24 @@
                     const condEl = document.getElementById(`achievement_cond_${ach.id}`);
                     const xpEl = document.getElementById(`achievement_xp_${ach.id}`);
                     const tokenEl = document.getElementById(`achievement_token_${ach.id}`);
+                    const iconWrapper = document.getElementById(`achievement_icon_wrapper_${ach.id}`);
+                    const editBtn = document.getElementById(`achievement_edit_btn_${ach.id}`);
 
                     if (nameEl) nameEl.textContent = ach.name;
                     if (descEl) descEl.textContent = ach.description || 'Sin descripción disponible.';
                     if (condEl) condEl.textContent = `${getConditionLabel(ach.condition_type)} • Meta: ${ach.target_value}`;
                     if (xpEl) xpEl.textContent = `+${ach.xp_reward} XP`;
                     if (tokenEl) tokenEl.textContent = `+${parseFloat(ach.token_reward).toFixed(2)} Monedas`;
+
+                    if (iconWrapper) {
+                        iconWrapper.innerHTML = `<i data-lucide="${ach.icon_url || 'award'}" class="w-6 h-6"></i>`;
+                    }
+
+                    if (editBtn) {
+                        editBtn.onclick = function() {
+                            openEditAchievementModal(ach);
+                        };
+                    }
                 }
 
                 if (window.lucide) window.lucide.createIcons();

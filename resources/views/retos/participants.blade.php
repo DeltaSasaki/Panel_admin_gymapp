@@ -6,25 +6,51 @@
 <div class="space-y-8 animate-fade-in">
     
     <!-- Top Action & Navigation Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 shadow-xl backdrop-blur-sm">
         <div>
             <a href="{{ route('retos.index') }}" class="inline-flex items-center gap-1.5 text-xs text-lime-400 font-extrabold hover:underline mb-2 transition-all">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
                 Volver a Retos & Clasificación
             </a>
-            <h1 class="text-3xl font-black text-slate-100 tracking-tight flex items-center gap-3">
+            <h1 class="text-2xl lg:text-3xl font-black text-slate-100 tracking-tight flex items-center gap-3">
                 {{ $challenge->title }}
                 <span class="px-2.5 py-0.5 text-xs font-extrabold rounded-lg uppercase tracking-wider border {{ $challenge->is_active ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20' }}">
                     {{ $challenge->is_active ? 'Reto Activo' : 'Reto Inactivo' }}
                 </span>
             </h1>
-            <p class="text-slate-400 text-xs mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-medium">
-                <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5 text-lime-400"></i> Vigencia: <strong class="text-slate-200">{{ \Carbon\Carbon::parse($challenge->start_date)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($challenge->end_date)->format('d/m/Y') }}</strong></span>
-                <span>•</span>
-                <span class="flex items-center gap-1 text-amber-400"><i data-lucide="zap" class="w-3.5 h-3.5"></i> Recompensa: <strong>+{{ number_format($challenge->xp_reward) }} XP</strong></span>
-                <span>•</span>
-                <span class="flex items-center gap-1 text-emerald-400"><i data-lucide="coins" class="w-3.5 h-3.5"></i> Monedas: <strong>+{{ number_format($challenge->token_reward, 2) }}</strong></span>
-            </p>
+            
+            <div class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+                <span class="px-2.5 py-1 rounded-xl bg-lime-500/10 border border-lime-500/25 text-lime-400 font-extrabold flex items-center gap-1.5">
+                    <i data-lucide="target" class="w-3.5 h-3.5"></i>
+                    {{ $challenge->goal_label }}
+                </span>
+
+                <span class="px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-850 text-slate-300 font-semibold flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-lime-400"></i>
+                    {{ \Carbon\Carbon::parse($challenge->start_date)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($challenge->end_date)->format('d/m/Y') }}
+                </span>
+
+                <span class="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold flex items-center gap-1">
+                    <i data-lucide="zap" class="w-3.5 h-3.5"></i> +{{ number_format($challenge->xp_reward) }} XP
+                </span>
+
+                <span class="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center gap-1">
+                    <i data-lucide="coins" class="w-3.5 h-3.5"></i> +{{ number_format($challenge->token_reward, 2) }}
+                </span>
+
+                @if($challenge->badge)
+                    <span class="px-2.5 py-1 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-bold flex items-center gap-1">
+                        <i data-lucide="medal" class="w-3.5 h-3.5"></i> Medalla: {{ $challenge->badge->name }}
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 shrink-0">
+            <button type="button" onclick="triggerEvaluateChallengeProgress({{ $challenge->id }})" id="btn-sync-challenge-progress" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black rounded-2xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-lime-500/15 active:scale-95">
+                <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-950" id="icon-sync-progress"></i>
+                <span id="text-sync-progress">Sincronizar Progreso</span>
+            </button>
         </div>
     </div>
 
@@ -201,8 +227,9 @@
                         <thead>
                             <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase font-extrabold tracking-wider">
                                 <th class="py-3 px-4">Atleta</th>
+                                <th class="py-3 px-4">Progreso / Meta</th>
                                 <th class="py-3 px-4 text-center">Estado</th>
-                                <th class="py-3 px-4 text-right">Progreso & Actualización</th>
+                                <th class="py-3 px-4 text-right">Actualización Manual</th>
                             </tr>
                         </thead>
                         <tbody id="participants-table-body" class="divide-y divide-slate-800/40 text-xs font-semibold">
@@ -211,6 +238,7 @@
                                     $clientName = trim(($p->user->profile->first_name ?? 'Atleta') . ' ' . ($p->user->profile->last_name ?? ''));
                                     $clientEmail = $p->user->email ?? '';
                                     $photoUrl = $p->user->profile->profile_photo ? asset($p->user->profile->profile_photo) : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
+                                    $percent = $p->progressPercentage();
                                 @endphp
                                 <tr id="participant_row_{{ $p->id }}" 
                                     data-participant-row
@@ -224,6 +252,17 @@
                                             <div class="overflow-hidden min-w-0">
                                                 <span class="block font-bold text-slate-100 truncate">{{ $clientName }}</span>
                                                 <span class="block text-[10px] text-slate-400 truncate">{{ $clientEmail }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-4 px-4">
+                                        <div class="space-y-1.5 min-w-[140px]">
+                                            <div class="flex items-center justify-between text-[11px]">
+                                                <span class="font-black text-slate-200" id="participant_progress_text_{{ $p->id }}">{{ $p->progress_value }} / {{ $challenge->target_value }} {{ $challenge->target_unit }}</span>
+                                                <span class="font-extrabold text-lime-400 text-[10px]" id="participant_percent_text_{{ $p->id }}">{{ $percent }}%</span>
+                                            </div>
+                                            <div class="w-full bg-slate-950 rounded-full h-1.5 border border-slate-850 overflow-hidden">
+                                                <div id="participant_progress_bar_{{ $p->id }}" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full rounded-full transition-all duration-500" style="width: {{ $percent }}%"></div>
                                             </div>
                                         </div>
                                     </td>
@@ -263,7 +302,7 @@
                                 </tr>
                             @empty
                                 <tr id="no_participants_empty">
-                                    <td colspan="3" class="py-16 text-center text-slate-500">
+                                    <td colspan="4" class="py-16 text-center text-slate-500">
                                         <i data-lucide="users-2" class="w-12 h-12 mx-auto text-slate-700 mb-3"></i>
                                         <p class="font-bold text-slate-400">No hay participantes registrados para este reto</p>
                                         <p class="text-xs text-slate-500 mt-1">Inscribe a tu primer atleta usando el panel de la izquierda.</p>
@@ -272,7 +311,7 @@
                             @endforelse
 
                             <tr id="no_participants_search_row" class="hidden">
-                                <td colspan="3" class="py-12 text-center text-slate-500">
+                                <td colspan="4" class="py-12 text-center text-slate-500">
                                     <i data-lucide="search-x" class="w-10 h-10 mx-auto text-slate-700 mb-2"></i>
                                     <p class="font-bold text-slate-400 text-sm">No se encontraron participantes que coincidan con la búsqueda.</p>
                                 </td>
@@ -593,6 +632,11 @@
                     ? `/${p.user.profile.profile_photo}`
                     : 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop';
 
+                const targetVal = {{ max(1, (int)$challenge->target_value) }};
+                const targetUnit = "{{ addslashes($challenge->target_unit) }}";
+                const pVal = parseInt(p.progress_value) || 0;
+                const percent = Math.min(100, Math.round((pVal / targetVal) * 100));
+
                 const tr = document.createElement('tr');
                 tr.id = `participant_row_${p.id}`;
                 tr.setAttribute('data-participant-row', '');
@@ -608,6 +652,17 @@
                             <div class="overflow-hidden min-w-0">
                                 <span class="block font-bold text-slate-100 truncate">${escapeHtml(clientName)}</span>
                                 <span class="block text-[10px] text-slate-400 truncate">${escapeHtml(clientEmail)}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <div class="space-y-1.5 min-w-[140px]">
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="font-black text-slate-200" id="participant_progress_text_${p.id}">${pVal} / ${targetVal} ${escapeHtml(targetUnit)}</span>
+                                <span class="font-extrabold text-lime-400 text-[10px]" id="participant_percent_text_${p.id}">${percent}%</span>
+                            </div>
+                            <div class="w-full bg-slate-950 rounded-full h-1.5 border border-slate-850 overflow-hidden">
+                                <div id="participant_progress_bar_${p.id}" class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
                             </div>
                         </div>
                     </td>
@@ -689,9 +744,23 @@
 
             if (data.success) {
                 const p = data.participant;
+                const targetVal = {{ max(1, (int)$challenge->target_value) }};
+                const targetUnit = "{{ addslashes($challenge->target_unit) }}";
+                const pVal = parseInt(p.progress_value) || 0;
+                const percent = Math.min(100, Math.round((pVal / targetVal) * 100));
+
                 const row = document.getElementById(`participant_row_${pId}`);
                 if (row) {
                     row.setAttribute('data-status', p.status);
+
+                    // Update progress bar and text
+                    const progText = document.getElementById(`participant_progress_text_${pId}`);
+                    const percText = document.getElementById(`participant_percent_text_${pId}`);
+                    const progBar = document.getElementById(`participant_progress_bar_${pId}`);
+
+                    if (progText) progText.textContent = `${pVal} / ${targetVal} ${targetUnit}`;
+                    if (percText) percText.textContent = `${percent}%`;
+                    if (progBar) progBar.style.width = `${percent}%`;
 
                     const badge = document.getElementById(`participant_badge_${pId}`);
                     if (badge) {
@@ -735,6 +804,100 @@
             showToast('Ocurrió un error al actualizar el participante.', 'error');
         } finally {
             setBtnLoading(submitBtn, false);
+        }
+    }
+
+    // Auto-Evaluation of Real Progress from workout sessions & attendance
+    async function triggerEvaluateChallengeProgress(challengeId) {
+        const btn = document.getElementById('btn-sync-challenge-progress');
+        const icon = document.getElementById('icon-sync-progress');
+        const label = document.getElementById('text-sync-progress');
+
+        if (btn) btn.disabled = true;
+        if (icon) icon.classList.add('animate-spin');
+        if (label) label.textContent = 'Evaluando...';
+
+        try {
+            const response = await fetch(`/retos/${challengeId}/evaluar-progreso`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const targetVal = {{ max(1, (int)$challenge->target_value) }};
+                const targetUnit = "{{ addslashes($challenge->target_unit) }}";
+
+                if (Array.isArray(data.participants)) {
+                    data.participants.forEach(p => {
+                        const pId = p.id;
+                        const row = document.getElementById(`participant_row_${pId}`);
+                        if (row) {
+                            row.setAttribute('data-status', p.status);
+
+                            const pVal = parseInt(p.progress_value) || 0;
+                            const percent = Math.min(100, Math.round((pVal / targetVal) * 100));
+
+                            const progText = document.getElementById(`participant_progress_text_${pId}`);
+                            const percText = document.getElementById(`participant_percent_text_${pId}`);
+                            const progBar = document.getElementById(`participant_progress_bar_${pId}`);
+
+                            if (progText) progText.textContent = `${pVal} / ${targetVal} ${targetUnit}`;
+                            if (percText) percText.textContent = `${percent}%`;
+                            if (progBar) progBar.style.width = `${percent}%`;
+
+                            const badge = document.getElementById(`participant_badge_${pId}`);
+                            if (badge) {
+                                let badgeClass = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+                                let badgeText = 'En Curso';
+
+                                if (p.status === 'completed') {
+                                    badgeClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                                    badgeText = 'Completado';
+                                } else if (p.status === 'failed') {
+                                    badgeClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+                                    badgeText = 'Fallido';
+                                }
+
+                                badge.className = `px-2.5 py-1 text-[9px] font-extrabold uppercase rounded-lg border tracking-wider ${badgeClass}`;
+                                badge.textContent = badgeText;
+                            }
+
+                            const actionCell = document.getElementById(`participant_action_cell_${pId}`);
+                            if (actionCell && p.status !== 'active') {
+                                actionCell.innerHTML = `
+                                    <div class="flex items-center justify-end gap-2 text-xs font-semibold text-slate-400 italic">
+                                        <span>Progreso Final: <strong class="text-slate-200 font-bold">${p.progress_value}</strong></span>
+                                        <span class="text-slate-600">•</span>
+                                        <span class="text-slate-500">Finalizado</span>
+                                    </div>
+                                `;
+                            }
+                        }
+                    });
+                }
+
+                if (window.lucide) window.lucide.createIcons();
+
+                updateCountsUI();
+                renderParticipantsPage();
+                showToast(data.message, 'success');
+            } else {
+                showToast(data.message || 'Error al evaluar el progreso de los participantes.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Ocurrió un error al sincronizar el progreso.', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+            if (icon) icon.classList.remove('animate-spin');
+            if (label) label.textContent = 'Sincronizar Progreso';
         }
     }
 
