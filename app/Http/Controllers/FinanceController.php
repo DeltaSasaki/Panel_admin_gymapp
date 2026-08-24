@@ -438,12 +438,17 @@ class FinanceController extends Controller
                 }
             }
 
+            $currentRate = \App\Services\ExchangeRateService::getCurrentRate($membership->gym_id);
+
             // Record payment
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
                 'user_id' => $membership->user_id,
                 'promo_code_id' => $promoId,
                 'amount' => $request->amount,
+                'amount_ves' => round((float)$request->amount * $currentRate, 2),
+                'exchange_rate' => $currentRate,
+                'payment_currency' => 'USD',
                 'payment_date' => Carbon::now(),
                 'payment_method' => $request->payment_method,
                 'reference_code' => $request->reference_number,
@@ -567,10 +572,14 @@ class FinanceController extends Controller
                 $missingAmount = round($planPrice - $newCredit, 2);
                 $notes = "ABONO EN SALDO A FAVOR: Recarga de \${$payAmount}" . ($prevCredit > 0 ? " (+ \${$prevCredit} previo)" : "") . ". Saldo acumulado: \${$newCredit} / \${$planPrice}. Faltan \${$missingAmount} para completar el plan '{$plan->name}'.";
 
+                $currentRate = \App\Services\ExchangeRateService::getCurrentRate($membership->gym_id);
                 $payment = MembershipPayment::create([
                     'membership_id' => $membership->id,
                     'user_id' => $membership->user_id,
                     'amount' => $payAmount,
+                    'amount_ves' => round((float)$payAmount * $currentRate, 2),
+                    'exchange_rate' => $currentRate,
+                    'payment_currency' => 'USD',
                     'payment_date' => Carbon::now(),
                     'payment_method' => $request->payment_method,
                     'reference_code' => $request->reference_number,
@@ -642,10 +651,14 @@ class FinanceController extends Controller
             $creditText = $newCredit > 0 ? " (Saldo a favor restante: \${$newCredit})" : "";
             $notes = "RENOVACIÓN POR ABONO COMPLETO: Pago de \${$payAmount}" . ($prevCredit > 0 ? " + \${$prevCredit} saldo acumulado previo" : "") . " cubrió el costo del plan '{$plan->name}' (\${$planPrice}). Se otorgaron +{$daysToAdd} días ({$fullPeriods} mes(es) / período(s)). Nueva vigencia hasta " . $newEndDate->format('d/m/Y') . "{$creditText}.";
 
+            $currentRate = \App\Services\ExchangeRateService::getCurrentRate($membership->gym_id);
             $payment = MembershipPayment::create([
                 'membership_id' => $membership->id,
                 'user_id' => $membership->user_id,
                 'amount' => $payAmount,
+                'amount_ves' => round((float)$payAmount * $currentRate, 2),
+                'exchange_rate' => $currentRate,
+                'payment_currency' => 'USD',
                 'payment_date' => Carbon::now(),
                 'payment_method' => $request->payment_method,
                 'reference_code' => $request->reference_number,
@@ -810,10 +823,14 @@ class FinanceController extends Controller
                     }
                 }
 
+                $currentRate = \App\Services\ExchangeRateService::getCurrentRate($membership->gym_id);
                 MembershipPayment::create([
                     'membership_id' => $membership->id,
                     'user_id' => $membership->user_id,
                     'amount' => $plan->price,
+                    'amount_ves' => round((float)$plan->price * $currentRate, 2),
+                    'exchange_rate' => $currentRate,
+                    'payment_currency' => 'USD',
                     'payment_date' => Carbon::now(),
                     'payment_method' => ($creditApplied >= $planPrice && !$request->filled('payment_method')) ? 'other' : $payMethod,
                     'reference_code' => $refCode,

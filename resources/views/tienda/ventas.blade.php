@@ -137,9 +137,18 @@
                                     <span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md font-semibold text-[10px]">Transf.</span>
                                 @endif
                             </td>
+                            @php
+                                $effectiveRate = ($sale->exchange_rate && (float)$sale->exchange_rate > 1.0001)
+                                    ? (float)$sale->exchange_rate
+                                    : (float)\App\Services\ExchangeRateService::getCurrentRate($sale->gym_id);
+
+                                $effectiveVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                                    ? (float)$sale->total_amount_ves
+                                    : ((float)$sale->total_amount * $effectiveRate);
+                            @endphp
                             <td class="p-4 text-right whitespace-nowrap">
                                 <span class="block font-mono font-black text-lime-400 text-sm">${{ number_format($sale->total_amount, 2) }}</span>
-                                <span class="block font-mono font-bold text-slate-400 text-[10px]">{{ \App\Services\ExchangeRateService::formatVES($sale->total_amount_ves > 0 ? $sale->total_amount_ves : ($sale->total_amount * ($sale->exchange_rate > 0 ? $sale->exchange_rate : \App\Services\ExchangeRateService::getCurrentRate($sale->gym_id)))) }}</span>
+                                <span class="block font-mono font-bold text-emerald-400 text-[10px]">Bs. {{ number_format($effectiveVes, 2, ',', '.') }}</span>
                             </td>
                             <td class="p-4 text-center pr-6 whitespace-nowrap">
                                 @if(!empty($sale->notes))

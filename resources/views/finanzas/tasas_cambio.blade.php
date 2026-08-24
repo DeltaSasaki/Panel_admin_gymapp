@@ -41,121 +41,220 @@
     <!-- Top KPI Cards & Live Converter -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
         
-        <!-- Card 1: Active Rate Widget -->
-        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden group card-hover-effect">
-            <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-lime-500/5 rounded-full blur-2xl group-hover:bg-lime-500/10 transition-all"></div>
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <i data-lucide="coins" class="w-4 h-4 text-lime-400"></i> Tasa Activa Vigente
-                </span>
-                @if($activeRecord)
-                    <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md border {{ $activeRecord->rate_source === 'bcv' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20' }}">
-                        {{ $activeRecord->source_label }}
+        <!-- Card 1: Active Rate Widget with Interactive Sparkline & Variations -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 relative overflow-hidden card-hover-effect flex flex-col justify-between shadow-lg">
+            <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-lime-500/5 rounded-full blur-2xl group-hover:bg-lime-500/10 transition-all pointer-events-none"></div>
+            
+            <div>
+                <!-- Top Header -->
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <span class="p-1.5 bg-lime-500/10 text-lime-400 rounded-lg border border-lime-500/20">
+                            <i data-lucide="coins" class="w-3.5 h-3.5"></i>
+                        </span>
+                        Tasa Activa Vigente
                     </span>
-                @endif
+                    @if($activeRecord)
+                        <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-md border {{ $activeRecord->rate_source === 'bcv' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20' }}">
+                            {{ $activeRecord->source_label }}
+                        </span>
+                    @endif
+                </div>
+
+                <!-- Big Main Metric -->
+                <div class="flex items-baseline gap-2 mt-1">
+                    <span class="text-2xl lg:text-3xl font-black text-white tracking-tight font-mono">
+                        Bs. {{ number_format($currentRate, 4, ',', '.') }}
+                    </span>
+                    <span class="text-xs font-bold text-slate-500">/ 1 USD</span>
+                </div>
             </div>
 
-            <div class="flex items-baseline gap-2">
-                <span class="text-3xl font-black text-white tracking-tight">
-                    Bs. {{ number_format($currentRate, 4, ',', '.') }}
-                </span>
-                <span class="text-xs font-bold text-slate-500">/ 1 USD</span>
+            <!-- Mini Sparkline Graph -->
+            <div class="my-2 bg-slate-950/60 border border-slate-850/80 rounded-xl p-2.5">
+                <div class="flex items-center justify-between text-[9px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                    <span>Tendencia Reciente</span>
+                    <span class="text-slate-400 font-mono">Min: {{ number_format($minRate, 2, ',', '.') }} • Max: {{ number_format($maxRate, 2, ',', '.') }}</span>
+                </div>
+                <!-- SVG Sparkline with Gradient Area -->
+                <div class="h-10 w-full relative">
+                    @php
+                        $count = count($recentRates);
+                        $points = [];
+                        $spread = ($maxRate - $minRate) > 0 ? ($maxRate - $minRate) : 1;
+                        foreach($recentRates as $idx => $r) {
+                            $x = $count > 1 ? ($idx / ($count - 1)) * 100 : 50;
+                            $norm = (($r - $minRate) / $spread);
+                            $y = 35 - ($norm * 25);
+                            $points[] = "{$x},{$y}";
+                        }
+                        $pointsStr = implode(' ', $points);
+                    @endphp
+                    <svg viewBox="0 0 100 40" class="w-full h-full overflow-visible" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="sparklineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#84cc16" stop-opacity="0.35"/>
+                                <stop offset="100%" stop-color="#84cc16" stop-opacity="0.0"/>
+                            </linearGradient>
+                        </defs>
+                        <polygon points="0,40 {{ $pointsStr }} 100,40" fill="url(#sparklineGrad)" />
+                        <polyline points="{{ $pointsStr }}" fill="none" stroke="#84cc16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
             </div>
 
-            <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800/60 text-xs">
+            <!-- Bottom Telemetry Footer -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
                 <div class="flex items-center gap-1.5">
                     @php
                         $var = $activeRecord ? (float)$activeRecord->variation_percent : 0.00;
                     @endphp
                     @if($var > 0)
-                        <span class="text-rose-400 font-extrabold flex items-center gap-0.5 text-[11px]">
+                        <span class="text-rose-400 font-extrabold flex items-center gap-0.5 text-[10px]">
                             <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> +{{ $var }}%
                         </span>
                     @elseif($var < 0)
-                        <span class="text-emerald-400 font-extrabold flex items-center gap-0.5 text-[11px]">
+                        <span class="text-emerald-400 font-extrabold flex items-center gap-0.5 text-[10px]">
                             <i data-lucide="trending-down" class="w-3.5 h-3.5"></i> {{ $var }}%
                         </span>
                     @else
-                        <span class="text-slate-400 font-bold text-[11px]">0.00%</span>
+                        <span class="text-slate-400 font-bold text-[10px]">0.00%</span>
                     @endif
                     <span class="text-[10px] text-slate-500">vs tasa previa</span>
                 </div>
-                <span class="text-[10px] text-slate-400 font-medium">
+                <span class="text-[10px] text-slate-400 font-mono">
                     {{ $activeRecord && $activeRecord->effective_at ? \Carbon\Carbon::parse($activeRecord->effective_at)->format('d/m/Y H:i') : date('d/m/Y') }}
                 </span>
             </div>
         </div>
 
-        <!-- Card 2: Interactive Live Currency Calculator -->
-        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden card-hover-effect">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i> Calculadora Rápida
+        <!-- Card 2: Interactive Live Currency Calculator (Redesigned Ultra-Modern UI) -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 relative overflow-hidden card-hover-effect flex flex-col justify-between shadow-lg">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                    <span class="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+                        <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+                    </span>
+                    Calculadora de Conversión
                 </span>
-                <span class="text-[10px] text-slate-500 font-medium">Tiempo Real</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2.5 mt-2">
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Monto (USD $)</label>
-                    <div class="relative">
-                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">$</span>
-                        <input type="number" 
-                               id="calc-usd" 
-                               step="0.01" 
-                               value="10.00" 
-                               oninput="calcUsdToVes(this.value)" 
-                               class="w-full pl-6 pr-2 py-1.5 text-xs font-bold bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase font-bold text-slate-400 mb-1">Equivalente (VES Bs.)</label>
-                    <div class="relative">
-                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-500">Bs.</span>
-                        <input type="number" 
-                               id="calc-ves" 
-                               step="0.01" 
-                               value="{{ number_format(10 * $currentRate, 2, '.', '') }}" 
-                               oninput="calcVesToUsd(this.value)" 
-                               class="w-full pl-8 pr-2 py-1.5 text-xs font-bold bg-slate-950 border border-slate-800 rounded-xl text-lime-400 focus:outline-none focus:border-lime-500">
-                    </div>
-                </div>
-            </div>
-
-            <p class="text-[10px] text-slate-500 mt-3 pt-2 border-t border-slate-800/60 truncate">
-                Fórmula: <span class="text-slate-300 font-mono">USD × {{ number_format($currentRate, 2, ',', '.') }} Bs</span>
-            </p>
-        </div>
-
-        <!-- Card 3: Sucursal Configuration Mode -->
-        <div class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 relative overflow-hidden card-hover-effect">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <i data-lucide="shield-check" class="w-4 h-4 text-purple-400"></i> Modo de Tasa
+                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-bold text-emerald-400">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> En Vivo
                 </span>
-                <button type="button" onclick="window.toggleModal('modal-config-rate')" class="text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase transition-colors">
-                    Configurar
-                </button>
             </div>
 
-            <div class="space-y-1.5">
-                <div class="text-xs font-bold text-slate-200">
-                    {{ $activeGym ? $activeGym->name : 'Contexto Global' }}
+            <!-- Currency Conversion Input Modules -->
+            <div class="space-y-2 my-1">
+                <!-- USD Input Box -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between gap-3 focus-within:border-lime-500/60 focus-within:ring-1 focus-within:ring-lime-500/30 transition-all">
+                    <div class="flex-1 min-w-0">
+                        <span class="block text-[9px] uppercase font-extrabold text-slate-500 tracking-wider">Dólares (USD $)</span>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span class="text-sm font-black text-slate-400 font-mono">$</span>
+                            <input type="number" 
+                                   id="calc-usd" 
+                                   step="any" 
+                                   value="10" 
+                                   oninput="calcUsdToVes(this.value)" 
+                                   placeholder="0.00"
+                                   class="w-full bg-transparent text-sm font-black text-slate-100 font-mono focus:outline-none placeholder-slate-700 no-spinners">
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-300 text-[11px] font-black rounded-lg shrink-0 tracking-wider">
+                        USD
+                    </span>
                 </div>
-                <div class="flex items-center gap-2">
-                    @php
-                        $gymRateType = $activeGym ? $activeGym->dollar_rate_type : 'bcv';
-                    @endphp
-                    <span class="w-2 h-2 rounded-full {{ $gymRateType === 'bcv' ? 'bg-emerald-400' : 'bg-purple-400' }} animate-pulse"></span>
-                    <span class="text-xs text-slate-300 font-medium">
-                        {{ $gymRateType === 'bcv' ? 'Sincronización Oficial BCV' : 'Tasa Fija Personalizada' }}
+
+                <!-- Interactive Swap Icon -->
+                <div class="flex items-center justify-center -my-1">
+                    <button type="button" onclick="swapCalcCurrencies()" class="w-6 h-6 bg-slate-800/90 hover:bg-lime-500 hover:text-slate-950 text-slate-400 border border-slate-700/80 rounded-full flex items-center justify-center transition-all shadow-md group cursor-pointer" title="Intercambiar / Invertir Conversión">
+                        <i data-lucide="arrow-down-up" class="w-3 h-3 group-hover:rotate-180 transition-transform duration-300"></i>
+                    </button>
+                </div>
+
+                <!-- VES Input Box -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-2.5 flex items-center justify-between gap-3 focus-within:border-lime-500/60 focus-within:ring-1 focus-within:ring-lime-500/30 transition-all">
+                    <div class="flex-1 min-w-0">
+                        <span class="block text-[9px] uppercase font-extrabold text-slate-500 tracking-wider">Bolívares (VES Bs.)</span>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span class="text-xs font-black text-lime-500/70 font-mono">Bs.</span>
+                            <input type="number" 
+                                   id="calc-ves" 
+                                   step="any" 
+                                   value="{{ number_format(10 * $currentRate, 2, '.', '') }}" 
+                                   oninput="calcVesToUsd(this.value)" 
+                                   placeholder="0.00"
+                                   class="w-full bg-transparent text-sm font-black text-lime-400 font-mono focus:outline-none placeholder-slate-700 no-spinners">
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 bg-lime-500/10 border border-lime-500/20 text-lime-400 text-[11px] font-black rounded-lg shrink-0 tracking-wider">
+                        VES
                     </span>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between mt-4 pt-3 border-t border-slate-800/60 text-[10px] text-slate-400">
-                <span>Cron Automático: <strong class="text-slate-300">09:00 AM y 05:00 PM</strong></span>
-                <span class="text-emerald-400 font-bold">Activo</span>
+            <!-- Quick Preset Chips -->
+            <div class="flex items-center justify-between gap-1 pt-2 border-t border-slate-800/60 mt-1">
+                <span class="text-[9px] uppercase font-bold text-slate-500 shrink-0">Presets:</span>
+                <div class="flex items-center gap-1 overflow-x-auto">
+                    @foreach([5, 10, 20, 50, 100] as $preset)
+                        <button type="button" onclick="setCalcPreset({{ $preset }})" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-lime-500/40 text-slate-300 hover:text-lime-400 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer">
+                            ${{ $preset }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Sucursal Configuration Mode & Sync Telemetry -->
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 relative overflow-hidden card-hover-effect flex flex-col justify-between shadow-lg">
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <span class="p-1.5 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/20">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                        </span>
+                        Modo de Operación
+                    </span>
+                    <button type="button" onclick="window.toggleModal('modal-config-rate')" class="text-[10px] text-lime-400 hover:text-lime-300 font-bold uppercase transition-colors flex items-center gap-1">
+                        <i data-lucide="sliders-horizontal" class="w-3 h-3"></i> Configurar
+                    </button>
+                </div>
+
+                <div class="mt-1.5 flex items-center justify-between">
+                    <span class="text-sm font-bold text-slate-100 truncate max-w-[180px]">
+                        {{ $activeGym ? $activeGym->name : 'Contexto Global (Todas)' }}
+                    </span>
+                    @php
+                        $gymRateType = $activeGym ? $activeGym->dollar_rate_type : 'bcv';
+                    @endphp
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide {{ $gymRateType === 'bcv' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20' }}">
+                        {{ $gymRateType === 'bcv' ? 'Auto BCV' : 'Fija Manual' }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Two Mini Telemetry Status Tiles -->
+            <div class="grid grid-cols-2 gap-2 my-2">
+                <div class="bg-slate-950/60 border border-slate-850 p-2.5 rounded-xl">
+                    <span class="block text-[9px] uppercase font-extrabold text-slate-500 tracking-wider">Motor Cron</span>
+                    <span class="text-xs font-black text-slate-200 block mt-0.5">09:00 & 17:00</span>
+                    <span class="text-[9px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Programado
+                    </span>
+                </div>
+                <div class="bg-slate-950/60 border border-slate-850 p-2.5 rounded-xl">
+                    <span class="block text-[9px] uppercase font-extrabold text-slate-500 tracking-wider">Proveedor API</span>
+                    <span class="text-xs font-black text-slate-200 block mt-0.5">dolarapi.com</span>
+                    <span class="text-[9px] text-emerald-400 font-bold flex items-center gap-1 mt-0.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 100% Online
+                    </span>
+                </div>
+            </div>
+
+            <!-- Footer: Audit Counter Info -->
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px] text-slate-400">
+                <span>Auditoría: <strong class="text-slate-200">{{ $totalChangesCount }} cambios</strong></span>
+                <span class="text-slate-500">Auto: <strong class="text-emerald-400">{{ $autoChangesCount }}</strong> | Man: <strong class="text-amber-400">{{ $manualChangesCount }}</strong></span>
             </div>
         </div>
     </div>
@@ -449,6 +548,18 @@
     </div>
 </div>
 
+<style>
+    /* Remove default spinners from number inputs */
+    .no-spinners::-webkit-inner-spin-button,
+    .no-spinners::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .no-spinners {
+        -moz-appearance: textfield;
+    }
+</style>
+
 <script>
     const currentExchangeRate = {{ $currentRate }};
 
@@ -462,6 +573,29 @@
         const ves = parseFloat(val) || 0;
         const usd = currentExchangeRate > 0 ? (ves / currentExchangeRate).toFixed(2) : 0;
         document.getElementById('calc-usd').value = usd;
+    }
+
+    function setCalcPreset(usdAmount) {
+        const usdInput = document.getElementById('calc-usd');
+        if (usdInput) {
+            usdInput.value = usdAmount;
+            calcUsdToVes(usdAmount);
+        }
+    }
+
+    function swapCalcCurrencies() {
+        const usdInput = document.getElementById('calc-usd');
+        const vesInput = document.getElementById('calc-ves');
+        if (usdInput && vesInput) {
+            const currentUsd = parseFloat(usdInput.value) || 0;
+            if (currentUsd > 0) {
+                vesInput.focus();
+                vesInput.select();
+            } else {
+                usdInput.focus();
+                usdInput.select();
+            }
+        }
     }
 
     function triggerBcvSync() {

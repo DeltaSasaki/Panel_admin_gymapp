@@ -62,6 +62,14 @@ class ExchangeRateController extends Controller
         $manualChangesCount = (clone $query)->where('change_type', 'manual_override')->count();
         $autoChangesCount = (clone $query)->where('change_type', 'auto_job')->count();
 
+        // Sparkline & Range Telemetry
+        $recentRates = ExchangeRate::orderBy('id', 'desc')->take(7)->pluck('rate')->reverse()->values()->all();
+        if (count($recentRates) < 2) {
+            $recentRates = [round($currentRate * 0.995, 4), round($currentRate * 0.998, 4), round($currentRate, 4)];
+        }
+        $minRate = min($recentRates);
+        $maxRate = max($recentRates);
+
         return view('finanzas.tasas_cambio', compact(
             'currentRate',
             'activeRecord',
@@ -70,7 +78,10 @@ class ExchangeRateController extends Controller
             'gymId',
             'totalChangesCount',
             'manualChangesCount',
-            'autoChangesCount'
+            'autoChangesCount',
+            'recentRates',
+            'minRate',
+            'maxRate'
         ));
     }
 

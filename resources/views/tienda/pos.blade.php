@@ -95,15 +95,13 @@
                         <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">{{ $product->description ?? 'Sin descripción.' }}</p>
                     </div>
 
-                    <div class="flex justify-between items-center border-t border-slate-800/80 pt-3 mt-3">
+                    <div class="flex justify-between items-end border-t border-slate-800/80 pt-3 mt-3">
                         <div>
-                            <span class="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Precio</span>
-                            <div class="flex items-baseline gap-1.5">
-                                <span class="font-black text-lime-400 text-base">${{ number_format($product->price, 2) }}</span>
-                                <span class="text-[11px] font-bold text-slate-400 font-mono">/ {{ \App\Services\ExchangeRateService::formatVES($product->price * ($currentRate ?? 1)) }}</span>
-                            </div>
+                            <span class="block text-[9px] text-slate-500 uppercase tracking-wider font-bold">Precio</span>
+                            <span class="font-black text-lime-400 text-base leading-none block">${{ number_format($product->price, 2) }}</span>
+                            <span class="text-[10px] font-bold text-emerald-400 font-mono block mt-1">Bs. {{ number_format($product->price * ($currentRate ?? 1), 2, ',', '.') }}</span>
                         </div>
-                        <span class="px-2.5 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-lg text-xs font-extrabold flex items-center gap-1">
+                        <span class="px-2.5 py-1.5 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-xl text-xs font-extrabold flex items-center gap-1">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar
                         </span>
                     </div>

@@ -161,13 +161,6 @@ class CashClosingController extends Controller
 
         // Exchange Rate (VES Factor) calculations
         $dollarRate = \App\Services\ExchangeRateService::getCurrentRate($gymId);
-        $grandTotalVes = round($grandTotal * $dollarRate, 2);
-        $membershipTotalVes = round($membershipTotal * $dollarRate, 2);
-        $productSalesTotalVes = round($productSalesTotal * $dollarRate, 2);
-        $cashTotalVes = round($cashTotal * $dollarRate, 2);
-        $cardTotalVes = round($cardTotal * $dollarRate, 2);
-        $transferTotalVes = round($transferTotal * $dollarRate, 2);
-        $otherTotalVes = round($otherTotal * $dollarRate, 2);
 
         // Audit check if day was closed
         $isClosedQuery = AdminAuditLog::where('action_type', 'EXPORT_DATA')
@@ -179,6 +172,61 @@ class CashClosingController extends Controller
         }
         $closingLog = $isClosedQuery->first();
         $isClosed = !is_null($closingLog);
+
+        // If day was closed, lock the rate from the audit snapshot
+        if ($isClosed && !empty($closingLog->new_values) && is_array($closingLog->new_values)) {
+            if (!empty($closingLog->new_values['dollar_rate']) && (float)$closingLog->new_values['dollar_rate'] > 1.0001) {
+                $dollarRate = (float)$closingLog->new_values['dollar_rate'];
+            }
+        }
+
+        // Calculate VES totals by summing the FROZEN transaction amounts (Historical Immutability)
+        $membershipTotalVes = (float) $membershipPayments->sum(function($p) use ($dollarRate) {
+            return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
+                ? (float)$p->amount_ves
+                : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
+        });
+
+        $productSalesTotalVes = (float) $productSales->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $grandTotalVes = round($membershipTotalVes + $productSalesTotalVes, 2);
+
+        // Payment method breakdown in VES based on frozen transactions
+        $cashTotalVes = (float) $membershipPayments->where('payment_method', 'cash')->sum(function($p) use ($dollarRate) {
+            return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
+                ? (float)$p->amount_ves
+                : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
+        }) + (float) $productSales->where('payment_method', 'cash')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $cardTotalVes = (float) $membershipPayments->where('payment_method', 'card')->sum(function($p) use ($dollarRate) {
+            return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
+                ? (float)$p->amount_ves
+                : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
+        }) + (float) $productSales->where('payment_method', 'card')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $transferTotalVes = (float) $membershipPayments->where('payment_method', 'transfer')->sum(function($p) use ($dollarRate) {
+            return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
+                ? (float)$p->amount_ves
+                : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
+        }) + (float) $productSales->where('payment_method', 'transfer')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $otherTotalVes = max(0, $grandTotalVes - ($cashTotalVes + $cardTotalVes + $transferTotalVes));
 
         $gym = ($gymId !== 'all') ? Gym::find($gymId) : null;
 
@@ -212,7 +260,7 @@ class CashClosingController extends Controller
     }
 
     /**
-     * Register formal Cash Register Close.
+     * Register formal Cash Register Close with immutable snapshot.
      */
     public function closeDay(Request $request)
     {
@@ -227,6 +275,7 @@ class CashClosingController extends Controller
         $date = $request->date;
 
         $targetGymId = ($gymId === 'all') ? null : $gymId;
+        $data = $this->getCashClosingData($request);
 
         AdminAuditLog::logAction(
             'EXPORT_DATA',
@@ -237,6 +286,19 @@ class CashClosingController extends Controller
                 'date' => $date,
                 'closed_by' => auth()->user()->name,
                 'notes' => $request->notes,
+                'dollar_rate' => $data['dollarRate'],
+                'grand_total_usd' => $data['grandTotal'],
+                'grand_total_ves' => $data['grandTotalVes'],
+                'membership_total_usd' => $data['membershipTotal'],
+                'membership_total_ves' => $data['membershipTotalVes'],
+                'product_sales_total_usd' => $data['productSalesTotal'],
+                'product_sales_total_ves' => $data['productSalesTotalVes'],
+                'cash_total_usd' => $data['cashTotal'],
+                'cash_total_ves' => $data['cashTotalVes'],
+                'card_total_usd' => $data['cardTotal'],
+                'card_total_ves' => $data['cardTotalVes'],
+                'transfer_total_usd' => $data['transferTotal'],
+                'transfer_total_ves' => $data['transferTotalVes'],
                 'closed_at' => Carbon::now()->toDateTimeString()
             ],
             $targetGymId

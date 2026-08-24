@@ -367,7 +367,13 @@
                         'transfer' => 'Transferencia',
                         default => ucfirst($mp->payment_method ?? 'Otro')
                     };
-                    $mpVes = $mp->amount_ves > 0 ? $mp->amount_ves : ($mp->amount * ($dollarRate ?? 1));
+                    $mpRate = ($mp->exchange_rate && (float)$mp->exchange_rate > 1.0001)
+                        ? (float)$mp->exchange_rate
+                        : (float)($dollarRate ?? 1);
+
+                    $mpVes = ($mp->amount_ves && (float)$mp->amount_ves > ((float)$mp->amount * 1.0001))
+                        ? (float)$mp->amount_ves
+                        : ((float)$mp->amount * $mpRate);
                 @endphp
                 <tr>
                     <td class="text-center">{{ $idx + 1 }}</td>
@@ -438,7 +444,13 @@
                         'transfer' => 'Transferencia',
                         default => ucfirst($sale->payment_method ?? 'Otro')
                     };
-                    $saleVes = $sale->total_amount_ves > 0 ? $sale->total_amount_ves : ($sale->total_amount * ($dollarRate ?? 1));
+                    $saleRate = ($sale->exchange_rate && (float)$sale->exchange_rate > 1.0001)
+                        ? (float)$sale->exchange_rate
+                        : (float)($dollarRate ?? 1);
+
+                    $saleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                        ? (float)$sale->total_amount_ves
+                        : ((float)$sale->total_amount * $saleRate);
                 @endphp
                 <tr>
                     <td><strong>#POS-{{ $sale->id }}</strong></td>

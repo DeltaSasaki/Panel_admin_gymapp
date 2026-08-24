@@ -121,9 +121,9 @@
                     <i data-lucide="dollar-sign" class="w-5 h-5"></i>
                 </div>
             </div>
-            <div class="flex items-baseline gap-2">
-                <h3 class="text-2xl font-black text-slate-100 tracking-tight">${{ number_format($grandTotal, 2) }}</h3>
-                <span class="text-xs font-extrabold text-lime-400 font-mono">/ Bs. {{ number_format($grandTotalVes ?? ($grandTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            <div>
+                <span class="text-2xl font-black text-slate-100 tracking-tight block leading-none">${{ number_format($grandTotal, 2) }}</span>
+                <span class="text-xs font-extrabold text-lime-400 font-mono block mt-1.5">≈ Bs. {{ number_format($grandTotalVes, 2, ',', '.') }}</span>
             </div>
             <div class="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-850">
                 <span>Membresías: <strong class="text-slate-200">${{ number_format($membershipTotal, 2) }}</strong></span>
@@ -139,9 +139,9 @@
                     <i data-lucide="banknote" class="w-5 h-5"></i>
                 </div>
             </div>
-            <div class="flex items-baseline gap-2">
-                <h3 class="text-2xl font-black text-emerald-400 tracking-tight">${{ number_format($cashTotal, 2) }}</h3>
-                <span class="text-xs font-extrabold text-emerald-400/80 font-mono">/ Bs. {{ number_format($cashTotalVes ?? ($cashTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            <div>
+                <span class="text-2xl font-black text-emerald-400 tracking-tight block leading-none">${{ number_format($cashTotal, 2) }}</span>
+                <span class="text-xs font-extrabold text-emerald-400/90 font-mono block mt-1.5">≈ Bs. {{ number_format($cashTotalVes, 2, ',', '.') }}</span>
             </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Dinero físico a entregar en caja</p>
         </div>
@@ -154,9 +154,9 @@
                     <i data-lucide="credit-card" class="w-5 h-5"></i>
                 </div>
             </div>
-            <div class="flex items-baseline gap-2">
-                <h3 class="text-2xl font-black text-sky-400 tracking-tight">${{ number_format($cardTotal, 2) }}</h3>
-                <span class="text-xs font-extrabold text-sky-400/80 font-mono">/ Bs. {{ number_format($cardTotalVes ?? ($cardTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            <div>
+                <span class="text-2xl font-black text-sky-400 tracking-tight block leading-none">${{ number_format($cardTotal, 2) }}</span>
+                <span class="text-xs font-extrabold text-sky-400/90 font-mono block mt-1.5">≈ Bs. {{ number_format($cardTotalVes, 2, ',', '.') }}</span>
             </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Procesado vía punto de venta POS</p>
         </div>
@@ -169,9 +169,9 @@
                     <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
                 </div>
             </div>
-            <div class="flex items-baseline gap-2">
-                <h3 class="text-2xl font-black text-purple-400 tracking-tight">${{ number_format($transferTotal, 2) }}</h3>
-                <span class="text-xs font-extrabold text-purple-400/80 font-mono">/ Bs. {{ number_format($transferTotalVes ?? ($transferTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            <div>
+                <span class="text-2xl font-black text-purple-400 tracking-tight block leading-none">${{ number_format($transferTotal, 2) }}</span>
+                <span class="text-xs font-extrabold text-purple-400/90 font-mono block mt-1.5">≈ Bs. {{ number_format($transferTotalVes, 2, ',', '.') }}</span>
             </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Depósitos directos a cuenta bancaria</p>
         </div>
@@ -226,9 +226,14 @@
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
                 <i data-lucide="receipt" class="w-5 h-5 text-lime-400"></i> Cobros de Membresías y Abonos ({{ $membershipPayments->count() }})
             </h3>
-            <span class="text-xs font-black text-lime-400 bg-lime-500/10 px-3 py-1 rounded-full border border-lime-500/20">
-                Total: ${{ number_format($membershipTotal, 2) }}
-            </span>
+            <div class="text-right">
+                <span class="text-xs font-black text-lime-400 bg-lime-500/10 px-3 py-1 rounded-full border border-lime-500/20 inline-block">
+                    Total: ${{ number_format($membershipTotal, 2) }}
+                </span>
+                <span class="block text-[10px] font-bold text-emerald-400 font-mono mt-1">
+                    ≈ {{ \App\Services\ExchangeRateService::formatVES($membershipTotalVes ?? ($membershipTotal * ($dollarRate ?? 1))) }}
+                </span>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -239,7 +244,7 @@
                         <th class="p-4">Socio / Cliente</th>
                         <th class="p-4">Plan de Membresía</th>
                         <th class="p-4 text-center">Método de Pago</th>
-                        <th class="p-4 text-right">Monto Recaudado</th>
+                        <th class="p-4 text-right">Monto Recaudado ($ / Bs.)</th>
                         <th class="p-4 pr-6 text-right">Receptor / Operador</th>
                     </tr>
                 </thead>
@@ -250,6 +255,10 @@
                             $userName = $user ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? '')) : 'Socio Desconocido';
                             if (empty($userName)) $userName = $user->email ?? 'Socio ID #' . $pay->user_id;
                             $planName = $pay->membership->plan->name ?? 'Membresía / Abono';
+                        @endphp
+                        @php
+                            $effectivePayRate = ($dollarRate && (float)$dollarRate > 1.0001) ? (float)$dollarRate : (float)\App\Services\ExchangeRateService::getCurrentRate();
+                            $payVes = (float)$pay->amount * $effectivePayRate;
                         @endphp
                         <tr data-mpay-row class="hover:bg-slate-900/40 transition-colors">
                             <td class="p-4 pl-6">
@@ -273,8 +282,9 @@
                                     <span class="px-2.5 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-extrabold uppercase rounded-full border border-purple-500/20">Transferencia 🏦</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-right font-black text-lime-400 text-sm">
-                                ${{ number_format($pay->amount, 2) }}
+                            <td class="p-4 text-right whitespace-nowrap">
+                                <span class="block font-black text-lime-400 text-sm font-mono">${{ number_format($pay->amount, 2) }}</span>
+                                <span class="block text-[10px] font-bold text-emerald-400 font-mono mt-0.5">Bs. {{ number_format($payVes, 2, ',', '.') }}</span>
                             </td>
                             <td class="p-4 pr-6 text-right text-slate-400 font-medium">
                                 {{ $pay->receivedBy->name ?? 'Administrador' }}
@@ -314,9 +324,14 @@
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
                 <i data-lucide="shopping-cart" class="w-5 h-5 text-amber-400"></i> Ventas de Tienda y Mostrador ({{ $productSales->count() }})
             </h3>
-            <span class="text-xs font-black text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-                Total: ${{ number_format($productSalesTotal, 2) }}
-            </span>
+            <div class="text-right">
+                <span class="text-xs font-black text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 inline-block">
+                    Total: ${{ number_format($productSalesTotal, 2) }}
+                </span>
+                <span class="block text-[10px] font-bold text-emerald-400 font-mono mt-1">
+                    ≈ {{ \App\Services\ExchangeRateService::formatVES($productSalesTotalVes ?? ($productSalesTotal * ($dollarRate ?? 1))) }}
+                </span>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -327,7 +342,7 @@
                         <th class="p-4">Cliente / Comprador</th>
                         <th class="p-4">Productos Vendidos</th>
                         <th class="p-4 text-center">Método de Pago</th>
-                        <th class="p-4 text-right">Monto Total</th>
+                        <th class="p-4 text-right">Monto Total ($ / Bs.)</th>
                         <th class="p-4 pr-6 text-right">Vendedor</th>
                     </tr>
                 </thead>
@@ -338,6 +353,14 @@
                             $buyerName = $buyer ? trim(($buyer->profile->first_name ?? '') . ' ' . ($buyer->profile->last_name ?? '')) : 'Cliente Mostrador / Invitado';
                             if (empty($buyerName)) $buyerName = 'Cliente Mostrador';
                             $itemSummary = $sale->items->map(fn($item) => ($item->product->name ?? 'Producto') . ' (' . $item->quantity . ')')->join(', ');
+                            
+                            $effectiveSaleRate = ($sale->exchange_rate && (float)$sale->exchange_rate > 1.0001) 
+                                ? (float)$sale->exchange_rate 
+                                : (float)($dollarRate > 1.0001 ? $dollarRate : \App\Services\ExchangeRateService::getCurrentRate($sale->gym_id));
+
+                            $effectiveSaleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                                ? (float)$sale->total_amount_ves
+                                : ((float)$sale->total_amount * $effectiveSaleRate);
                         @endphp
                         <tr data-psales-row class="hover:bg-slate-900/40 transition-colors">
                             <td class="p-4 pl-6 font-bold text-slate-200">
@@ -358,8 +381,9 @@
                                     <span class="px-2.5 py-0.5 bg-purple-500/10 text-purple-400 text-[10px] font-extrabold uppercase rounded-full border border-purple-500/20">Transferencia 🏦</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-right font-black text-amber-400 text-sm">
-                                ${{ number_format($sale->total_amount, 2) }}
+                            <td class="p-4 text-right whitespace-nowrap">
+                                <span class="block font-black text-amber-400 text-sm font-mono">${{ number_format($sale->total_amount, 2) }}</span>
+                                <span class="block text-[10px] font-bold text-emerald-400 font-mono mt-0.5">Bs. {{ number_format($effectiveSaleVes, 2, ',', '.') }}</span>
                             </td>
                             <td class="p-4 pr-6 text-right text-slate-400 font-medium">
                                 {{ $sale->soldBy->name ?? 'Cajero' }}

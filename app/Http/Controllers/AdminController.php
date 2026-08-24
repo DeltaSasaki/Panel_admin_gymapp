@@ -62,18 +62,22 @@ class AdminController extends Controller
         })->where('is_active', 1)->count();
 
         // Admin-level metrics
-        $monthlyIncome = MembershipPayment::whereHas('user', function ($q) use ($gymId) {
+        $mPaymentsMonth = MembershipPayment::whereHas('user', function ($q) use ($gymId) {
             $q->when($gymId !== 'all', function ($sq) use ($gymId) {
                 $sq->where('gym_id', $gymId);
             });
         })
             ->whereMonth('payment_date', Carbon::now()->month)
-            ->sum('amount')
-            + ProductSale::when($gymId !== 'all', function ($q) use ($gymId) {
-                $q->where('gym_id', $gymId);
-            })
+            ->get();
+
+        $pSalesMonth = ProductSale::when($gymId !== 'all', function ($q) use ($gymId) {
+            $q->where('gym_id', $gymId);
+        })
             ->whereMonth('createdAt', Carbon::now()->month)
-            ->sum('total_amount');
+            ->get();
+
+        $monthlyIncome = (float)$mPaymentsMonth->sum('amount') + (float)$pSalesMonth->sum('total_amount');
+        $monthlyIncomeVes = (float)$mPaymentsMonth->sum('amount_ves') + (float)$pSalesMonth->sum('total_amount_ves');
 
         $pendingPaymentsCount = UserMembership::when($gymId !== 'all', function ($q) use ($gymId) {
             $q->where('gym_id', $gymId);
@@ -342,6 +346,7 @@ class AdminController extends Controller
             'totalRoutines',
             'totalMealPlans',
             'monthlyIncome',
+            'monthlyIncomeVes',
             'pendingPaymentsCount',
             'lowStockCount',
             'totalGyms',
