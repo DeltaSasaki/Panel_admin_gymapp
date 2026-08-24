@@ -1149,6 +1149,8 @@ CREATE TABLE `users` (
   `is_active` tinyint(1) DEFAULT 1,
   `email_verified` tinyint(1) DEFAULT 0,
   `credit_balance` decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT 'Saldo a favor acumulado por abonos fraccionados',
+  `remember_token` varchar(100) DEFAULT NULL,
+  `has_completed_onboarding` tinyint(1) NOT NULL DEFAULT 0,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

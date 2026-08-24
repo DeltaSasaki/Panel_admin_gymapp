@@ -30,6 +30,7 @@ class User extends Authenticatable
         'is_active',
         'email_verified',
         'credit_balance',
+        'remember_token',
     ];
 
     /**
@@ -39,6 +40,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password_hash',
+        'remember_token',
     ];
 
     /**
