@@ -121,7 +121,10 @@
                     <i data-lucide="dollar-sign" class="w-5 h-5"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-slate-100 tracking-tight">${{ number_format($grandTotal, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 class="text-2xl font-black text-slate-100 tracking-tight">${{ number_format($grandTotal, 2) }}</h3>
+                <span class="text-xs font-extrabold text-lime-400 font-mono">/ Bs. {{ number_format($grandTotalVes ?? ($grandTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            </div>
             <div class="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-850">
                 <span>Membresías: <strong class="text-slate-200">${{ number_format($membershipTotal, 2) }}</strong></span>
                 <span>Tienda: <strong class="text-slate-200">${{ number_format($productSalesTotal, 2) }}</strong></span>
@@ -136,7 +139,10 @@
                     <i data-lucide="banknote" class="w-5 h-5"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-emerald-400 tracking-tight">${{ number_format($cashTotal, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 class="text-2xl font-black text-emerald-400 tracking-tight">${{ number_format($cashTotal, 2) }}</h3>
+                <span class="text-xs font-extrabold text-emerald-400/80 font-mono">/ Bs. {{ number_format($cashTotalVes ?? ($cashTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Dinero físico a entregar en caja</p>
         </div>
 
@@ -148,19 +154,25 @@
                     <i data-lucide="credit-card" class="w-5 h-5"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-sky-400 tracking-tight">${{ number_format($cardTotal, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 class="text-2xl font-black text-sky-400 tracking-tight">${{ number_format($cardTotal, 2) }}</h3>
+                <span class="text-xs font-extrabold text-sky-400/80 font-mono">/ Bs. {{ number_format($cardTotalVes ?? ($cardTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Procesado vía punto de venta POS</p>
         </div>
 
         <!-- Transferencias Card -->
         <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 shadow-xl relative overflow-hidden group">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-400 uppercase">Transferencias</span>
+                <span class="text-xs font-bold text-slate-400 uppercase">Transferencias / Pago Móvil</span>
                 <div class="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400">
                     <i data-lucide="arrow-left-right" class="w-5 h-5"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-black text-purple-400 tracking-tight">${{ number_format($transferTotal, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 class="text-2xl font-black text-purple-400 tracking-tight">${{ number_format($transferTotal, 2) }}</h3>
+                <span class="text-xs font-extrabold text-purple-400/80 font-mono">/ Bs. {{ number_format($transferTotalVes ?? ($transferTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+            </div>
             <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Depósitos directos a cuenta bancaria</p>
         </div>
 

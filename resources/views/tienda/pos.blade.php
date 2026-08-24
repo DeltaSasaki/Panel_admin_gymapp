@@ -562,6 +562,8 @@
                 lastCompletedSaleDetails = {
                     sale_id: data.sale_id,
                     total: data.total_formatted,
+                    total_ves: data.total_ves_formatted || ('Bs. ' + (parseFloat(data.total_amount) * currentExchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })),
+                    exchange_rate: data.exchange_rate || currentExchangeRate,
                     date: data.sale_date,
                     payment: data.payment_method,
                     gym_name: data.gym_name || 'BigWorldFitness',
@@ -607,7 +609,12 @@
             'other': 'Otro Método'
         }[sale.payment] || (sale.payment || 'Efectivo');
 
-        const itemsRows = sale.items.map(i => `
+        const rate = sale.exchange_rate || currentExchangeRate || 1;
+        const totalVes = sale.total_ves || ('Bs. ' + (parseFloat((sale.total || '0').replace('$', '').replace(',', '')) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+        const itemsRows = sale.items.map(i => {
+            const itemVes = (i.price * i.quantity * rate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return `
             <tr style="border-bottom: 1px dashed #e2e8f0;">
                 <td style="padding: 6px 0; vertical-align: top;">
                     <strong style="font-size: 11px; color: #0f172a; display: block; line-height: 1.2;">${i.name}</strong>
@@ -615,9 +622,11 @@
                 </td>
                 <td style="padding: 6px 0; text-align: right; font-weight: bold; font-size: 11px; color: #0f172a; vertical-align: top;">
                     $${(i.price * i.quantity).toFixed(2)}
+                    <div style="font-size: 9px; color: #16a34a; font-weight: bold;">Bs. ${itemVes}</div>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
 
         const receiptCss = `
             @page {
@@ -709,6 +718,10 @@
                             <span style="color: #64748b; font-weight: 600;">Forma de Pago:</span>
                             <strong style="color: #0f172a;">${paymentLabel}</strong>
                         </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px dashed #cbd5e1; padding-top: 4px; margin-top: 4px;">
+                            <span style="color: #64748b; font-weight: 600;">Factor Cambiario:</span>
+                            <strong style="color: #16a34a; font-family: monospace;">1 USD = Bs. ${rate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                        </div>
                     </div>
 
                     <!-- ITEMS TABLE -->
@@ -716,7 +729,7 @@
                         <thead>
                             <tr style="border-bottom: 1.5px solid #0f172a; text-transform: uppercase; font-size: 9px; color: #475569;">
                                 <th style="text-align: left; padding-bottom: 4px;">Ítem / Cant.</th>
-                                <th style="text-align: right; padding-bottom: 4px;">Total</th>
+                                <th style="text-align: right; padding-bottom: 4px;">Total ($ / Bs.)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -726,8 +739,14 @@
 
                     <!-- TOTAL BANNER -->
                     <div style="background: #0f172a; color: #ffffff; border-radius: 8px; padding: 10px 12px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center; -webkit-print-color-adjust: exact;">
-                        <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">TOTAL COBRADO</span>
-                        <span style="font-size: 17px; font-weight: 900; font-family: monospace; color: #a3e635;">${sale.total}</span>
+                        <div>
+                            <span style="font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; display: block;">TOTAL COBRADO</span>
+                            <span style="font-size: 9px; color: #94a3b8; font-weight: normal;">Equivalente en Bolívares</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 16px; font-weight: 900; font-family: monospace; color: #a3e635; display: block;">${sale.total}</span>
+                            <span style="font-size: 12px; font-weight: 800; font-family: monospace; color: #ffffff; display: block;">${totalVes}</span>
+                        </div>
                     </div>
 
                     <!-- FOOTER -->
@@ -809,6 +828,7 @@
                     <div class="p-4 bg-slate-950 border border-slate-800 rounded-2xl">
                         <span class="block text-[10px] uppercase text-slate-500 font-extrabold tracking-wider">Total Cobrado</span>
                         <span class="text-3xl font-black text-lime-400 mt-0.5 block">${saleData.total_formatted}</span>
+                        <span class="text-xs font-extrabold text-emerald-400 font-mono block mt-1">${saleData.total_ves_formatted || ('Bs. ' + (parseFloat(saleData.total_amount) * currentExchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}</span>
                     </div>
                     ${emailStatusHtml}
                     ${extraButtonsHtml}

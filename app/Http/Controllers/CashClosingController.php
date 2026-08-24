@@ -159,6 +159,16 @@ class CashClosingController extends Controller
 
         $otherTotal = max(0, $grandTotal - ($cashTotal + $cardTotal + $transferTotal));
 
+        // Exchange Rate (VES Factor) calculations
+        $dollarRate = \App\Services\ExchangeRateService::getCurrentRate($gymId);
+        $grandTotalVes = round($grandTotal * $dollarRate, 2);
+        $membershipTotalVes = round($membershipTotal * $dollarRate, 2);
+        $productSalesTotalVes = round($productSalesTotal * $dollarRate, 2);
+        $cashTotalVes = round($cashTotal * $dollarRate, 2);
+        $cardTotalVes = round($cardTotal * $dollarRate, 2);
+        $transferTotalVes = round($transferTotal * $dollarRate, 2);
+        $otherTotalVes = round($otherTotal * $dollarRate, 2);
+
         // Audit check if day was closed
         $isClosedQuery = AdminAuditLog::where('action_type', 'EXPORT_DATA')
             ->where('table_name', 'cierre_caja')
@@ -178,12 +188,20 @@ class CashClosingController extends Controller
             'newMemberships',
             'attendances',
             'membershipTotal',
+            'membershipTotalVes',
             'productSalesTotal',
+            'productSalesTotalVes',
             'grandTotal',
+            'grandTotalVes',
             'cashTotal',
+            'cashTotalVes',
             'cardTotal',
+            'cardTotalVes',
             'transferTotal',
+            'transferTotalVes',
             'otherTotal',
+            'otherTotalVes',
+            'dollarRate',
             'parsedDate',
             'period',
             'periodLabel',

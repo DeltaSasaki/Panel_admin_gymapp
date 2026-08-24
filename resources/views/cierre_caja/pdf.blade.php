@@ -243,6 +243,10 @@
                         <td style="text-align: right;">{{ \Carbon\Carbon::now()->format('d/m/Y H:i:s') }}</td>
                     </tr>
                     <tr>
+                        <td class="meta-label">Factor Cambiario:</td>
+                        <td style="text-align: right; font-weight: bold; color: #15803d;">1 USD = Bs. {{ number_format($dollarRate ?? 1, 2, ',', '.') }}</td>
+                    </tr>
+                    <tr>
                         <td class="meta-label">Generado por:</td>
                         <td style="text-align: right;">{{ auth()->user()->name ?? 'Administrador' }}</td>
                     </tr>
@@ -251,45 +255,42 @@
         </tr>
     </table>
 
-    <!-- Financial Summary Cards -->
-    <table class="metrics-table">
+    <!-- Financial Summary Cards (mPDF Clean Layout without line artifacts) -->
+    <table style="width: 100%; border-collapse: separate; border-spacing: 5px; margin-bottom: 15px;">
         <tr>
-            <td style="width: 25%; padding-right: 5px;">
-                <div class="metrics-card" style="border-top: 3px solid #2563eb;">
-                    <div class="metrics-title">Total Ingresos</div>
-                    <div class="metrics-value" style="color: #2563eb;">${{ number_format($grandTotal, 2) }}</div>
-                </div>
+            <td style="width: 25%; background-color: #f8fafc; border: 1px solid #cbd5e1; border-top: 3px solid #2563eb; border-radius: 6px; padding: 8px 4px; text-align: center; vertical-align: middle;">
+                <div style="font-size: 7.5pt; font-weight: bold; color: #475569; text-transform: uppercase;">TOTAL INGRESOS</div>
+                <div style="font-size: 13pt; font-weight: bold; color: #2563eb; margin-top: 2px;">${{ number_format($grandTotal, 2) }}</div>
+                <div style="font-size: 8pt; font-weight: bold; color: #16a34a; margin-top: 2px;">Bs. {{ number_format($grandTotalVes ?? ($grandTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</div>
             </td>
-            <td style="width: 25%; padding-left: 2.5px; padding-right: 2.5px;">
-                <div class="metrics-card" style="border-top: 3px solid #16a34a;">
-                    <div class="metrics-title">Ingresos Membresías</div>
-                    <div class="metrics-value" style="color: #16a34a;">${{ number_format($membershipTotal, 2) }}</div>
-                </div>
+            <td style="width: 25%; background-color: #f8fafc; border: 1px solid #cbd5e1; border-top: 3px solid #16a34a; border-radius: 6px; padding: 8px 4px; text-align: center; vertical-align: middle;">
+                <div style="font-size: 7.5pt; font-weight: bold; color: #475569; text-transform: uppercase;">INGRESOS MEMBRESÍAS</div>
+                <div style="font-size: 13pt; font-weight: bold; color: #16a34a; margin-top: 2px;">${{ number_format($membershipTotal, 2) }}</div>
+                <div style="font-size: 8pt; font-weight: bold; color: #16a34a; margin-top: 2px;">Bs. {{ number_format($membershipTotalVes ?? ($membershipTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</div>
             </td>
-            <td style="width: 25%; padding-left: 2.5px; padding-right: 2.5px;">
-                <div class="metrics-card" style="border-top: 3px solid #0284c7;">
-                    <div class="metrics-title">Ventas Tienda / POS</div>
-                    <div class="metrics-value" style="color: #0284c7;">${{ number_format($productSalesTotal, 2) }}</div>
-                </div>
+            <td style="width: 25%; background-color: #f8fafc; border: 1px solid #cbd5e1; border-top: 3px solid #0284c7; border-radius: 6px; padding: 8px 4px; text-align: center; vertical-align: middle;">
+                <div style="font-size: 7.5pt; font-weight: bold; color: #475569; text-transform: uppercase;">VENTAS TIENDA / POS</div>
+                <div style="font-size: 13pt; font-weight: bold; color: #0284c7; margin-top: 2px;">${{ number_format($productSalesTotal, 2) }}</div>
+                <div style="font-size: 8pt; font-weight: bold; color: #16a34a; margin-top: 2px;">Bs. {{ number_format($productSalesTotalVes ?? ($productSalesTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</div>
             </td>
-            <td style="width: 25%; padding-left: 5px;">
-                <div class="metrics-card" style="border-top: 3px solid #8b5cf6;">
-                    <div class="metrics-title">Socios / Asistencias</div>
-                    <div class="metrics-value" style="color: #8b5cf6;">{{ $newMemberships->count() }} / {{ $attendances->count() }}</div>
-                </div>
+            <td style="width: 25%; background-color: #f8fafc; border: 1px solid #cbd5e1; border-top: 3px solid #8b5cf6; border-radius: 6px; padding: 8px 4px; text-align: center; vertical-align: middle;">
+                <div style="font-size: 7.5pt; font-weight: bold; color: #475569; text-transform: uppercase;">SOCIOS / ASISTENCIAS</div>
+                <div style="font-size: 13pt; font-weight: bold; color: #8b5cf6; margin-top: 2px;">{{ $newMemberships->count() }} / {{ $attendances->count() }}</div>
+                <div style="font-size: 7.5pt; color: #64748b; margin-top: 2px;">Operaciones</div>
             </td>
         </tr>
     </table>
 
     <!-- Breakdown by Payment Methods Table -->
-    <div class="section-header">Desglose por Métodos de Pago</div>
+    <div class="section-header">Desglose por Métodos de Pago y Monedas</div>
     <table class="data-table">
         <thead>
             <tr>
                 <th>Método de Pago</th>
                 <th class="text-right">Membresías ($)</th>
-                <th class="text-right">Ventas Tienda/POS ($)</th>
-                <th class="text-right">Total Recaudado ($)</th>
+                <th class="text-right">Ventas Tienda ($)</th>
+                <th class="text-right">Total ($)</th>
+                <th class="text-right">Equivalente (Bs.)</th>
                 <th class="text-right">Proporción (%)</th>
             </tr>
         </thead>
@@ -299,6 +300,7 @@
                 <td class="text-right">${{ number_format($membershipPayments->where('payment_method', 'cash')->sum('amount'), 2) }}</td>
                 <td class="text-right">${{ number_format($productSales->where('payment_method', 'cash')->sum('total_amount'), 2) }}</td>
                 <td class="text-right"><strong>${{ number_format($cashTotal, 2) }}</strong></td>
+                <td class="text-right" style="color: #15803d; font-weight: bold;">Bs. {{ number_format($cashTotalVes ?? ($cashTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</td>
                 <td class="text-right">{{ $grandTotal > 0 ? number_format(($cashTotal / $grandTotal) * 100, 1) : '0.0' }}%</td>
             </tr>
             <tr>
@@ -306,13 +308,15 @@
                 <td class="text-right">${{ number_format($membershipPayments->where('payment_method', 'card')->sum('amount'), 2) }}</td>
                 <td class="text-right">${{ number_format($productSales->where('payment_method', 'card')->sum('total_amount'), 2) }}</td>
                 <td class="text-right"><strong>${{ number_format($cardTotal, 2) }}</strong></td>
+                <td class="text-right" style="color: #15803d; font-weight: bold;">Bs. {{ number_format($cardTotalVes ?? ($cardTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</td>
                 <td class="text-right">{{ $grandTotal > 0 ? number_format(($cardTotal / $grandTotal) * 100, 1) : '0.0' }}%</td>
             </tr>
             <tr>
-                <td><strong>Transferencia Bancaria</strong></td>
+                <td><strong>Transferencia / Pago Móvil</strong></td>
                 <td class="text-right">${{ number_format($membershipPayments->where('payment_method', 'transfer')->sum('amount'), 2) }}</td>
                 <td class="text-right">${{ number_format($productSales->where('payment_method', 'transfer')->sum('total_amount'), 2) }}</td>
                 <td class="text-right"><strong>${{ number_format($transferTotal, 2) }}</strong></td>
+                <td class="text-right" style="color: #15803d; font-weight: bold;">Bs. {{ number_format($transferTotalVes ?? ($transferTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</td>
                 <td class="text-right">{{ $grandTotal > 0 ? number_format(($transferTotal / $grandTotal) * 100, 1) : '0.0' }}%</td>
             </tr>
             @if($otherTotal > 0)
@@ -321,6 +325,7 @@
                 <td class="text-right">-</td>
                 <td class="text-right">-</td>
                 <td class="text-right"><strong>${{ number_format($otherTotal, 2) }}</strong></td>
+                <td class="text-right" style="color: #15803d; font-weight: bold;">Bs. {{ number_format($otherTotalVes ?? ($otherTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</td>
                 <td class="text-right">{{ $grandTotal > 0 ? number_format(($otherTotal / $grandTotal) * 100, 1) : '0.0' }}%</td>
             </tr>
             @endif
@@ -328,7 +333,8 @@
                 <td>TOTAL GENERAL DE CAJA</td>
                 <td class="text-right">${{ number_format($membershipTotal, 2) }}</td>
                 <td class="text-right">${{ number_format($productSalesTotal, 2) }}</td>
-                <td class="text-right" style="color: #15803d; font-size: 10pt;">${{ number_format($grandTotal, 2) }}</td>
+                <td class="text-right" style="color: #0f172a; font-size: 10pt;">${{ number_format($grandTotal, 2) }}</td>
+                <td class="text-right" style="color: #15803d; font-size: 10pt;">Bs. {{ number_format($grandTotalVes ?? ($grandTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</td>
                 <td class="text-right">100.0%</td>
             </tr>
         </tbody>
@@ -340,12 +346,12 @@
         <thead>
             <tr>
                 <th style="width: 5%;">#</th>
-                <th style="width: 15%;">Fecha y Hora</th>
-                <th style="width: 25%;">Socio</th>
-                <th style="width: 20%;">Plan Contratado</th>
-                <th style="width: 13%;" class="text-center">Método</th>
+                <th style="width: 14%;">Fecha y Hora</th>
+                <th style="width: 23%;">Socio</th>
+                <th style="width: 18%;">Plan Contratado</th>
+                <th style="width: 12%;" class="text-center">Método</th>
                 <th style="width: 12%;" class="text-center">Operó</th>
-                <th style="width: 10%;" class="text-right">Monto</th>
+                <th style="width: 16%;" class="text-right">Monto ($ / Bs.)</th>
             </tr>
         </thead>
         <tbody>
@@ -361,6 +367,7 @@
                         'transfer' => 'Transferencia',
                         default => ucfirst($mp->payment_method ?? 'Otro')
                     };
+                    $mpVes = $mp->amount_ves > 0 ? $mp->amount_ves : ($mp->amount * ($dollarRate ?? 1));
                 @endphp
                 <tr>
                     <td class="text-center">{{ $idx + 1 }}</td>
@@ -374,7 +381,10 @@
                     <td>{{ $mp->membership->plan->name ?? 'Plan Membresía' }}</td>
                     <td class="text-center"><strong>{{ $methodLabel }}</strong></td>
                     <td class="text-center">{{ $performer }}</td>
-                    <td class="text-right font-bold">${{ number_format($mp->amount, 2) }}</td>
+                    <td class="text-right font-bold">
+                        ${{ number_format($mp->amount, 2) }}
+                        <br><span style="font-size: 7.5pt; color: #15803d; font-weight: normal;">Bs. {{ number_format($mpVes, 2, ',', '.') }}</span>
+                    </td>
                 </tr>
             @empty
                 <tr>
@@ -386,7 +396,10 @@
             @if($membershipPayments->count() > 0)
                 <tr class="total-row">
                     <td colspan="6" class="text-right">Subtotal Cobros de Membresías:</td>
-                    <td class="text-right">${{ number_format($membershipTotal, 2) }}</td>
+                    <td class="text-right">
+                        ${{ number_format($membershipTotal, 2) }}
+                        <br><span style="font-size: 8pt; color: #15803d;">Bs. {{ number_format($membershipTotalVes ?? ($membershipTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+                    </td>
                 </tr>
             @endif
         </tbody>
@@ -398,12 +411,12 @@
         <thead>
             <tr>
                 <th style="width: 7%;">Folio</th>
-                <th style="width: 15%;">Fecha y Hora</th>
-                <th style="width: 22%;">Cliente</th>
-                <th style="width: 26%;">Productos Comprados</th>
+                <th style="width: 14%;">Fecha y Hora</th>
+                <th style="width: 20%;">Cliente</th>
+                <th style="width: 25%;">Productos Comprados</th>
                 <th style="width: 10%;" class="text-center">Método</th>
                 <th style="width: 10%;" class="text-center">Cajero</th>
-                <th style="width: 10%;" class="text-right">Total</th>
+                <th style="width: 14%;" class="text-right">Total ($ / Bs.)</th>
             </tr>
         </thead>
         <tbody>
@@ -425,6 +438,7 @@
                         'transfer' => 'Transferencia',
                         default => ucfirst($sale->payment_method ?? 'Otro')
                     };
+                    $saleVes = $sale->total_amount_ves > 0 ? $sale->total_amount_ves : ($sale->total_amount * ($dollarRate ?? 1));
                 @endphp
                 <tr>
                     <td><strong>#POS-{{ $sale->id }}</strong></td>
@@ -433,7 +447,10 @@
                     <td><span style="font-size: 8pt;">{{ $itemsStr }}</span></td>
                     <td class="text-center"><strong>{{ $methodLabel }}</strong></td>
                     <td class="text-center">{{ $sellerName }}</td>
-                    <td class="text-right font-bold">${{ number_format($sale->total_amount, 2) }}</td>
+                    <td class="text-right font-bold">
+                        ${{ number_format($sale->total_amount, 2) }}
+                        <br><span style="font-size: 7.5pt; color: #15803d; font-weight: normal;">Bs. {{ number_format($saleVes, 2, ',', '.') }}</span>
+                    </td>
                 </tr>
             @empty
                 <tr>
@@ -445,7 +462,10 @@
             @if($productSales->count() > 0)
                 <tr class="total-row">
                     <td colspan="6" class="text-right">Subtotal Ventas Tienda POS:</td>
-                    <td class="text-right">${{ number_format($productSalesTotal, 2) }}</td>
+                    <td class="text-right">
+                        ${{ number_format($productSalesTotal, 2) }}
+                        <br><span style="font-size: 8pt; color: #15803d;">Bs. {{ number_format($productSalesTotalVes ?? ($productSalesTotal * ($dollarRate ?? 1)), 2, ',', '.') }}</span>
+                    </td>
                 </tr>
             @endif
         </tbody>

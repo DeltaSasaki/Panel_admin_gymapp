@@ -65,7 +65,10 @@
                             <i data-lucide="banknote" class="w-4 h-4"></i>
                         </div>
                     </div>
-                    <span class="text-2xl font-black text-slate-100 relative z-10">${{ number_format($globalSalesTotal, 2) }}</span>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-black text-slate-100 relative z-10">${{ number_format($globalSalesTotal, 2) }}</span>
+                        <span class="text-xs font-extrabold text-lime-400 font-mono relative z-10">/ {{ \App\Services\ExchangeRateService::formatVES($globalSalesTotal * \App\Services\ExchangeRateService::getCurrentRate()) }}</span>
+                    </div>
                 </div>
 
                 <!-- Database Health -->
@@ -127,6 +130,7 @@
                     </div>
                     <div class="flex items-baseline gap-2">
                         <span class="text-3xl font-extrabold text-slate-100">${{ number_format($monthlyIncome, 2) }}</span>
+                        <span class="text-xs font-extrabold text-lime-400 font-mono">/ {{ \App\Services\ExchangeRateService::formatVES($monthlyIncome * \App\Services\ExchangeRateService::getCurrentRate(session('active_gym_id', null))) }}</span>
                     </div>
                     <p class="text-xs text-slate-500 mt-2">Pagos de Membresías + POS (mes actual)</p>
                 </div>

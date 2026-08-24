@@ -57,7 +57,10 @@
                     <i data-lucide="dollar-sign" class="w-4 h-4"></i>
                 </div>
             </div>
-            <h3 id="stat_total_collected" data-value="{{ $totalCollected }}" class="text-2xl font-black text-slate-100">${{ number_format($totalCollected, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 id="stat_total_collected" data-value="{{ $totalCollected }}" class="text-2xl font-black text-slate-100">${{ number_format($totalCollected, 2) }}</h3>
+                <span class="text-xs font-extrabold text-lime-400 font-mono">/ {{ \App\Services\ExchangeRateService::formatVES($totalCollected * \App\Services\ExchangeRateService::getCurrentRate($activeGymId ?? null)) }}</span>
+            </div>
             <p class="text-[10px] text-slate-500 mt-2">Suma acumulada de cobros registrados</p>
         </div>
 
@@ -68,7 +71,10 @@
                     <i data-lucide="clock" class="w-4 h-4"></i>
                 </div>
             </div>
-            <h3 id="stat_pending_amount" data-value="{{ $pendingAmount }}" class="text-2xl font-black text-slate-100">${{ number_format($pendingAmount, 2) }}</h3>
+            <div class="flex items-baseline gap-2">
+                <h3 id="stat_pending_amount" data-value="{{ $pendingAmount }}" class="text-2xl font-black text-slate-100">${{ number_format($pendingAmount, 2) }}</h3>
+                <span class="text-xs font-extrabold text-amber-400 font-mono">/ {{ \App\Services\ExchangeRateService::formatVES($pendingAmount * \App\Services\ExchangeRateService::getCurrentRate($activeGymId ?? null)) }}</span>
+            </div>
             <p class="text-[10px] text-slate-500 mt-2">Membresías activas pendientes de pago</p>
         </div>
 

@@ -129,7 +129,10 @@
                                 </span>
                             </td>
                             <td class="p-4 text-center font-mono text-slate-300">${{ number_format($p->cost_price, 2) }}</td>
-                            <td class="p-4 text-center font-mono text-lime-400 font-bold">${{ number_format($p->price, 2) }}</td>
+                            <td class="p-4 text-center whitespace-nowrap">
+                                <span class="block font-mono text-lime-400 font-bold text-xs">${{ number_format($p->price, 2) }}</span>
+                                <span class="block font-mono text-slate-400 font-semibold text-[10px]">{{ \App\Services\ExchangeRateService::formatVES($p->price * \App\Services\ExchangeRateService::getCurrentRate($p->gym_id)) }}</span>
+                            </td>
                             <td class="p-4 text-center font-mono text-emerald-400 font-semibold">
                                 +${{ number_format($profit, 2) }} <span class="text-[10px] text-slate-500">({{ number_format($marginPct, 0) }}%)</span>
                             </td>
