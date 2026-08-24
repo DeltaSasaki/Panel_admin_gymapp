@@ -88,26 +88,98 @@
         </div>
     </div>
 
+    <!-- Top Register Switcher Bar (Separación Contable de Cajas) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 print:hidden">
+        
+        <!-- Tab 1: Consolidado General -->
+        @php
+            $currentParamsAll = array_merge(request()->all(), ['register_type' => 'all']);
+            $currentParamsMemb = array_merge(request()->all(), ['register_type' => 'memberships']);
+            $currentParamsPos = array_merge(request()->all(), ['register_type' => 'pos']);
+        @endphp
+        <a href="{{ route('cierre_caja.index', $currentParamsAll) }}"
+           class="p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between group {{ $registerType === 'all' ? 'bg-slate-900 border-lime-500/50 shadow-lg shadow-lime-500/5 ring-1 ring-lime-500/20' : 'bg-slate-950/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900/40' }}">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-xl {{ $registerType === 'all' ? 'bg-lime-500/20 text-lime-400 border border-lime-500/30' : 'bg-slate-900 text-slate-400 border border-slate-800' }}">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="block text-xs font-black {{ $registerType === 'all' ? 'text-slate-100' : 'text-slate-300' }}">Consolidado General</span>
+                    <span class="text-[10px] text-slate-400">Todas las cajas y operaciones</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="block font-mono font-black text-xs text-lime-400">${{ number_format($mTotal + $pTotal, 2) }}</span>
+                <span class="text-[9px] font-bold text-slate-500">
+                    {{ $isGlobalClosed || ($isMembershipsClosed && $isPosClosed) ? '🟢 Cerradas' : '🟡 Abiertas' }}
+                </span>
+            </div>
+        </a>
+
+        <!-- Tab 2: Caja 1 Recepción / Membresías -->
+        <a href="{{ route('cierre_caja.index', $currentParamsMemb) }}"
+           class="p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between group {{ $registerType === 'memberships' ? 'bg-slate-900 border-emerald-500/50 shadow-lg shadow-emerald-500/5 ring-1 ring-emerald-500/20' : 'bg-slate-950/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900/40' }}">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-xl {{ $registerType === 'memberships' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-900 text-slate-400 border border-slate-800' }}">
+                    <i data-lucide="receipt" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="block text-xs font-black {{ $registerType === 'memberships' ? 'text-slate-100' : 'text-slate-300' }}">Caja 1: Recepción</span>
+                    <span class="text-[10px] text-slate-400">Membresías, abonos y planes</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="block font-mono font-black text-xs text-emerald-400">${{ number_format($mTotal, 2) }}</span>
+                <span class="text-[9px] font-bold {{ $isMembershipsClosed ? 'text-emerald-400' : 'text-amber-400' }}">
+                    {{ $isMembershipsClosed ? '🟢 Cerrada' : '🟡 Abierta' }}
+                </span>
+            </div>
+        </a>
+
+        <!-- Tab 3: Caja 2 Tienda / POS Mostrador -->
+        <a href="{{ route('cierre_caja.index', $currentParamsPos) }}"
+           class="p-4 rounded-2xl border transition-all duration-200 flex items-center justify-between group {{ $registerType === 'pos' ? 'bg-slate-900 border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-amber-500/20' : 'bg-slate-950/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900/40' }}">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-xl {{ $registerType === 'pos' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-900 text-slate-400 border border-slate-800' }}">
+                    <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="block text-xs font-black {{ $registerType === 'pos' ? 'text-slate-100' : 'text-slate-300' }}">Caja 2: Tienda POS</span>
+                    <span class="text-[10px] text-slate-400">Suplementos, bebidas e inventario</span>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="block font-mono font-black text-xs text-amber-400">${{ number_format($pTotal, 2) }}</span>
+                <span class="text-[9px] font-bold {{ $isPosClosed ? 'text-emerald-400' : 'text-amber-400' }}">
+                    {{ $isPosClosed ? '🟢 Cerrada' : '🟡 Abierta' }}
+                </span>
+            </div>
+        </a>
+
+    </div>
+
     <!-- Banner Status Alert -->
     <div class="p-4 rounded-2xl border flex items-center justify-between gap-4 print:hidden {{ $isClosed ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400' }}">
         <div class="flex items-center gap-3">
             <i data-lucide="{{ $isClosed ? 'shield-check' : 'alert-circle' }}" class="w-6 h-6 shrink-0"></i>
             <div>
                 <span class="font-bold text-sm block">
-                    {{ $isClosed ? 'Cierre de Caja Completado y Cuadrado' : 'Arqueo de Caja en Proceso' }}
+                    {{ $registerTitle }} — {{ $isClosed ? 'Cierre Formal Completado' : 'Arqueo en Proceso' }}
                 </span>
                 <span class="text-xs opacity-80">
                     @if($isClosed && $closingLog)
-                        Caja del {{ \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }} cerrada formalmente por {{ $closingLog->new_data['closed_by'] ?? 'Administrador' }} a las {{ \Carbon\Carbon::parse($closingLog->createdAt)->format('H:i') }} hrs.
+                        Esta caja del {{ \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }} fue cerrada formalmente por <strong>{{ $closingLog->new_values['closed_by'] ?? 'Administrador' }}</strong> a las {{ \Carbon\Carbon::parse($closingLog->created_at ?? $closingLog->createdAt)->format('H:i') }} hrs.
                     @else
-                        Consolidado de ingresos y movimientos para el periodo <strong>{{ $periodLabel ?? $parsedDate }}</strong>.
+                        Arqueo de ingresos y comprobantes para el periodo <strong>{{ $periodLabel ?? $parsedDate }}</strong>.
                     @endif
                 </span>
             </div>
         </div>
-        <span class="text-xs font-mono font-bold uppercase px-3 py-1 rounded-lg bg-slate-950/60 border border-slate-800 shrink-0">
-            {{ $periodLabel ?? \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }}
-        </span>
+        <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs font-mono font-bold uppercase px-3 py-1 rounded-lg bg-slate-950/60 border border-slate-800">
+                {{ $periodLabel ?? \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }}
+            </span>
+        </div>
     </div>
 
     <!-- Financial Metrics Grid -->
@@ -116,7 +188,9 @@
         <!-- Total Recaudado Card -->
         <div class="bg-slate-900/60 border border-slate-800 rounded-3xl p-5 shadow-xl relative overflow-hidden group">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-400 uppercase">Total Recaudado</span>
+                <span class="text-xs font-bold text-slate-400 uppercase">
+                    @if($registerType === 'memberships') Total Membresías @elseif($registerType === 'pos') Total Tienda POS @else Total Recaudado @endif
+                </span>
                 <div class="p-2.5 bg-lime-500/10 border border-lime-500/20 rounded-xl text-lime-400">
                     <i data-lucide="dollar-sign" class="w-5 h-5"></i>
                 </div>
@@ -126,8 +200,16 @@
                 <span class="text-xs font-extrabold text-lime-400 font-mono block mt-1.5">≈ Bs. {{ number_format($grandTotalVes, 2, ',', '.') }}</span>
             </div>
             <div class="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-3 border-t border-slate-850">
-                <span>Membresías: <strong class="text-slate-200">${{ number_format($membershipTotal, 2) }}</strong></span>
-                <span>Tienda: <strong class="text-slate-200">${{ number_format($productSalesTotal, 2) }}</strong></span>
+                @if($registerType === 'memberships')
+                    <span>Cobros Registrados: <strong class="text-slate-200">#{{ $membershipPayments->count() }}</strong></span>
+                    <span>Nuevas: <strong class="text-slate-200">#{{ $newMemberships->count() }}</strong></span>
+                @elseif($registerType === 'pos')
+                    <span>Ventas Tienda: <strong class="text-slate-200">#{{ $productSales->count() }}</strong></span>
+                    <span>Items: <strong class="text-slate-200">{{ $productSales->sum(fn($s)=>$s->items->sum('quantity')) }}</strong></span>
+                @else
+                    <span>Membresías: <strong class="text-slate-200">${{ number_format($mTotal, 2) }}</strong></span>
+                    <span>Tienda: <strong class="text-slate-200">${{ number_format($pTotal, 2) }}</strong></span>
+                @endif
             </div>
         </div>
 
@@ -143,7 +225,9 @@
                 <span class="text-2xl font-black text-emerald-400 tracking-tight block leading-none">${{ number_format($cashTotal, 2) }}</span>
                 <span class="text-xs font-extrabold text-emerald-400/90 font-mono block mt-1.5">≈ Bs. {{ number_format($cashTotalVes, 2, ',', '.') }}</span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">Dinero físico a entregar en caja</p>
+            <p class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-slate-850">
+                @if($registerType === 'memberships') Dinero físico en gaveta de Recepción @elseif($registerType === 'pos') Dinero físico en gaveta de Tienda POS @else Dinero físico a entregar en caja @endif
+            </p>
         </div>
 
         <!-- Tarjeta Card -->
@@ -221,6 +305,7 @@
     </div>
 
     <!-- Detailed Section 1: Cobros de Membresías y Abonos (Paginated Max 10) -->
+    @if(in_array($registerType, ['all', 'memberships']))
     <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl space-y-4">
         <div class="p-6 border-b border-slate-850 flex items-center justify-between">
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
@@ -317,8 +402,10 @@
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Detailed Section 2: Ventas de Tienda POS (Paginated Max 10) -->
+    @if(in_array($registerType, ['all', 'pos']))
     <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl space-y-4">
         <div class="p-6 border-b border-slate-850 flex items-center justify-between">
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
@@ -416,8 +503,10 @@
             </div>
         </div>
     </div>
+    @endif
 
     <!-- Detailed Section 3: Registro de Asistencias del Día (Paginated Max 10) -->
+    @if(in_array($registerType, ['all', 'memberships']))
     <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl space-y-4">
         <div class="p-6 border-b border-slate-850 flex items-center justify-between">
             <h3 class="font-bold text-base text-slate-100 flex items-center gap-2">
@@ -434,38 +523,40 @@
                     <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
                         <th class="p-4 pl-6">Hora Entrada</th>
                         <th class="p-4">Socio</th>
-                        <th class="p-4 text-center">Método de Acceso</th>
+                        <th class="p-4">Plan Activo</th>
+                        <th class="p-4 text-center">Tipo de Acceso</th>
                         <th class="p-4 pr-6 text-right">Estado</th>
                     </tr>
                 </thead>
                 <tbody id="att_table_body" class="divide-y divide-slate-850">
                     @forelse($attendances as $att)
                         @php
-                            $member = $att->user;
-                            $memberName = $member ? trim(($member->profile->first_name ?? '') . ' ' . ($member->profile->last_name ?? '')) : 'Socio ID #' . $att->user_id;
+                            $user = $att->user;
+                            $userName = $user ? trim(($user->profile->first_name ?? '') . ' ' . ($user->profile->last_name ?? '')) : 'Socio Desconocido';
                         @endphp
                         <tr data-att-row class="hover:bg-slate-900/40 transition-colors">
                             <td class="p-4 pl-6 font-bold text-slate-200">
-                                {{ \Carbon\Carbon::parse($att->check_in)->format('H:i:s A') }}
+                                {{ \Carbon\Carbon::parse($att->check_in)->format('H:i A') }}
                             </td>
                             <td class="p-4 font-bold text-slate-100">
-                                {{ $memberName }}
+                                {{ $userName }}
+                            </td>
+                            <td class="p-4 text-slate-400">
+                                Plan General Gym
                             </td>
                             <td class="p-4 text-center">
-                                <span class="px-2.5 py-0.5 bg-slate-950 border border-slate-850 text-slate-300 font-mono text-[10px] uppercase rounded-lg">
-                                    {{ $att->entry_method ?: 'Biométrico' }}
+                                <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase rounded-full border border-emerald-500/20">
+                                    {{ $att->access_type ?? 'Torniquete / QR' }}
                                 </span>
                             </td>
-                            <td class="p-4 pr-6 text-right">
-                                <span class="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-extrabold uppercase rounded-full border border-emerald-500/20">
-                                    {{ $att->status === 'valid' ? 'Acceso Válido' : 'Revisar' }}
-                                </span>
+                            <td class="p-4 pr-6 text-right font-bold text-emerald-400">
+                                Autorizado ✓
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="p-8 text-center text-slate-500 font-semibold italic">
-                                No se registraron accesos de socios en esta fecha o periodo.
+                            <td colspan="5" class="p-8 text-center text-slate-500 font-semibold italic">
+                                No se registraron accesos o asistencias en esta fecha o periodo.
                             </td>
                         </tr>
                     @endforelse
@@ -489,12 +580,13 @@
             </div>
         </div>
     </div>
+    @endif
 
 </div>
 
 <!-- Modal: Confirmar Cierre Formal de Caja -->
 <div id="close-cash-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm hidden transition-opacity">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-md space-y-5 shadow-2xl relative">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-lg space-y-5 shadow-2xl relative">
         <div class="flex items-center justify-between border-b border-slate-850 pb-3">
             <h3 class="font-extrabold text-base text-slate-100 flex items-center gap-2">
                 <i data-lucide="lock" class="w-5 h-5 text-lime-400"></i> Realizar Cierre de Caja
@@ -508,24 +600,46 @@
             @csrf
             <input type="hidden" name="date" value="{{ $parsedDate }}">
 
+            <!-- Caja Selection in Modal -->
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Unidad de Caja a Cerrar</label>
+                <select name="register_type" id="modal_register_type_select" class="w-full px-4 py-2.5 text-xs font-bold bg-slate-950 border border-slate-850 rounded-xl text-lime-400 focus:outline-none focus:border-lime-500">
+                    <option value="memberships" {{ $registerType === 'memberships' ? 'selected' : '' }}>🏋️ Caja 1: Recepción & Membresías</option>
+                    <option value="pos" {{ $registerType === 'pos' ? 'selected' : '' }}>🛒 Caja 2: Tienda & POS Mostrador</option>
+                    <option value="all" {{ $registerType === 'all' ? 'selected' : '' }}>🏢 Consolidado General (Ambas Cajas)</option>
+                </select>
+            </div>
+
             <div class="p-4 bg-slate-950 rounded-2xl border border-slate-850 space-y-2 text-xs">
                 <div class="flex items-center justify-between text-slate-400">
                     <span>Periodo / Fecha:</span>
                     <span class="font-black text-slate-100">{{ $periodLabel ?? $parsedDate }}</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400">
-                    <span>Efectivo Físico en Caja:</span>
-                    <span class="font-black text-emerald-400 text-sm">${{ number_format($cashTotal, 2) }}</span>
+                    <span>Efectivo Teórico en Sistema:</span>
+                    <span class="font-black text-emerald-400 text-sm font-mono">${{ number_format($cashTotal, 2) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-slate-400 border-t border-slate-850 pt-2">
-                    <span>Gran Total Recaudado:</span>
-                    <span class="font-black text-lime-400 text-sm">${{ number_format($grandTotal, 2) }}</span>
+                    <span>Total Recaudado en esta Caja:</span>
+                    <span class="font-black text-lime-400 text-sm font-mono">${{ number_format($grandTotal, 2) }}</span>
+                </div>
+            </div>
+
+            <!-- Arqueo Físico de Efectivo -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Efectivo Físico ($ USD)</label>
+                    <input type="number" step="0.01" min="0" name="physical_cash_usd" placeholder="${{ number_format($cashTotal, 2) }}" class="w-full px-3.5 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-lime-500/50">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold uppercase text-slate-400 mb-1">Efectivo Físico (Bs. VES)</label>
+                    <input type="number" step="0.01" min="0" name="physical_cash_ves" placeholder="Bs. {{ number_format($cashTotalVes, 2, '.', '') }}" class="w-full px-3.5 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 font-mono focus:outline-none focus:border-lime-500/50">
                 </div>
             </div>
 
             <div>
                 <label class="block text-xs font-bold uppercase text-slate-400 mb-1.5">Observaciones de Auditoría (Opcional)</label>
-                <textarea name="notes" rows="2" placeholder="Ej: Dinero entregado al dueño. Sin novedades en el turno." class="w-full px-4 py-2.5 text-sm bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
+                <textarea name="notes" rows="2" placeholder="Ej: Gaveta cuadrada sin diferencias. Dinero entregado a gerencia." class="w-full px-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 focus:outline-none focus:border-lime-500/50"></textarea>
             </div>
 
             <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-850">
@@ -541,6 +655,8 @@
 </div>
 
 <script>
+    const currentRegisterType = '{{ $registerType }}';
+
     // Period & Date Change Handler
     function onCierrePeriodSelectChange(val) {
         const singleContainer = document.getElementById('cierre_single_date_container');
@@ -569,11 +685,11 @@
         const end = document.getElementById('cierre_end_date')?.value;
         if (!start || !end) return;
 
-        window.location.href = `/cierre-caja?period=custom&start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}`;
+        window.location.href = `/cierre-caja?period=custom&start_date=${encodeURIComponent(start)}&end_date=${encodeURIComponent(end)}&register_type=${encodeURIComponent(currentRegisterType)}`;
     }
 
     function changeAuditPeriod(periodStr, dateStr = '') {
-        let targetUrl = `/cierre-caja?period=${encodeURIComponent(periodStr)}`;
+        let targetUrl = `/cierre-caja?period=${encodeURIComponent(periodStr)}&register_type=${encodeURIComponent(currentRegisterType)}`;
         if (dateStr) {
             targetUrl += `&date=${encodeURIComponent(dateStr)}`;
         }

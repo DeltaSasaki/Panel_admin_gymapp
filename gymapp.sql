@@ -214,6 +214,31 @@ CREATE TABLE `cache_locks` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `cashiers`
+--
+
+CREATE TABLE `cashiers` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `gym_id` int(11) NOT NULL,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `email` varchar(150) DEFAULT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `shift` varchar(100) DEFAULT 'Mañana (06:00 - 14:00)',
+  `assigned_register` varchar(50) DEFAULT 'all' COMMENT 'all, memberships, pos',
+  `hire_date` date DEFAULT NULL,
+  `salary` decimal(10,2) DEFAULT 0.00,
+  `photo_url` varchar(500) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `createdAt` datetime NOT NULL DEFAULT current_timestamp(),
+  `updatedAt` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `challenges`
 --
 
@@ -1642,6 +1667,14 @@ ALTER TABLE `cache_locks`
   ADD KEY `cache_locks_expiration_index` (`expiration`);
 
 --
+-- Indices de la tabla `cashiers`
+--
+ALTER TABLE `cashiers`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `cashiers_user_id_foreign` (`user_id`),
+  ADD KEY `cashiers_gym_id_foreign` (`gym_id`);
+
+--
 -- Indices de la tabla `challenges`
 --
 ALTER TABLE `challenges`
@@ -2125,6 +2158,12 @@ ALTER TABLE `body_measurements`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT de la tabla `cashiers`
+--
+ALTER TABLE `cashiers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `challenges`
 --
 ALTER TABLE `challenges`
@@ -2477,6 +2516,13 @@ ALTER TABLE `attendance_logs`
 --
 ALTER TABLE `body_measurements`
   ADD CONSTRAINT `body_measurements_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Filtros para la tabla `cashiers`
+--
+ALTER TABLE `cashiers`
+  ADD CONSTRAINT `cashiers_gym_id_foreign` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `cashiers_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `challenges`

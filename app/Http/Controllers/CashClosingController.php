@@ -103,6 +103,10 @@ class CashClosingController extends Controller
         }
 
         $parsedDate = $startDate->format('Y-m-d');
+        $registerType = $request->query('register_type', 'all');
+        if (!in_array($registerType, ['all', 'memberships', 'pos'])) {
+            $registerType = 'all';
+        }
 
         // 1. Membership Payments Query
         $mPaymentsQuery = MembershipPayment::with(['membership.user.profile', 'membership.plan', 'receivedBy'])
@@ -142,91 +146,162 @@ class CashClosingController extends Controller
         }
         $attendances = $attendanceQuery->orderBy('check_in', 'desc')->get();
 
-        // Totals & Financial Calculations
-        $membershipTotal = (float) $membershipPayments->sum('amount');
-        $productSalesTotal = (float) $productSales->sum('total_amount');
-        $grandTotal = $membershipTotal + $productSalesTotal;
-
-        // Payment Methods Breakdown
-        $cashTotal = (float) $membershipPayments->where('payment_method', 'cash')->sum('amount')
-            + (float) $productSales->where('payment_method', 'cash')->sum('total_amount');
-
-        $cardTotal = (float) $membershipPayments->where('payment_method', 'card')->sum('amount')
-            + (float) $productSales->where('payment_method', 'card')->sum('total_amount');
-
-        $transferTotal = (float) $membershipPayments->where('payment_method', 'transfer')->sum('amount')
-            + (float) $productSales->where('payment_method', 'transfer')->sum('total_amount');
-
-        $otherTotal = max(0, $grandTotal - ($cashTotal + $cardTotal + $transferTotal));
-
         // Exchange Rate (VES Factor) calculations
         $dollarRate = \App\Services\ExchangeRateService::getCurrentRate($gymId);
 
-        // Audit check if day was closed
-        $isClosedQuery = AdminAuditLog::where('action_type', 'EXPORT_DATA')
+        // Audit check for independent closings on this date
+        $closingLogMemberships = AdminAuditLog::where('action_type', 'EXPORT_DATA')
+            ->where('table_name', 'cierre_caja_memberships')
+            ->where('record_id', $parsedDate)
+            ->when($gymId !== 'all', fn($q) => $q->where('gym_id', $gymId))
+            ->latest('id')
+            ->first();
+
+        $closingLogPos = AdminAuditLog::where('action_type', 'EXPORT_DATA')
+            ->where('table_name', 'cierre_caja_pos')
+            ->where('record_id', $parsedDate)
+            ->when($gymId !== 'all', fn($q) => $q->where('gym_id', $gymId))
+            ->latest('id')
+            ->first();
+
+        $closingLogGlobal = AdminAuditLog::where('action_type', 'EXPORT_DATA')
             ->where('table_name', 'cierre_caja')
-            ->where('record_id', $parsedDate);
+            ->where('record_id', $parsedDate)
+            ->when($gymId !== 'all', fn($q) => $q->where('gym_id', $gymId))
+            ->latest('id')
+            ->first();
 
-        if ($gymId !== 'all') {
-            $isClosedQuery->where('gym_id', $gymId);
+        $isMembershipsClosed = !is_null($closingLogMemberships);
+        $isPosClosed = !is_null($closingLogPos);
+        $isGlobalClosed = !is_null($closingLogGlobal);
+
+        // Determine active register close state
+        if ($registerType === 'memberships') {
+            $isClosed = $isMembershipsClosed;
+            $closingLog = $closingLogMemberships;
+            $closingAuditType = 'cierre_caja_memberships';
+            $registerTitle = 'Caja 1: Recepción y Membresías';
+        } elseif ($registerType === 'pos') {
+            $isClosed = $isPosClosed;
+            $closingLog = $closingLogPos;
+            $closingAuditType = 'cierre_caja_pos';
+            $registerTitle = 'Caja 2: Tienda y POS Mostrador';
+        } else {
+            $isClosed = $isGlobalClosed || ($isMembershipsClosed && $isPosClosed);
+            $closingLog = $closingLogGlobal ?? ($isMembershipsClosed ? $closingLogMemberships : $closingLogPos);
+            $closingAuditType = 'cierre_caja';
+            $registerTitle = 'Consolidado General (Todas las Cajas)';
         }
-        $closingLog = $isClosedQuery->first();
-        $isClosed = !is_null($closingLog);
 
-        // If day was closed, lock the rate from the audit snapshot
+        // If active register was closed, lock the rate from the audit snapshot
         if ($isClosed && !empty($closingLog->new_values) && is_array($closingLog->new_values)) {
             if (!empty($closingLog->new_values['dollar_rate']) && (float)$closingLog->new_values['dollar_rate'] > 1.0001) {
                 $dollarRate = (float)$closingLog->new_values['dollar_rate'];
             }
         }
 
-        // Calculate VES totals by summing the FROZEN transaction amounts (Historical Immutability)
-        $membershipTotalVes = (float) $membershipPayments->sum(function($p) use ($dollarRate) {
+        // Base Calculations: 1. Memberships Register (Recepción)
+        $mTotal = (float) $membershipPayments->sum('amount');
+        $mTotalVes = (float) $membershipPayments->sum(function($p) use ($dollarRate) {
             return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
                 ? (float)$p->amount_ves
                 : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
         });
 
-        $productSalesTotalVes = (float) $productSales->sum(function($s) use ($dollarRate) {
-            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
-                ? (float)$s->total_amount_ves
-                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
-        });
-
-        $grandTotalVes = round($membershipTotalVes + $productSalesTotalVes, 2);
-
-        // Payment method breakdown in VES based on frozen transactions
-        $cashTotalVes = (float) $membershipPayments->where('payment_method', 'cash')->sum(function($p) use ($dollarRate) {
+        $mCash = (float) $membershipPayments->where('payment_method', 'cash')->sum('amount');
+        $mCashVes = (float) $membershipPayments->where('payment_method', 'cash')->sum(function($p) use ($dollarRate) {
             return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
                 ? (float)$p->amount_ves
                 : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
-        }) + (float) $productSales->where('payment_method', 'cash')->sum(function($s) use ($dollarRate) {
-            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
-                ? (float)$s->total_amount_ves
-                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
         });
 
-        $cardTotalVes = (float) $membershipPayments->where('payment_method', 'card')->sum(function($p) use ($dollarRate) {
+        $mCard = (float) $membershipPayments->where('payment_method', 'card')->sum('amount');
+        $mCardVes = (float) $membershipPayments->where('payment_method', 'card')->sum(function($p) use ($dollarRate) {
             return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
                 ? (float)$p->amount_ves
                 : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
-        }) + (float) $productSales->where('payment_method', 'card')->sum(function($s) use ($dollarRate) {
-            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
-                ? (float)$s->total_amount_ves
-                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
         });
 
-        $transferTotalVes = (float) $membershipPayments->where('payment_method', 'transfer')->sum(function($p) use ($dollarRate) {
+        $mTransfer = (float) $membershipPayments->where('payment_method', 'transfer')->sum('amount');
+        $mTransferVes = (float) $membershipPayments->where('payment_method', 'transfer')->sum(function($p) use ($dollarRate) {
             return ($p->amount_ves && (float)$p->amount_ves > ((float)$p->amount * 1.0001))
                 ? (float)$p->amount_ves
                 : ((float)$p->amount * (($p->exchange_rate && (float)$p->exchange_rate > 1.0001) ? (float)$p->exchange_rate : $dollarRate));
-        }) + (float) $productSales->where('payment_method', 'transfer')->sum(function($s) use ($dollarRate) {
+        });
+        $mOther = max(0, $mTotal - ($mCash + $mCard + $mTransfer));
+        $mOtherVes = max(0, $mTotalVes - ($mCashVes + $mCardVes + $mTransferVes));
+
+        // Base Calculations: 2. Store & POS Register (Tienda Mostrador)
+        $pTotal = (float) $productSales->sum('total_amount');
+        $pTotalVes = (float) $productSales->sum(function($s) use ($dollarRate) {
             return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
                 ? (float)$s->total_amount_ves
                 : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
         });
 
-        $otherTotalVes = max(0, $grandTotalVes - ($cashTotalVes + $cardTotalVes + $transferTotalVes));
+        $pCash = (float) $productSales->where('payment_method', 'cash')->sum('total_amount');
+        $pCashVes = (float) $productSales->where('payment_method', 'cash')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $pCard = (float) $productSales->where('payment_method', 'card')->sum('total_amount');
+        $pCardVes = (float) $productSales->where('payment_method', 'card')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+
+        $pTransfer = (float) $productSales->where('payment_method', 'transfer')->sum('total_amount');
+        $pTransferVes = (float) $productSales->where('payment_method', 'transfer')->sum(function($s) use ($dollarRate) {
+            return ($s->total_amount_ves && (float)$s->total_amount_ves > ((float)$s->total_amount * 1.0001))
+                ? (float)$s->total_amount_ves
+                : ((float)$s->total_amount * (($s->exchange_rate && (float)$s->exchange_rate > 1.0001) ? (float)$s->exchange_rate : $dollarRate));
+        });
+        $pOther = max(0, $pTotal - ($pCash + $pCard + $pTransfer));
+        $pOtherVes = max(0, $pTotalVes - ($pCashVes + $pCardVes + $pTransferVes));
+
+        // Assign metrics based on active registerType
+        $membershipTotal = $mTotal;
+        $membershipTotalVes = $mTotalVes;
+        $productSalesTotal = $pTotal;
+        $productSalesTotalVes = $pTotalVes;
+
+        if ($registerType === 'memberships') {
+            $grandTotal = $mTotal;
+            $grandTotalVes = $mTotalVes;
+            $cashTotal = $mCash;
+            $cashTotalVes = $mCashVes;
+            $cardTotal = $mCard;
+            $cardTotalVes = $mCardVes;
+            $transferTotal = $mTransfer;
+            $transferTotalVes = $mTransferVes;
+            $otherTotal = $mOther;
+            $otherTotalVes = $mOtherVes;
+        } elseif ($registerType === 'pos') {
+            $grandTotal = $pTotal;
+            $grandTotalVes = $pTotalVes;
+            $cashTotal = $pCash;
+            $cashTotalVes = $pCashVes;
+            $cardTotal = $pCard;
+            $cardTotalVes = $pCardVes;
+            $transferTotal = $pTransfer;
+            $transferTotalVes = $pTransferVes;
+            $otherTotal = $pOther;
+            $otherTotalVes = $pOtherVes;
+        } else {
+            $grandTotal = $mTotal + $pTotal;
+            $grandTotalVes = round($mTotalVes + $pTotalVes, 2);
+            $cashTotal = $mCash + $pCash;
+            $cashTotalVes = $mCashVes + $pCashVes;
+            $cardTotal = $mCard + $pCard;
+            $cardTotalVes = $mCardVes + $pCardVes;
+            $transferTotal = $mTransfer + $pTransfer;
+            $transferTotalVes = $mTransferVes + $pTransferVes;
+            $otherTotal = $mOther + $pOther;
+            $otherTotalVes = $mOtherVes + $pOtherVes;
+        }
 
         $gym = ($gymId !== 'all') ? Gym::find($gymId) : null;
 
@@ -239,6 +314,22 @@ class CashClosingController extends Controller
             'membershipTotalVes',
             'productSalesTotal',
             'productSalesTotalVes',
+            'mTotal',
+            'mTotalVes',
+            'mCash',
+            'mCashVes',
+            'mCard',
+            'mCardVes',
+            'mTransfer',
+            'mTransferVes',
+            'pTotal',
+            'pTotalVes',
+            'pCash',
+            'pCashVes',
+            'pCard',
+            'pCardVes',
+            'pTransfer',
+            'pTransferVes',
             'grandTotal',
             'grandTotalVes',
             'cashTotal',
@@ -253,14 +344,23 @@ class CashClosingController extends Controller
             'parsedDate',
             'period',
             'periodLabel',
+            'registerType',
+            'registerTitle',
+            'closingAuditType',
             'isClosed',
             'closingLog',
+            'isMembershipsClosed',
+            'isPosClosed',
+            'isGlobalClosed',
+            'closingLogMemberships',
+            'closingLogPos',
+            'closingLogGlobal',
             'gym'
         );
     }
 
     /**
-     * Register formal Cash Register Close with immutable snapshot.
+     * Register formal Cash Register Close with immutable snapshot per register type.
      */
     public function closeDay(Request $request)
     {
@@ -268,24 +368,38 @@ class CashClosingController extends Controller
 
         $request->validate([
             'date' => 'required|date',
+            'register_type' => 'required|string|in:all,memberships,pos',
+            'physical_cash_usd' => 'nullable|numeric|min:0',
+            'physical_cash_ves' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:500'
         ]);
 
         $gymId = session('active_gym_id', 'all');
         $date = $request->date;
+        $registerType = $request->register_type;
 
         $targetGymId = ($gymId === 'all') ? null : $gymId;
         $data = $this->getCashClosingData($request);
 
+        $tableName = match($registerType) {
+            'memberships' => 'cierre_caja_memberships',
+            'pos' => 'cierre_caja_pos',
+            default => 'cierre_caja'
+        };
+
         AdminAuditLog::logAction(
             'EXPORT_DATA',
-            'cierre_caja',
+            $tableName,
             $date,
             null,
             [
                 'date' => $date,
+                'register_type' => $registerType,
+                'register_title' => $data['registerTitle'],
                 'closed_by' => auth()->user()->name,
                 'notes' => $request->notes,
+                'physical_cash_usd' => $request->physical_cash_usd,
+                'physical_cash_ves' => $request->physical_cash_ves,
                 'dollar_rate' => $data['dollarRate'],
                 'grand_total_usd' => $data['grandTotal'],
                 'grand_total_ves' => $data['grandTotalVes'],
@@ -304,14 +418,22 @@ class CashClosingController extends Controller
             $targetGymId
         );
 
+        $regName = match($registerType) {
+            'memberships' => 'Caja de Recepción y Membresías',
+            'pos' => 'Caja de Tienda POS',
+            default => 'Caja General (Consolidada)'
+        };
+
+        $msg = "¡Cierre formal de {$regName} del día {$date} registrado con éxito!";
+
         if ($request->wantsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
             return response()->json([
                 'success' => true,
-                'message' => "¡Cierre de caja del día {$date} registrado con éxito!"
+                'message' => $msg
             ]);
         }
 
-        return redirect()->back()->with('success', "¡Cierre de caja del día {$date} registrado con éxito!");
+        return redirect()->back()->with('success', $msg);
     }
 
     /**

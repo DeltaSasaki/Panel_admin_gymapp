@@ -19,6 +19,7 @@ class Cashier extends Model
         'email',
         'phone',
         'shift',
+        'assigned_register',
         'hire_date',
         'salary',
         'photo_url',
