@@ -493,6 +493,11 @@
                                         <i data-lucide="qr-code" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
                                         <span>Pasarelas de Pago</span>
                                     </a>
+                                    <a href="{{ url('/finanzas/tasa-cambio') }}" 
+                                       class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium group/item {{ Request::is('finanzas/tasa-cambio*') ? 'active-nav-link bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-850/50' }}">
+                                        <i data-lucide="coins" class="w-4 h-4 text-slate-500 group-hover/item:text-lime-400 group-hover/item:scale-110 transition-all duration-200"></i>
+                                        <span>Tasa de Cambio (VES)</span>
+                                    </a>
                                 @endif
                                 @if(in_array(auth()->user()->role, ['admin', 'superadmin', 'cajero']))
                                     <a href="{{ url('/cierre-caja') }}" 
@@ -768,9 +773,21 @@
                 </div>
 
                 <!-- Right items: Actions, Notifications, Profile -->
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3 md:gap-4">
+                    @php
+                        $navbarCurrentRate = \App\Services\ExchangeRateService::getCurrentRate($activeGymId);
+                    @endphp
+                    <!-- Exchange Rate Navbar Badge -->
+                    <a href="{{ route('tasas_cambio.index') }}" 
+                       class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-xl text-xs transition-all group shadow-sm" 
+                       title="Factor Cambiario Oficial (Click para administrar)">
+                        <span class="w-2 h-2 rounded-full bg-lime-400 animate-pulse"></span>
+                        <span class="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">BCV:</span>
+                        <span class="text-xs font-black text-lime-400 font-mono">Bs. {{ number_format($navbarCurrentRate, 2, ',', '.') }}</span>
+                    </a>
+
                     <!-- Theme Toggle Button -->
-                    <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
+                    <button id="theme-toggle" class="p-2.5 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-slate-100 rounded-xl border border-slate-850 hover:border-slate-700 transition-colors focus:outline-none cursor-pointer" title="Cambiar tema">
                         <i data-lucide="moon" class="w-4 h-4 dark-icon block"></i>
                         <i data-lucide="sun" class="w-4 h-4 light-icon hidden"></i>
                     </button>

@@ -321,10 +321,17 @@ CREATE TABLE `exchange_rates` (
   `gym_id` int(11) DEFAULT NULL COMMENT 'NULL para tasa global por defecto',
   `rate_source` enum('bcv','enparalelovzla','custom') NOT NULL DEFAULT 'bcv',
   `rate` decimal(12,4) NOT NULL COMMENT 'Tasa de cambio VES por 1 USD (Factor)',
+  `previous_rate` decimal(12,4) DEFAULT NULL COMMENT 'Tasa inmediatamente anterior',
+  `variation_percent` decimal(6,2) DEFAULT 0.00 COMMENT 'Variación porcentual respecto a la tasa anterior',
   `effective_date` date NOT NULL,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `effective_at` datetime DEFAULT NULL COMMENT 'Fecha y hora exacta de entrada en vigencia',
+  `change_type` enum('auto_job','manual_override','emergency_update') NOT NULL DEFAULT 'auto_job',
   `notes` varchar(255) DEFAULT NULL,
   `updated_by` int(11) DEFAULT NULL COMMENT 'Usuario que registró la tasa',
+  `ip_address` varchar(45) DEFAULT NULL,
+  `api_provider` varchar(80) DEFAULT NULL,
+  `raw_payload` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `createdAt` datetime NOT NULL DEFAULT current_timestamp(),
   `updatedAt` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

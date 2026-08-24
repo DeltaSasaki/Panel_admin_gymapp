@@ -38,7 +38,9 @@ class InventoryController extends Controller
         // Fetch product categories for cashier quick filtering
         $categories = ProductCategory::where('gym_id', $gymId)->get();
 
-        return view('tienda.pos', compact('products', 'clients', 'categories'));
+        $currentRate = \App\Services\ExchangeRateService::getCurrentRate($gymId);
+
+        return view('tienda.pos', compact('products', 'clients', 'categories', 'currentRate'));
     }
 
     /**
@@ -142,6 +144,9 @@ class InventoryController extends Controller
                 $promo->increment('current_uses');
             }
 
+            $activeExchangeRate = \App\Services\ExchangeRateService::getCurrentRate($gymId);
+            $totalAmountVes = round($totalAmount * $activeExchangeRate, 2);
+
             // Create product sale record
             $sale = ProductSale::create([
                 'gym_id' => $gymId,
@@ -149,6 +154,8 @@ class InventoryController extends Controller
                 'promo_code_id' => $promoId,
                 'sold_by' => auth()->user()->id,
                 'total_amount' => $totalAmount,
+                'total_amount_ves' => $totalAmountVes,
+                'exchange_rate' => $activeExchangeRate,
                 'payment_method' => $request->payment_method,
                 'sale_date' => Carbon::now(),
                 'notes' => $request->notes,
@@ -157,6 +164,8 @@ class InventoryController extends Controller
             // Save individual items (Fires the database triggers)
             foreach ($itemsToCreate as $item) {
                 $item['sale_id'] = $sale->id;
+                $item['unit_price_ves'] = round($item['unit_price'] * $activeExchangeRate, 2);
+                $item['subtotal_ves'] = round($item['subtotal'] * $activeExchangeRate, 2);
                 SaleItem::create($item);
             }
 

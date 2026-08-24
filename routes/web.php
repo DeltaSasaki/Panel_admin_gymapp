@@ -11,6 +11,7 @@ use App\Http\Controllers\CashierController;
 use App\Http\Controllers\CashClosingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentGatewayController;
+use App\Http\Controllers\ExchangeRateController;
 
 // Public Auth routes
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -88,6 +89,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/finanzas/promociones-gym', [FinanceController::class, 'storeGymPromotion'])->name('finanzas.store_gym_promo');
     Route::post('/finanzas/promociones-gym/{id}/toggle', [FinanceController::class, 'toggleGymPromotion'])->name('finanzas.toggle_gym_promo');
     Route::delete('/finanzas/promociones-gym/{id}', [FinanceController::class, 'deleteGymPromotion'])->name('finanzas.delete_gym_promo');
+
+    // Tasa de Cambio (Factor VES) y Sincronización BCV
+    Route::get('/finanzas/tasa-cambio', [ExchangeRateController::class, 'index'])->name('tasas_cambio.index');
+    Route::post('/finanzas/tasa-cambio/sync-bcv', [ExchangeRateController::class, 'syncNow'])->name('tasas_cambio.sync_now');
+    Route::post('/finanzas/tasa-cambio/manual', [ExchangeRateController::class, 'storeManual'])->name('tasas_cambio.store_manual');
+    Route::post('/finanzas/tasa-cambio/config', [ExchangeRateController::class, 'updateConfig'])->name('tasas_cambio.update_config');
+    Route::get('/api/v1/exchange-rate/current', [ExchangeRateController::class, 'apiCurrentRate'])->name('api.v1.exchange_rate.current');
 
     // Cierre de Caja y Balance Diario
     Route::get('/cierre-caja', [CashClosingController::class, 'index'])->name('cierre_caja.index');

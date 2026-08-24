@@ -98,7 +98,10 @@
                     <div class="flex justify-between items-center border-t border-slate-800/80 pt-3 mt-3">
                         <div>
                             <span class="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Precio</span>
-                            <span class="font-black text-lime-400 text-base">${{ number_format($product->price, 2) }}</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span class="font-black text-lime-400 text-base">${{ number_format($product->price, 2) }}</span>
+                                <span class="text-[11px] font-bold text-slate-400 font-mono">/ {{ \App\Services\ExchangeRateService::formatVES($product->price * ($currentRate ?? 1)) }}</span>
+                            </div>
                         </div>
                         <span class="px-2.5 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded-lg text-xs font-extrabold flex items-center gap-1">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i> Agregar
@@ -212,7 +215,10 @@
                 </div>
                 <div class="flex justify-between items-baseline border-t border-slate-850/50 pt-2">
                     <span class="text-xs font-bold text-slate-100 uppercase">Monto Total:</span>
-                    <span class="text-lg font-black text-lime-400" id="total-amount-badge">$0.00</span>
+                    <div class="text-right">
+                        <span class="text-lg font-black text-lime-400" id="total-amount-badge">$0.00</span>
+                        <span class="text-xs font-extrabold text-emerald-400 font-mono block" id="total-amount-ves-badge">Bs. 0,00</span>
+                    </div>
                 </div>
             </div>
 
@@ -225,6 +231,7 @@
 </div>
 
 <script>
+    const currentExchangeRate = {{ (float)($currentRate ?? 1) }};
     let cart = [];
     let lastCompletedSaleData = null;
     let lastCompletedSaleDetails = null;
@@ -431,6 +438,8 @@
             subtotalAmt.innerText = '$0.00';
             discountRow.classList.add('hidden');
             totalAmt.innerText = '$0.00';
+            const totalVesBadge = document.getElementById('total-amount-ves-badge');
+            if (totalVesBadge) totalVesBadge.innerText = 'Bs. 0,00';
             btn.disabled = true;
             return;
         }
@@ -484,10 +493,17 @@
         }
 
         const finalTotal = Math.max(0, subtotal - discount);
+        const finalTotalVes = finalTotal * currentExchangeRate;
 
         totalQty.innerText = totalQ;
         subtotalAmt.innerText = `$${subtotal.toFixed(2)}`;
         totalAmt.innerText = `$${finalTotal.toFixed(2)}`;
+        
+        const totalVesBadge = document.getElementById('total-amount-ves-badge');
+        if (totalVesBadge) {
+            totalVesBadge.innerText = `Bs. ${finalTotalVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
         btn.disabled = false;
 
         if (window.lucide) {
