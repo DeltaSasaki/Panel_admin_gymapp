@@ -1475,14 +1475,21 @@ class FinanceController extends Controller
         $userNotes = $request->filled('notes') ? " - Nota: " . $request->notes : "";
         $fullNotes = "{$tag} Solicitud de pago desde App Móvil ({$request->payment_method}, Ref: {$request->reference_code}){$userNotes}";
 
+        $rate = ($request->filled('exchange_rate') && (float)$request->exchange_rate > 1.0001) 
+            ? (float)$request->exchange_rate 
+            : \App\Services\ExchangeRateService::getCurrentRate($user->gym_id);
+        $amountVes = ($request->filled('amount_ves') && (float)$request->amount_ves > 0)
+            ? (float)$request->amount_ves
+            : round((float)$request->amount * $rate, 2);
+
         $payment = MembershipPayment::create([
             'membership_id' => $membershipId,
             'user_id' => $user->id,
             'amount' => $request->amount,
-            'amount_ves' => $request->amount_ves ?: 0.00,
-            'exchange_rate' => $request->exchange_rate ?: null,
+            'amount_ves' => $amountVes,
+            'exchange_rate' => $rate,
             'currency' => 'USD',
-            'payment_currency' => $request->filled('amount_ves') && $request->amount_ves > 0 ? 'VES' : 'USD',
+            'payment_currency' => $request->filled('amount_ves') && (float)$request->amount_ves > 0 ? 'VES' : 'USD',
             'payment_method' => $request->payment_method,
             'payment_date' => Carbon::now(),
             'reference_code' => $request->reference_code,

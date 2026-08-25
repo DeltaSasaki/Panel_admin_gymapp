@@ -166,11 +166,21 @@
                 <span class="font-bold text-sm block">
                     {{ $registerTitle }} — {{ $isClosed ? 'Cierre Formal Completado' : 'Arqueo en Proceso' }}
                 </span>
-                <span class="text-xs opacity-80">
-                    @if($isClosed && $closingLog)
-                        Esta caja del {{ \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }} fue cerrada formalmente por <strong>{{ $closingLog->new_values['closed_by'] ?? 'Administrador' }}</strong> a las {{ \Carbon\Carbon::parse($closingLog->created_at ?? $closingLog->createdAt)->format('H:i') }} hrs.
+                <span class="text-xs opacity-90 block">
+                    @if($isClosed)
+                        @php
+                            $closerName = $closingRecord->closedBy->name ?? ($closingLog->new_values['closed_by'] ?? 'Administrador');
+                            $closerTime = $closingRecord && $closingRecord->closed_at ? \Carbon\Carbon::parse($closingRecord->closed_at)->format('H:i') : (\Carbon\Carbon::parse($closingLog->created_at ?? $closingLog->createdAt ?? now())->format('H:i'));
+                            $closedRate = $closingRecord ? (float)$closingRecord->exchange_rate : (float)$dollarRate;
+                        @endphp
+                        Esta caja del {{ \Carbon\Carbon::parse($parsedDate)->format('d/m/Y') }} fue cerrada formalmente por <strong>{{ $closerName }}</strong> a las {{ $closerTime }} hrs con tasa inmutable de <strong>Bs. {{ number_format($closedRate, 2, ',', '.') }}</strong>.
+                        @if($closingRecord && ((float)$closingRecord->difference_usd != 0 || (float)$closingRecord->difference_ves != 0))
+                            <span class="block mt-1 text-[11px] font-bold text-amber-300">
+                                Arqueo: Físico USD ${{ number_format($closingRecord->actual_cash_usd, 2) }} (Dif: {{ $closingRecord->difference_usd >= 0 ? '+' : '' }}${{ number_format($closingRecord->difference_usd, 2) }}) • Físico Bs. {{ number_format($closingRecord->actual_cash_ves, 2, ',', '.') }} (Dif: {{ $closingRecord->difference_ves >= 0 ? '+' : '' }}Bs. {{ number_format($closingRecord->difference_ves, 2, ',', '.') }})
+                            </span>
+                        @endif
                     @else
-                        Arqueo de ingresos y comprobantes para el periodo <strong>{{ $periodLabel ?? $parsedDate }}</strong>.
+                        Arqueo de ingresos y comprobantes para el periodo <strong>{{ $periodLabel ?? $parsedDate }}</strong>. Tasa activa: <strong>Bs. {{ number_format($liveRate ?? $dollarRate, 2, ',', '.') }}</strong>.
                     @endif
                 </span>
             </div>
@@ -342,8 +352,12 @@
                             $planName = $pay->membership->plan->name ?? 'Membresía / Abono';
                         @endphp
                         @php
-                            $effectivePayRate = ($dollarRate && (float)$dollarRate > 1.0001) ? (float)$dollarRate : (float)\App\Services\ExchangeRateService::getCurrentRate();
-                            $payVes = (float)$pay->amount * $effectivePayRate;
+                            $effectivePayRate = ($pay->exchange_rate && (float)$pay->exchange_rate > 1.0001) 
+                                ? (float)$pay->exchange_rate 
+                                : (float)($dollarRate ?? 1);
+                            $payVes = ($pay->amount_ves && (float)$pay->amount_ves > 0) 
+                                ? (float)$pay->amount_ves 
+                                : ((float)$pay->amount * $effectivePayRate);
                         @endphp
                         <tr data-mpay-row class="hover:bg-slate-900/40 transition-colors">
                             <td class="p-4 pl-6">
@@ -443,9 +457,9 @@
                             
                             $effectiveSaleRate = ($sale->exchange_rate && (float)$sale->exchange_rate > 1.0001) 
                                 ? (float)$sale->exchange_rate 
-                                : (float)($dollarRate > 1.0001 ? $dollarRate : \App\Services\ExchangeRateService::getCurrentRate($sale->gym_id));
+                                : (float)($dollarRate ?? 1);
 
-                            $effectiveSaleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                            $effectiveSaleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > 0)
                                 ? (float)$sale->total_amount_ves
                                 : ((float)$sale->total_amount * $effectiveSaleRate);
                         @endphp

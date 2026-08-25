@@ -17,6 +17,9 @@ class ProductSale extends Model
         'promo_code_id',
         'sold_by',
         'total_amount',
+        'total_amount_ves',
+        'exchange_rate',
+        'payment_currency',
         'payment_method', // 'cash', 'card', 'transfer', 'other'
         'sale_date',
         'notes',

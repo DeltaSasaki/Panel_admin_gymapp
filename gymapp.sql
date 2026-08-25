@@ -214,6 +214,45 @@ CREATE TABLE `cache_locks` (
 -- --------------------------------------------------------
 
 --
+-- Estructura de tabla para la tabla `cash_closings`
+--
+
+CREATE TABLE `cash_closings` (
+  `id` int(11) NOT NULL,
+  `gym_id` int(11) NOT NULL,
+  `cashier_id` int(11) DEFAULT NULL,
+  `closed_by` int(11) NOT NULL,
+  `closing_date` date NOT NULL,
+  `register_type` enum('all','memberships','pos') NOT NULL DEFAULT 'all' COMMENT 'Caja 1: memberships, Caja 2: pos, Consolidado: all',
+  `exchange_rate` decimal(12,4) NOT NULL DEFAULT 1.0000 COMMENT 'Tasa USD/VES congelada en el cierre',
+  `total_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `total_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `cash_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `card_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `transfer_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `other_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `cash_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `card_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `transfer_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `other_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `expected_cash_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `actual_cash_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `difference_usd` decimal(12,2) NOT NULL DEFAULT 0.00,
+  `expected_cash_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `actual_cash_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `difference_ves` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `memberships_count` int(11) NOT NULL DEFAULT 0,
+  `sales_count` int(11) NOT NULL DEFAULT 0,
+  `status` enum('open','closed') NOT NULL DEFAULT 'closed',
+  `notes` text DEFAULT NULL,
+  `closed_at` datetime DEFAULT NULL,
+  `createdAt` datetime DEFAULT current_timestamp(),
+  `updatedAt` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estructura de tabla para la tabla `cashiers`
 --
 
@@ -1667,6 +1706,16 @@ ALTER TABLE `cache_locks`
   ADD KEY `cache_locks_expiration_index` (`expiration`);
 
 --
+-- Indices de la tabla `cash_closings`
+--
+ALTER TABLE `cash_closings`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_cash_closings_gym` (`gym_id`),
+  ADD KEY `fk_cash_closings_cashier` (`cashier_id`),
+  ADD KEY `fk_cash_closings_user` (`closed_by`),
+  ADD KEY `idx_closing_lookup` (`gym_id`,`closing_date`,`register_type`);
+
+--
 -- Indices de la tabla `cashiers`
 --
 ALTER TABLE `cashiers`
@@ -1679,7 +1728,10 @@ ALTER TABLE `cashiers`
 --
 ALTER TABLE `challenges`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `gym_id` (`gym_id`);
+  ADD KEY `gym_id` (`gym_id`),
+  ADD KEY `chal_routine_fk` (`routine_id`),
+  ADD KEY `chal_exercise_fk` (`exercise_id`),
+  ADD KEY `chal_badge_fk` (`badge_id`);
 
 --
 -- Indices de la tabla `class_bookings`
@@ -1802,7 +1854,8 @@ ALTER TABLE `ingredients`
 --
 ALTER TABLE `inventory_movements`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `product_id` (`product_id`);
+  ADD KEY `product_id` (`product_id`),
+  ADD KEY `im_performed_by_fk` (`performed_by`);
 
 --
 -- Indices de la tabla `inventory_products`
@@ -1851,6 +1904,8 @@ ALTER TABLE `meal_plan_days`
 ALTER TABLE `membership_payments`
   ADD PRIMARY KEY (`id`),
   ADD KEY `membership_id` (`membership_id`),
+  ADD KEY `mpay_user_fk` (`user_id`),
+  ADD KEY `mpay_received_by_fk` (`received_by`),
   ADD KEY `mpay_promo_fk` (`promo_code_id`);
 
 --
@@ -1893,6 +1948,9 @@ ALTER TABLE `product_categories`
 --
 ALTER TABLE `product_sales`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `psale_gym_fk` (`gym_id`),
+  ADD KEY `psale_user_fk` (`user_id`),
+  ADD KEY `psale_sold_by_fk` (`sold_by`),
   ADD KEY `psale_promo_fk` (`promo_code_id`);
 
 --
@@ -2022,7 +2080,8 @@ ALTER TABLE `user_achievements`
 ALTER TABLE `user_assigned_routines`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `routine_id` (`routine_id`);
+  ADD KEY `routine_id` (`routine_id`),
+  ADD KEY `uar_assigned_by_fk` (`assigned_by`);
 
 --
 -- Indices de la tabla `user_challenges`
@@ -2056,7 +2115,8 @@ ALTER TABLE `user_food_logs`
 -- Indices de la tabla `user_gamification_stats`
 --
 ALTER TABLE `user_gamification_stats`
-  ADD PRIMARY KEY (`user_id`);
+  ADD PRIMARY KEY (`user_id`),
+  ADD KEY `ugs_gym_fk` (`gym_id`);
 
 --
 -- Indices de la tabla `user_goals`
@@ -2071,7 +2131,8 @@ ALTER TABLE `user_goals`
 ALTER TABLE `user_meal_plans`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `meal_plan_id` (`meal_plan_id`);
+  ADD KEY `meal_plan_id` (`meal_plan_id`),
+  ADD KEY `ump_assigned_by_fk` (`assigned_by`);
 
 --
 -- Indices de la tabla `user_medical_notes`
@@ -2087,7 +2148,8 @@ ALTER TABLE `user_medical_notes`
 ALTER TABLE `user_memberships`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `plan_id` (`plan_id`);
+  ADD KEY `plan_id` (`plan_id`),
+  ADD KEY `um_gym_fk` (`gym_id`);
 
 --
 -- Indices de la tabla `user_profiles`
@@ -2119,7 +2181,8 @@ ALTER TABLE `user_trainer_assignments`
 --
 ALTER TABLE `workout_routines`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `routines_gym_fk` (`gym_id`);
+  ADD KEY `routines_gym_fk` (`gym_id`),
+  ADD KEY `wr_created_by_fk` (`created_by`);
 
 --
 -- Indices de la tabla `workout_sessions`
@@ -2127,7 +2190,8 @@ ALTER TABLE `workout_routines`
 ALTER TABLE `workout_sessions`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`),
-  ADD KEY `routine_id` (`routine_id`);
+  ADD KEY `routine_id` (`routine_id`),
+  ADD KEY `ws_routine_day_fk` (`routine_day_id`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -2155,6 +2219,12 @@ ALTER TABLE `attendance_logs`
 -- AUTO_INCREMENT de la tabla `body_measurements`
 --
 ALTER TABLE `body_measurements`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `cash_closings`
+--
+ALTER TABLE `cash_closings`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -2518,6 +2588,14 @@ ALTER TABLE `body_measurements`
   ADD CONSTRAINT `body_measurements_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
+-- Filtros para la tabla `cash_closings`
+--
+ALTER TABLE `cash_closings`
+  ADD CONSTRAINT `fk_cash_closings_cashier` FOREIGN KEY (`cashier_id`) REFERENCES `cashiers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_cash_closings_gym` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_cash_closings_user` FOREIGN KEY (`closed_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
 -- Filtros para la tabla `cashiers`
 --
 ALTER TABLE `cashiers`
@@ -2528,7 +2606,10 @@ ALTER TABLE `cashiers`
 -- Filtros para la tabla `challenges`
 --
 ALTER TABLE `challenges`
-  ADD CONSTRAINT `challenges_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `challenges_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `chal_badge_fk` FOREIGN KEY (`badge_id`) REFERENCES `achievement_definitions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `chal_exercise_fk` FOREIGN KEY (`exercise_id`) REFERENCES `exercises` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `chal_routine_fk` FOREIGN KEY (`routine_id`) REFERENCES `workout_routines` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `class_bookings`
@@ -2628,6 +2709,7 @@ ALTER TABLE `ingredients`
 -- Filtros para la tabla `inventory_movements`
 --
 ALTER TABLE `inventory_movements`
+  ADD CONSTRAINT `im_performed_by_fk` FOREIGN KEY (`performed_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `inventory_movements_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `inventory_products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
@@ -2659,7 +2741,9 @@ ALTER TABLE `meal_plan_days`
 --
 ALTER TABLE `membership_payments`
   ADD CONSTRAINT `membership_payments_ibfk_1` FOREIGN KEY (`membership_id`) REFERENCES `user_memberships` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `mpay_promo_fk` FOREIGN KEY (`promo_code_id`) REFERENCES `promo_codes` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `mpay_promo_fk` FOREIGN KEY (`promo_code_id`) REFERENCES `promo_codes` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `mpay_received_by_fk` FOREIGN KEY (`received_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `mpay_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `membership_plans`
@@ -2683,7 +2767,10 @@ ALTER TABLE `product_categories`
 -- Filtros para la tabla `product_sales`
 --
 ALTER TABLE `product_sales`
-  ADD CONSTRAINT `psale_promo_fk` FOREIGN KEY (`promo_code_id`) REFERENCES `promo_codes` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `psale_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `psale_promo_fk` FOREIGN KEY (`promo_code_id`) REFERENCES `promo_codes` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `psale_sold_by_fk` FOREIGN KEY (`sold_by`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `psale_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `promo_codes`
@@ -2776,6 +2863,7 @@ ALTER TABLE `user_achievements`
 -- Filtros para la tabla `user_assigned_routines`
 --
 ALTER TABLE `user_assigned_routines`
+  ADD CONSTRAINT `uar_assigned_by_fk` FOREIGN KEY (`assigned_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `user_assigned_routines_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `user_assigned_routines_ibfk_2` FOREIGN KEY (`routine_id`) REFERENCES `workout_routines` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
@@ -2795,10 +2883,21 @@ ALTER TABLE `user_food_logs`
   ADD CONSTRAINT `ufood_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
+-- Filtros para la tabla `user_credit_logs`
+--
+ALTER TABLE `user_credit_logs`
+  ADD CONSTRAINT `ucl_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `ucl_membership_fk` FOREIGN KEY (`membership_id`) REFERENCES `user_memberships` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `ucl_payment_fk` FOREIGN KEY (`payment_id`) REFERENCES `membership_payments` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `ucl_received_by_fk` FOREIGN KEY (`received_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `ucl_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
 -- Filtros para la tabla `user_gamification_stats`
 --
 ALTER TABLE `user_gamification_stats`
-  ADD CONSTRAINT `gamif_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `gamif_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ugs_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `user_goals`
@@ -2810,6 +2909,7 @@ ALTER TABLE `user_goals`
 -- Filtros para la tabla `user_meal_plans`
 --
 ALTER TABLE `user_meal_plans`
+  ADD CONSTRAINT `ump_assigned_by_fk` FOREIGN KEY (`assigned_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   ADD CONSTRAINT `user_meal_plans_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `user_meal_plans_ibfk_2` FOREIGN KEY (`meal_plan_id`) REFERENCES `meal_plans` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
 
@@ -2824,6 +2924,7 @@ ALTER TABLE `user_medical_notes`
 -- Filtros para la tabla `user_memberships`
 --
 ALTER TABLE `user_memberships`
+  ADD CONSTRAINT `um_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `user_memberships_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `user_memberships_ibfk_2` FOREIGN KEY (`plan_id`) REFERENCES `membership_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -2852,14 +2953,16 @@ ALTER TABLE `user_trainer_assignments`
 -- Filtros para la tabla `workout_routines`
 --
 ALTER TABLE `workout_routines`
-  ADD CONSTRAINT `routines_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `routines_gym_fk` FOREIGN KEY (`gym_id`) REFERENCES `gyms` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `wr_created_by_fk` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `workout_sessions`
 --
 ALTER TABLE `workout_sessions`
   ADD CONSTRAINT `workout_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `workout_sessions_ibfk_2` FOREIGN KEY (`routine_id`) REFERENCES `workout_routines` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE;
+  ADD CONSTRAINT `workout_sessions_ibfk_2` FOREIGN KEY (`routine_id`) REFERENCES `workout_routines` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE,
+  ADD CONSTRAINT `ws_routine_day_fk` FOREIGN KEY (`routine_day_id`) REFERENCES `routine_days` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- --------------------------------------------------------
 -- Actualización: Campo para Firma Digital en Expediente del Socio

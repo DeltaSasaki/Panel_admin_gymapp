@@ -142,7 +142,7 @@
                                     ? (float)$sale->exchange_rate
                                     : (float)\App\Services\ExchangeRateService::getCurrentRate($sale->gym_id);
 
-                                $effectiveVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                                $effectiveVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > 0)
                                     ? (float)$sale->total_amount_ves
                                     : ((float)$sale->total_amount * $effectiveRate);
                             @endphp

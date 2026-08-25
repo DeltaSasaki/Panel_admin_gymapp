@@ -404,7 +404,7 @@
                         ? (float)$mp->exchange_rate
                         : (float)($dollarRate ?? 1);
 
-                    $mpVes = ($mp->amount_ves && (float)$mp->amount_ves > ((float)$mp->amount * 1.0001))
+                    $mpVes = ($mp->amount_ves && (float)$mp->amount_ves > 0)
                         ? (float)$mp->amount_ves
                         : ((float)$mp->amount * $mpRate);
                 @endphp
@@ -483,7 +483,7 @@
                         ? (float)$sale->exchange_rate
                         : (float)($dollarRate ?? 1);
 
-                    $saleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > ((float)$sale->total_amount * 1.0001))
+                    $saleVes = ($sale->total_amount_ves && (float)$sale->total_amount_ves > 0)
                         ? (float)$sale->total_amount_ves
                         : ((float)$sale->total_amount * $saleRate);
                 @endphp

@@ -110,11 +110,11 @@
                         $var = $activeRecord ? (float)$activeRecord->variation_percent : 0.00;
                     @endphp
                     @if($var > 0)
-                        <span class="text-rose-400 font-extrabold flex items-center gap-0.5 text-[10px]">
+                        <span class="text-emerald-400 font-extrabold flex items-center gap-0.5 text-[10px]">
                             <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> +{{ $var }}%
                         </span>
                     @elseif($var < 0)
-                        <span class="text-emerald-400 font-extrabold flex items-center gap-0.5 text-[10px]">
+                        <span class="text-rose-400 font-extrabold flex items-center gap-0.5 text-[10px]">
                             <i data-lucide="trending-down" class="w-3.5 h-3.5"></i> {{ $var }}%
                         </span>
                     @else
@@ -339,11 +339,11 @@
                                     $v = (float)$item->variation_percent;
                                 @endphp
                                 @if($v > 0)
-                                    <span class="text-rose-400 font-extrabold text-xs flex items-center gap-0.5">
+                                    <span class="text-emerald-400 font-extrabold text-xs flex items-center gap-0.5">
                                         <i data-lucide="trending-up" class="w-3 h-3"></i> +{{ $v }}%
                                     </span>
                                 @elseif($v < 0)
-                                    <span class="text-emerald-400 font-extrabold text-xs flex items-center gap-0.5">
+                                    <span class="text-rose-400 font-extrabold text-xs flex items-center gap-0.5">
                                         <i data-lucide="trending-down" class="w-3 h-3"></i> {{ $v }}%
                                     </span>
                                 @else
