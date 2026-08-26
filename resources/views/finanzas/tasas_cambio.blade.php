@@ -21,20 +21,22 @@
 
         <!-- Quick Action Buttons -->
         <div class="flex items-center gap-2.5 flex-wrap">
-            <button type="button" 
-                    id="btn-sync-bcv"
-                    onclick="triggerBcvSync()" 
-                    class="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-slate-200 hover:text-white rounded-xl border border-slate-800 hover:border-slate-700 text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer">
-                <i data-lucide="refresh-cw" class="w-4 h-4 text-lime-400" id="sync-icon"></i>
-                <span id="sync-text">Sincronizar BCV Ahora</span>
-            </button>
+            @if(auth()->user()->hasPermission('finanzas.exchange_rate_manage'))
+                <button type="button" 
+                        id="btn-sync-bcv"
+                        onclick="triggerBcvSync()" 
+                        class="px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-slate-200 hover:text-white rounded-xl border border-slate-800 hover:border-slate-700 text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 text-lime-400" id="sync-icon"></i>
+                    <span id="sync-text">Sincronizar BCV Ahora</span>
+                </button>
 
-            <button type="button" 
-                    onclick="window.toggleModal('modal-manual-rate')" 
-                    class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-lime-500/20 flex items-center gap-2 cursor-pointer">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                <span>Ajustar Tasa Manual</span>
-            </button>
+                <button type="button" 
+                        onclick="window.toggleModal('modal-manual-rate')" 
+                        class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 rounded-xl text-xs font-extrabold transition-all shadow-md shadow-lime-500/20 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                    <span>Ajustar Tasa Manual</span>
+                </button>
+            @endif
         </div>
     </div>
 
@@ -296,7 +298,7 @@
 
         <!-- History Table -->
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs text-slate-300">
+            <table class="w-full text-left text-xs text-slate-300 min-w-[760px]">
                 <thead class="text-[10px] uppercase font-bold text-slate-400 bg-slate-950/60 border-b border-slate-800/80">
                     <tr>
                         <th class="py-3 px-4 rounded-l-xl">Estado</th>
@@ -306,7 +308,7 @@
                         <th class="py-3 px-4">Tipo de Cambio</th>
                         <th class="py-3 px-4">Fecha & Hora</th>
                         <th class="py-3 px-4">Responsable / IP</th>
-                        <th class="py-3 px-4 rounded-r-xl">Notas / Justificación</th>
+                        <th class="py-3 px-4 text-center rounded-r-xl">Notas / Justificación</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/40">
@@ -328,7 +330,7 @@
 
                             <!-- Tasa -->
                             <td class="py-3 px-4 whitespace-nowrap">
-                                <span class="font-bold text-slate-100 text-sm">
+                                <span class="font-bold text-slate-100 text-sm font-mono">
                                     Bs. {{ number_format($item->rate, 4, ',', '.') }}
                                 </span>
                             </td>
@@ -372,7 +374,7 @@
                             </td>
 
                             <!-- Fecha & Hora -->
-                            <td class="py-3 px-4 whitespace-nowrap text-slate-400 text-[11px]">
+                            <td class="py-3 px-4 whitespace-nowrap text-slate-400 text-[11px] font-mono">
                                 {{ $item->effective_at ? \Carbon\Carbon::parse($item->effective_at)->format('d/m/Y H:i') : \Carbon\Carbon::parse($item->effective_date)->format('d/m/Y') }}
                             </td>
 
@@ -390,9 +392,19 @@
                                 @endif
                             </td>
 
-                            <!-- Notas -->
-                            <td class="py-3 px-4 max-w-xs truncate text-[11px] text-slate-400" title="{{ $item->notes }}">
-                                {{ $item->notes ?: '—' }}
+                            <!-- Notas / Justificación (Modal con icono de OJO) -->
+                            <td class="py-3 px-4 text-center whitespace-nowrap">
+                                @if(!empty($item->notes))
+                                    <button type="button" 
+                                            onclick="showRateNoteModal(`{{ addslashes($item->notes) }}`, '{{ $item->effective_at ? \Carbon\Carbon::parse($item->effective_at)->format('d/m/Y H:i') : \Carbon\Carbon::parse($item->effective_date)->format('d/m/Y') }}', '{{ number_format($item->rate, 4, ',', '.') }}', '{{ $item->source_label }}')" 
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-950 hover:bg-lime-500/10 text-slate-300 hover:text-lime-400 border border-slate-800 hover:border-lime-500/30 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                                            title="Ver Justificación Completa">
+                                        <i data-lucide="eye" class="w-3.5 h-3.5 text-lime-400"></i>
+                                        <span>Ver Nota</span>
+                                    </button>
+                                @else
+                                    <span class="text-slate-600 font-mono text-center block">—</span>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -548,6 +560,36 @@
     </div>
 </div>
 
+<!-- Modal: Ver Nota / Justificación Completa -->
+<div id="modal-rate-note" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 animate-fade-in">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="p-2 bg-lime-500/10 text-lime-400 rounded-xl border border-lime-500/20">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-slate-100">Detalle de Justificación</h3>
+                    <p class="text-[10px] text-slate-400 font-mono" id="rate-note-meta">Registro de Tasa</p>
+                </div>
+            </div>
+            <button type="button" onclick="window.toggleModal('modal-rate-note')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div class="bg-slate-950 border border-slate-850 rounded-xl p-4 text-xs text-slate-200 leading-relaxed max-h-64 overflow-y-auto whitespace-pre-wrap font-sans" id="rate-note-content">
+            <!-- JS injects note text here -->
+        </div>
+
+        <div class="pt-2 flex justify-end">
+            <button type="button" onclick="window.toggleModal('modal-rate-note')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
 <style>
     /* Remove default spinners from number inputs */
     .no-spinners::-webkit-inner-spin-button,
@@ -562,6 +604,14 @@
 
 <script>
     const currentExchangeRate = {{ $currentRate }};
+
+    function showRateNoteModal(notes, date, rate, source) {
+        const contentEl = document.getElementById('rate-note-content');
+        const metaEl = document.getElementById('rate-note-meta');
+        if (contentEl) contentEl.textContent = notes || 'Sin notas registradas.';
+        if (metaEl) metaEl.textContent = `Tasa: Bs. ${rate} • ${source} • ${date}`;
+        window.toggleModal('modal-rate-note');
+    }
 
     function calcUsdToVes(val) {
         const usd = parseFloat(val) || 0;
@@ -624,34 +674,12 @@
             if (text) text.textContent = 'Sincronizar BCV Ahora';
 
             if (data.success) {
-                if (window.Swal) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Sincronización Exitosa!',
-                        text: data.message,
-                        background: '#0f172a',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#84cc16'
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    alert(data.message);
+                window.showToast(data.message || '¡Tasa BCV sincronizada con éxito!', 'success');
+                setTimeout(() => {
                     window.location.reload();
-                }
+                }, 1000);
             } else {
-                if (window.Swal) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error de Sincronización',
-                        text: data.message,
-                        background: '#0f172a',
-                        color: '#f8fafc',
-                        confirmButtonColor: '#84cc16'
-                    });
-                } else {
-                    alert(data.message);
-                }
+                window.showToast(data.message || 'Error al sincronizar con BCV.', 'error');
             }
         })
         .catch(err => {
@@ -659,6 +687,7 @@
             if (btn) btn.disabled = false;
             if (text) text.textContent = 'Sincronizar BCV Ahora';
             console.error('Error al sincronizar BCV:', err);
+            window.showToast('Error de conexión al sincronizar con BCV.', 'error');
         });
     }
 </script>

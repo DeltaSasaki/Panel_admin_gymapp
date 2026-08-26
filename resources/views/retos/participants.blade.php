@@ -46,12 +46,14 @@
             </div>
         </div>
 
+        @if(auth()->user()->hasPermission('retos.manage'))
         <div class="flex items-center gap-3 shrink-0">
             <button type="button" onclick="triggerEvaluateChallengeProgress({{ $challenge->id }})" id="btn-sync-challenge-progress" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black rounded-2xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-lime-500/15 active:scale-95">
                 <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-950" id="icon-sync-progress"></i>
                 <span id="text-sync-progress">Sincronizar Progreso</span>
             </button>
         </div>
+        @endif
     </div>
 
     <!-- Main Grid Layout -->
@@ -76,7 +78,14 @@
                     $activeGymId = session('superadmin_gym_id', auth()->user()->role === 'superadmin' ? 'all' : auth()->user()->gym_id);
                 @endphp
 
-                @if(!$challenge->is_active)
+                @if(!auth()->user()->hasPermission('retos.manage'))
+                    <div class="p-4 bg-slate-950/60 border border-slate-800 text-slate-400 text-xs rounded-2xl flex items-start gap-3">
+                        <i data-lucide="shield-alert" class="w-5 h-5 shrink-0 mt-0.5 text-slate-500"></i>
+                        <p class="font-medium leading-relaxed">
+                            No dispones de permisos de gestión para inscribir o actualizar el progreso de atletas en este reto.
+                        </p>
+                    </div>
+                @elseif(!$challenge->is_active)
                     <div class="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-2xl flex items-start gap-3">
                         <i data-lucide="slash" class="w-5 h-5 shrink-0 mt-0.5"></i>
                         <p class="font-semibold leading-relaxed">
@@ -275,28 +284,32 @@
                                         @endif
                                     </td>
                                     <td class="py-4 px-4 text-right" id="participant_action_cell_{{ $p->id }}">
-                                        @if($p->status === 'active')
-                                            <form action="{{ route('retos.update_participant', $p->id) }}" method="POST" onsubmit="submitUpdateParticipant(event, {{ $p->id }})" class="flex items-center justify-end gap-2 text-xs font-bold">
-                                                @csrf
-                                                <div class="flex items-center gap-1.5">
-                                                    <span class="text-[10px] text-slate-400 uppercase">Valor:</span>
-                                                    <input type="number" name="progress_value" value="{{ $p->progress_value }}" min="0" required class="w-16 bg-slate-950 border border-slate-850 rounded-xl px-2 py-1 text-center font-extrabold text-slate-100 focus:outline-none focus:border-lime-500/50">
+                                        @if(auth()->user()->hasPermission('retos.manage'))
+                                            @if($p->status === 'active')
+                                                <form action="{{ route('retos.update_participant', $p->id) }}" method="POST" onsubmit="submitUpdateParticipant(event, {{ $p->id }})" class="flex items-center justify-end gap-2 text-xs font-bold">
+                                                    @csrf
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="text-[10px] text-slate-400 uppercase">Valor:</span>
+                                                        <input type="number" name="progress_value" value="{{ $p->progress_value }}" min="0" required class="w-16 bg-slate-950 border border-slate-850 rounded-xl px-2 py-1 text-center font-extrabold text-slate-100 focus:outline-none focus:border-lime-500/50">
+                                                    </div>
+                                                    <select name="status" class="bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-1 text-slate-300 text-xs focus:outline-none focus:border-lime-500/50 cursor-pointer">
+                                                        <option value="active" selected>En Curso</option>
+                                                        <option value="completed">Completado</option>
+                                                        <option value="failed">Fallido</option>
+                                                    </select>
+                                                    <button type="submit" class="px-3 py-1 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1">
+                                                        Guardar
+                                                    </button>
+                                                </form>
+                                            @else
+                                                <div class="flex items-center justify-end gap-2 text-xs font-semibold text-slate-400 italic">
+                                                    <span>Progreso Final: <strong class="text-slate-200 font-bold">{{ $p->progress_value }}</strong></span>
+                                                    <span class="text-slate-600">•</span>
+                                                    <span class="text-slate-500">Finalizado</span>
                                                 </div>
-                                                <select name="status" class="bg-slate-950 border border-slate-850 rounded-xl px-2.5 py-1 text-slate-300 text-xs focus:outline-none focus:border-lime-500/50 cursor-pointer">
-                                                    <option value="active" selected>En Curso</option>
-                                                    <option value="completed">Completado</option>
-                                                    <option value="failed">Fallido</option>
-                                                </select>
-                                                <button type="submit" class="px-3 py-1 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1">
-                                                    Guardar
-                                                </button>
-                                            </form>
+                                            @endif
                                         @else
-                                            <div class="flex items-center justify-end gap-2 text-xs font-semibold text-slate-400 italic">
-                                                <span>Progreso Final: <strong class="text-slate-200 font-bold">{{ $p->progress_value }}</strong></span>
-                                                <span class="text-slate-600">•</span>
-                                                <span class="text-slate-500">Finalizado</span>
-                                            </div>
+                                            <span class="text-[11px] text-slate-500 italic font-medium">Progreso: <strong class="text-slate-300">{{ $p->progress_value }}</strong></span>
                                         @endif
                                     </td>
                                 </tr>
@@ -503,59 +516,11 @@
         }
     });
 
-    // Floating Toast Notifications System
+    // Floating Toast Notifications System using universal global toast
     function showToast(message, type = 'success') {
-        let container = document.getElementById('participant-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'participant-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = 'check-circle';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (type === 'warning') {
-            iconName = 'alert-triangle';
-            borderColor = 'border-amber-500/30';
-            iconColor = 'text-amber-400';
-            glowColor = 'shadow-amber-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${escapeHtml(message)}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3800);
     }
 
     function escapeHtml(str) {
@@ -1045,16 +1010,5 @@
     window.addEventListener('page:loaded', initParticipantsPagination);
     document.addEventListener('livewire:navigated', initParticipantsPagination);
     document.addEventListener('turbo:load', initParticipantsPagination);
-
-    document.addEventListener('DOMContentLoaded', function () {
-        @if(session('success'))
-            showToast("{{ session('success') }}", 'success');
-        @endif
-        @if($errors->any())
-            @foreach($errors->all() as $error)
-                showToast("{{ $error }}", 'error');
-            @endforeach
-        @endif
-    });
 </script>
 @endsection

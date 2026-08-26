@@ -83,33 +83,16 @@
                 </div>
             </div>
 
-            <!-- Card Footer: QR Code & Digital Signature (Clean Grid without Overlap) -->
+            <!-- Card Footer: QR Code & Verification Info -->
             <div class="pt-4 border-t border-slate-800/80">
-                <div class="grid grid-cols-12 gap-3 items-center">
-                    <!-- Left: QR Code Badge -->
-                    <div class="col-span-5 flex flex-col items-center justify-center p-2.5 bg-slate-950 border border-slate-850 rounded-2xl shrink-0 overflow-hidden shadow-inner">
-                        <div class="w-[105px] h-[105px] flex items-center justify-center overflow-hidden bg-slate-950 p-1 rounded-xl">
-                            {!! $qrCodeSvg !!}
-                        </div>
-                        <span class="text-[8px] font-extrabold text-lime-400 uppercase tracking-widest mt-1.5 block">Check-in QR</span>
+                <div class="flex items-center justify-between gap-4 p-3 bg-slate-950 border border-slate-850 rounded-2xl">
+                    <div class="space-y-1">
+                        <span class="text-[9px] font-extrabold text-lime-400 uppercase tracking-widest block">Acceso Rápido</span>
+                        <p class="text-[11px] text-slate-300 font-bold">Escanee este código QR en el torniquete o recepción para registrar su ingreso.</p>
+                        <span class="text-[9px] text-slate-500 font-semibold block">Emitido: {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
                     </div>
-
-                    <!-- Right: Digital Signature Box -->
-                    <div class="col-span-7 flex flex-col justify-between h-full space-y-2">
-                        <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Firma Digital del Socio</span>
-                        
-                        <div class="w-full h-[90px] bg-slate-950 border border-slate-850 rounded-2xl flex items-center justify-center p-2 relative overflow-hidden shadow-inner">
-                            @if(!empty($cliente->profile->signature_url))
-                                <img src="{{ $cliente->profile->signature_url }}" alt="Firma Digital" class="max-h-[70px] max-w-full object-contain filter invert opacity-90">
-                            @else
-                                <span class="text-[10px] text-slate-600 font-semibold italic">Sin firma registrada</span>
-                            @endif
-                        </div>
-                        
-                        <div class="flex justify-between items-center text-[8px] text-slate-500 font-semibold px-0.5">
-                            <span>BigWorldFitness</span>
-                            <span>Emitido: {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
-                        </div>
+                    <div class="w-[90px] h-[90px] flex items-center justify-center shrink-0 bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-inner">
+                        {!! $qrCodeSvg !!}
                     </div>
                 </div>
             </div>

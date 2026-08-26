@@ -33,25 +33,12 @@
                 </select>
             </div>
 
-            <!-- Search Bar & Barcode Scanner Button -->
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <button type="button" onclick="openPosBarcodeScannerModal()" class="px-3 py-2.5 bg-slate-950 border border-lime-500/40 hover:bg-lime-500/10 text-lime-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shrink-0">
-                    <i data-lucide="barcode" class="w-4 h-4 text-lime-400"></i>
-                    <span class="hidden sm:inline">Escanear Código</span>
-                </button>
-                <div class="relative w-full sm:w-56 shrink-0">
-                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
-                    <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
-                </div>
+            <!-- Search Bar -->
+            <div class="relative w-full sm:w-64 shrink-0">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                <input type="text" id="search-input" onkeyup="filterProducts()" placeholder="Buscar por nombre..." class="w-full pl-9 pr-4 py-2.5 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-lime-500/50">
             </div>
         </div>
-
-        @if(session('success'))
-            <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex gap-2">
-                <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
-                <span>{{ session('success') }}</span>
-            </div>
-        @endif
 
         @if($errors->any())
             <div class="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl text-xs flex gap-2">
@@ -186,16 +173,18 @@
             </div>
 
             <!-- Promo Code -->
-            <div>
-                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Código Promocional (Opcional)</label>
-                <div class="flex gap-2">
-                    <input type="text" name="promo_code" id="pos_promo_code" placeholder="Ej: DESCUENTO10" class="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 uppercase focus:outline-none focus:border-lime-500/50">
-                    <button type="button" onclick="applyPosPromo()" class="px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-slate-100 text-xs font-bold rounded-xl border border-slate-750 transition-colors">
-                        Aplicar
-                    </button>
+            @if(auth()->user()->hasPermission('tienda.pos_apply_discount'))
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Código Promocional (Opcional)</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="promo_code" id="pos_promo_code" placeholder="Ej: DESCUENTO10" class="flex-1 px-3 py-2 text-xs bg-slate-950 border border-slate-850 rounded-xl text-slate-100 uppercase focus:outline-none focus:border-lime-500/50">
+                        <button type="button" onclick="applyPosPromo()" class="px-3 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-slate-100 text-xs font-bold rounded-xl border border-slate-750 transition-colors">
+                            Aplicar
+                        </button>
+                    </div>
+                    <span id="pos-promo-feedback" class="block text-[9px] font-bold mt-1.5 hidden"></span>
                 </div>
-                <span id="pos-promo-feedback" class="block text-[9px] font-bold mt-1.5 hidden"></span>
-            </div>
+            @endif
 
             <!-- Total Price Calculation -->
             <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-850 space-y-2">
@@ -992,124 +981,13 @@
         });
     }
 
-    // POS BARCODE SCANNER HANDLER
-    let posBarcodeQrInstance = null;
 
-    function openPosBarcodeScannerModal() {
-        const modal = document.getElementById('pos_barcode_modal');
-        if (modal) modal.classList.remove('hidden');
 
-        setTimeout(() => {
-            if (typeof Html5Qrcode !== 'undefined') {
-                posBarcodeQrInstance = new Html5Qrcode("pos_barcode_viewport");
-                posBarcodeQrInstance.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 250, height: 160 } },
-                    (scannedCode) => {
-                        onPosBarcodeScanned(scannedCode);
-                    },
-                    (error) => {}
-                ).catch(err => {
-                    console.error("Camera error:", err);
-                    showPosToast("No se pudo acceder a la cámara para escanear código de barras.", "danger");
-                });
-            } else {
-                showPosToast("Librería de escáner cargándose...", "info");
-            }
-        }, 300);
-    }
-
-    function closePosBarcodeScannerModal() {
-        const modal = document.getElementById('pos_barcode_modal');
-        if (modal) modal.classList.add('hidden');
-
-        if (posBarcodeQrInstance) {
-            posBarcodeQrInstance.stop().then(() => {
-                posBarcodeQrInstance.clear();
-                posBarcodeQrInstance = null;
-            }).catch(err => console.error(err));
-        }
-    }
-
-    function onPosBarcodeScanned(scannedCode) {
-        closePosBarcodeScannerModal();
-
-        const codeStr = scannedCode.trim().toLowerCase();
-        // Try finding matching product in grid cards by ID, name or SKU
-        const cards = document.querySelectorAll('.product-card');
-        let matchedCard = null;
-
-        cards.forEach(card => {
-            const pid = card.dataset.id;
-            const pname = (card.dataset.name || '').toLowerCase();
-            if (pid === codeStr || pname.includes(codeStr) || codeStr.includes(pid)) {
-                matchedCard = card;
-            }
-        });
-
-        if (matchedCard) {
-            addToCart(matchedCard);
-            showPosToast(`¡Producto agregado al carrito: ${matchedCard.dataset.name}!`, 'success');
-        } else {
-            showPosToast(`No se encontró ningún producto para el código: ${scannedCode}`, 'danger');
-        }
-    }
-
-    // Custom Toast Notification System for POS
+    // Custom Toast Notification System for POS using universal global toast
     function showPosToast(message, type = 'warning') {
-        let container = document.getElementById('pos-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'pos-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-        
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-        const isSuccess = type === 'success';
-
-        let iconName = 'alert-triangle';
-        let borderColor = 'border-amber-500/30';
-        let iconColor = 'text-amber-400';
-        let glowColor = 'shadow-amber-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (isSuccess) {
-            iconName = 'check-circle';
-            borderColor = 'border-emerald-500/30';
-            iconColor = 'text-emerald-400';
-            glowColor = 'shadow-emerald-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900/95 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-2xl ${glowColor} backdrop-blur-md transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${message}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
     }
 
     // Initialize pagination on load and navigation events
@@ -1131,33 +1009,8 @@
     window.addEventListener('pageshow', initPosPagination);
 </script>
 
-<!-- POS BARCODE SCANNER MODAL -->
-<div id="pos_barcode_modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden p-4 animate-fade-in">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-4">
-        <button type="button" onclick="closePosBarcodeScannerModal()" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-xl transition-colors">
-            <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-        <div class="text-center">
-            <h3 class="text-lg font-extrabold text-slate-100 flex items-center justify-center gap-2">
-                <i data-lucide="barcode" class="w-5 h-5 text-lime-400"></i>
-                Escanear Código de Barras
-            </h3>
-            <p class="text-xs text-slate-400 mt-1">Apunta con la cámara al código de barras del producto.</p>
-        </div>
-        <div id="pos_barcode_viewport" class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 min-h-[220px] flex items-center justify-center">
-            <!-- Html5Qrcode viewport -->
-        </div>
-        <div class="text-center">
-            <button type="button" onclick="closePosBarcodeScannerModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-colors">
-                Cancelar
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- LIBRARIES CDNs -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://printjs-4de6.kxcdn.com/print.min.js"></script>
 <link rel="stylesheet" href="https://printjs-4de6.kxcdn.com/print.min.css">
 @endsection

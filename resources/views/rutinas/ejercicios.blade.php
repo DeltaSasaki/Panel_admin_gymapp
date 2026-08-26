@@ -97,9 +97,11 @@
                             <h2 class="text-lg font-bold text-slate-100">{{ $day->day_name }}</h2>
                             <p class="text-xs text-slate-500 mt-0.5">Enfoque: {{ $day->focus_area ?? 'General' }}</p>
                         </div>
-                        <button onclick="openAddModal({{ $day->id }}, '{{ $day->day_name }}')" class="px-3.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1">
-                            <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> Añadir Ejercicio
-                        </button>
+                        @if(auth()->user()->hasPermission('rutinas.manage'))
+                            <button onclick="openAddModal({{ $day->id }}, '{{ $day->day_name }}')" class="px-3.5 py-1.5 bg-lime-500 hover:bg-lime-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1">
+                                <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> Añadir Ejercicio
+                            </button>
+                        @endif
                     </div>
 
                     <!-- Exercises List -->
@@ -209,33 +211,34 @@
                                             </div>
                                         </div>
                                     @endif
-                                </div>
-
-                                <!-- Actions Buttons Side Column -->
-                                <div class="flex lg:flex-col gap-2 shrink-0 self-stretch justify-center pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-850/60">
-                                    <button onclick="openEditModal('{{ route('rutinas.update_ejercicio', [$routine->id, $ex->id]) }}', {{ $ex->sets }}, '{{ addslashes($ex->reps) }}', {{ $ex->rest_seconds }}, '{{ addslashes($ex->notes ?? '') }}', '{{ addslashes($ex->exercise->name) }}', '{{ $ex->exercise->image_url ? asset($ex->exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}')" 
-                                            class="flex-1 lg:flex-none px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
-                                        <i data-lucide="edit-2" class="w-3.5 h-3.5 text-slate-400"></i>
-                                        <span>Editar</span>
-                                    </button>
-                                    <button type="button" onclick="openDeleteModal('{{ route('rutinas.remove_ejercicio', [$routine->id, $ex->id]) }}', '{{ addslashes($ex->exercise->name) }}', {{ $ex->id }})" 
-                                            class="flex-1 lg:flex-none px-4 py-2.5 bg-slate-950 hover:bg-rose-500/10 text-xs font-bold rounded-xl border border-slate-850 hover:border-rose-500/30 text-rose-400 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
-                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                        <span>Quitar</span>
-                                    </button>
-                                </div>
+                                                      <!-- Actions Buttons Side Column -->
+                                @if(auth()->user()->hasPermission('rutinas.manage'))
+                                    <div class="flex lg:flex-col gap-2 shrink-0 self-stretch justify-center pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-850/60">
+                                        <button onclick="openEditModal('{{ route('rutinas.update_ejercicio', [$routine->id, $ex->id]) }}', {{ $ex->sets }}, '{{ addslashes($ex->reps) }}', {{ $ex->rest_seconds }}, '{{ addslashes($ex->notes ?? '') }}', '{{ addslashes($ex->exercise->name) }}', '{{ $ex->exercise->image_url ? asset($ex->exercise->image_url) : 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=150&auto=format&fit=crop' }}')" 
+                                                class="flex-1 lg:flex-none px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-850 hover:border-slate-700 text-slate-200 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                                            <i data-lucide="edit-2" class="w-3.5 h-3.5 text-slate-400"></i>
+                                            <span>Editar</span>
+                                        </button>
+                                        <button type="button" onclick="openDeleteModal('{{ route('rutinas.remove_ejercicio', [$routine->id, $ex->id]) }}', '{{ addslashes($ex->exercise->name) }}', {{ $ex->id }})" 
+                                                class="flex-1 lg:flex-none px-4 py-2.5 bg-slate-950 hover:bg-rose-500/10 text-xs font-bold rounded-xl border border-slate-850 hover:border-rose-500/30 text-rose-400 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                            <span>Quitar</span>
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         @empty
-                            <div class="bg-slate-900/20 border border-dashed border-slate-800/80 rounded-3xl py-12 px-6 text-center text-slate-500">
+                            <div class="bg-slate-900/20 border border-dashed border-slate-800/80 rounded-3xl py-12 px-6 text-center text-slate-550">
                                 <div class="w-14 h-14 mx-auto rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 mb-4 shadow-inner">
                                     <i data-lucide="dumbbell" class="w-7 h-7"></i>
                                 </div>
                                 <h4 class="font-extrabold text-slate-300 text-sm mb-1">Día sin ejercicios asignados</h4>
                                 <p class="text-xs text-slate-500 mb-4 max-w-sm mx-auto">Añade los ejercicios que formarán parte de la rutina para este día de entrenamiento.</p>
-                                <button onclick="openAddModal({{ $day->id }}, '{{ addslashes($day->day_name) }}')" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all inline-flex items-center gap-2">
-                                    <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i>
-                                    <span>Agregar Primer Ejercicio</span>
-                                </button>
+                                @if(auth()->user()->hasPermission('rutinas.manage'))
+                                    <button onclick="openAddModal({{ $day->id }}, '{{ addslashes($day->day_name) }}')" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all inline-flex items-center gap-2">
+                                        <i data-lucide="plus" class="w-4 h-4 stroke-[3px]"></i> Añadir Ejercicio
+                                    </button>
+                                @endif
                             </div>
                         @endforelse
                     </div>
@@ -1084,45 +1087,9 @@
     }
 
     function showExerciseToast(message, type = 'success') {
-        let container = document.getElementById('exercise-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'exercise-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-        
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = isDanger ? 'alert-circle' : 'check-circle';
-        let borderColor = isDanger ? 'border-rose-500/30' : 'border-emerald-500/30';
-        let iconColor = isDanger ? 'text-rose-400' : 'text-emerald-400';
-        let glowColor = isDanger ? 'shadow-rose-500/10' : 'shadow-emerald-500/10';
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${message}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
     }
 </script>
 @endsection

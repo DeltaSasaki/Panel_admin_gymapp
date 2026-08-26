@@ -89,7 +89,7 @@
                             Estás navegando en modo <strong>Vista Global (Superadmin)</strong>. Para registrar asistencias presenciales, selecciona una sucursal específica en el menú superior.
                         </p>
                     </div>
-                @else
+                @elseif(auth()->user()->hasPermission('asistencia.check_in_out'))
                     <!-- LIVE QR SCANNER LAUNCH BUTTON -->
                     <button type="button" onclick="openQrScannerModal()" class="w-full py-3 bg-slate-950 border border-lime-500/40 hover:bg-lime-500/10 text-lime-400 font-bold rounded-2xl shadow-lg hover:shadow-lime-500/10 active:scale-95 transition-all flex items-center justify-center gap-2 group">
                         <i data-lucide="camera" class="w-5 h-5 text-lime-400 group-hover:scale-110 transition-transform"></i>
@@ -154,6 +154,13 @@
                             Registrar Entrada Presencial
                         </button>
                     </form>
+                @else
+                    <div class="p-5 bg-slate-950 border border-slate-800 text-slate-400 text-xs rounded-2xl flex items-start gap-3">
+                        <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+                        <p class="leading-relaxed">
+                            No posees el permiso <code>asistencia.check_in_out</code> habilitado para registrar check-ins manuales ni escanear carnets.
+                        </p>
+                    </div>
                 @endif
             </div>
         </div>
@@ -310,59 +317,11 @@
     var cachedLogsData = [];
     var isSuperadminAllMode = {{ $activeGymId === 'all' ? 'true' : 'false' }};
 
-    // Show temporary toast alerts
+    // Show temporary toast alerts using universal global toast
     function showToast(message, type = 'success') {
-        let container = document.getElementById('attendance-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'attendance-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = 'check-circle';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (type === 'warning') {
-            iconName = 'alert-triangle';
-            borderColor = 'border-amber-500/30';
-            iconColor = 'text-amber-400';
-            glowColor = 'shadow-amber-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${escapeHtml(message)}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3800);
     }
 
     function escapeHtml(str) {
@@ -1185,18 +1144,7 @@
         renderLogsTablePage();
     }
 
-    // Auto-trigger session flash messages on page load as toasts & initialize logs
     document.addEventListener('DOMContentLoaded', function () {
-        @if(session('success'))
-            showToast("{{ session('success') }}", 'success');
-        @endif
-
-        @if(isset($errors) && $errors->any())
-            @foreach($errors->all() as $error)
-                showToast("{{ $error }}", 'error');
-            @endforeach
-        @endif
-
         if (typeof TomSelect !== 'undefined') {
             const selectEl = document.getElementById('user_id_select');
             if (selectEl) {

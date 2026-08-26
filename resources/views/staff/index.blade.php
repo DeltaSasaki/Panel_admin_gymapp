@@ -15,9 +15,11 @@
             <p class="text-xs text-slate-400 mt-1 font-medium">Administra al equipo de entrenadores, asignación de atletas, salarios de nómina, especialidades y expedientes técnicos.</p>
         </div>
         <div class="flex items-center gap-3">
-            <button type="button" onclick="openCreateStaffModal()" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer">
-                <i data-lucide="user-plus" class="w-4 h-4 stroke-[3px]"></i> Reclutar Entrenador
-            </button>
+            @if(auth()->user()->hasPermission('staff.manage'))
+                <button type="button" onclick="openCreateStaffModal()" class="px-5 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-black text-xs rounded-2xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="user-plus" class="w-4 h-4 stroke-[3px]"></i> Reclutar Entrenador
+                </button>
+            @endif
         </div>
     </div>
 
@@ -223,26 +225,27 @@
                         <i data-lucide="eye" class="w-3.5 h-3.5"></i>
                         <span>Ver Expediente</span>
                     </button>
+                    @if(auth()->user()->hasPermission('staff.manage'))
+                        <div class="flex items-center gap-2">
+                            <!-- Edit Button -->
+                            <button type="button" onclick='openEditStaffModal({{ json_encode($trainer->load("user.profile", "gym")) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Datos del Entrenador">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
 
-                    <div class="flex items-center gap-2">
-                        <!-- Edit Button -->
-                        <button type="button" onclick='openEditStaffModal({{ json_encode($trainer->load("user.profile", "gym")) }})' class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Datos del Entrenador">
-                            <i data-lucide="edit-3" class="w-4 h-4"></i>
-                        </button>
+                            <!-- Toggle Active Status Button -->
+                            <button type="button" onclick="openToggleStaffModal({{ $trainer->id }}, '{{ addslashes($fullName) }}', {{ $trainer->is_active ? 1 : 0 }})" 
+                                    id="trainer_toggle_btn_{{ $trainer->id }}"
+                                    class="p-2 {{ $trainer->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
+                                    title="{{ $trainer->is_active ? 'Inhabilitar Entrenador' : 'Reactivar Entrenador' }}">
+                                <i data-lucide="{{ $trainer->is_active ? 'power' : 'check-circle' }}" class="w-4 h-4"></i>
+                            </button>
 
-                        <!-- Toggle Active Status Button -->
-                        <button type="button" onclick="openToggleStaffModal({{ $trainer->id }}, '{{ addslashes($fullName) }}', {{ $trainer->is_active ? 1 : 0 }})" 
-                                id="trainer_toggle_btn_{{ $trainer->id }}"
-                                class="p-2 {{ $trainer->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
-                                title="{{ $trainer->is_active ? 'Inhabilitar Entrenador' : 'Reactivar Entrenador' }}">
-                            <i data-lucide="{{ $trainer->is_active ? 'power' : 'check-circle' }}" class="w-4 h-4"></i>
-                        </button>
-
-                        <!-- Permanent Delete Button -->
-                        <button type="button" onclick="openDeleteStaffModal({{ $trainer->id }}, '{{ addslashes($fullName) }}')" class="p-2 bg-slate-950 hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-600 rounded-xl transition-all shadow-sm" title="Eliminar del Staff">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                            <!-- Permanent Delete Button -->
+                            <button type="button" onclick="openDeleteStaffModal({{ $trainer->id }}, '{{ addslashes($fullName) }}')" class="p-2 bg-slate-950 hover:bg-rose-600 text-slate-400 hover:text-white border border-slate-800 hover:border-rose-600 rounded-xl transition-all shadow-sm" title="Eliminar del Staff">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    @endif
                 </div>
             </div>
         @empty
@@ -667,9 +670,11 @@
         }
 
     function toggleModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.classList.toggle('hidden');
+        if (typeof window.toggleModal === 'function') {
+            window.toggleModal(id);
+        } else {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.toggle('hidden');
         }
     }
 
@@ -1270,48 +1275,11 @@
         }
     }
 
-    // Utilities
+    // Utilities using universal global toast
     function showToast(message, type = 'success') {
-        let container = document.getElementById('toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-
-        const toast = document.createElement('div');
-        let iconName = 'check-circle-2';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (type === 'error') {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${escapeHtml(message)}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => toast.classList.remove('translate-x-10', 'opacity-0'), 10);
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3800);
     }
 
     function escapeHtml(str) {

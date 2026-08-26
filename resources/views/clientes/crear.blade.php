@@ -29,7 +29,7 @@
             </div>
         @endif
 
-        <form action="{{ route('clientes.store') }}" method="POST" id="create-client-form" onsubmit="prepareSignatureFormSubmit(event)" class="mt-8 space-y-6">
+        <form action="{{ route('clientes.store') }}" method="POST" id="create-client-form" class="mt-8 space-y-6">
             @csrf
 
             <!-- Section 1: Account Information -->
@@ -103,33 +103,12 @@
 
 
 
-            <!-- Section 3: Digital Signature / Firma Digital del Socio -->
-            <div class="space-y-4 pt-4 border-t border-slate-850/60">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xs uppercase font-extrabold tracking-wider text-slate-500 flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full bg-lime-400"></span> 3. Firma Digital del Socio (Expediente Legal)
-                    </h3>
-                    <button type="button" onclick="clearSignatureCanvas()" class="px-2.5 py-1 bg-slate-950 hover:bg-slate-850 border border-slate-800 text-[11px] font-bold text-slate-400 hover:text-rose-400 rounded-lg transition-colors flex items-center gap-1">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Limpiar Firma
-                    </button>
-                </div>
-                <p class="text-xs text-slate-400">El socio o atleta debe firmar digitalmente en el recuadro para autorizar la apertura de expediente y reglamentos del gimnasio.</p>
-
-                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-2 relative">
-                    <canvas id="signature-canvas" width="600" height="160" class="w-full h-40 rounded-xl bg-slate-950 touch-none cursor-crosshair border border-slate-850/50"></canvas>
-                    <input type="hidden" name="signature_base64" id="input_signature_base64">
-                    <div id="signature-placeholder-text" class="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-600 text-xs font-semibold">
-                        Firme aquí con su dedo o mouse táctil
-                    </div>
-                </div>
-            </div>
-
             <!-- Submit Section -->
             <div class="pt-6 border-t border-slate-850/60 flex items-center justify-end gap-3">
                 <a href="{{ route('clientes.index') }}" class="px-5 py-2.5 bg-slate-950 hover:bg-slate-850 border border-slate-850 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition-all">
                     Cancelar
                 </a>
-                <button type="submit" onclick="prepareSignatureFormSubmit()" class="px-6 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">
+                <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all">
                     Guardar y Registrar Atleta
                 </button>
             </div>
@@ -138,52 +117,7 @@
     </div>
 </div>
 
-<!-- Signature Pad Library -->
-<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
-
 <script>
-let signaturePadInstance = null;
-
-document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('signature-canvas');
-    if (canvas && typeof SignaturePad !== 'undefined') {
-        signaturePadInstance = new SignaturePad(canvas, {
-            penColor: '#a3e635',
-            backgroundColor: 'rgba(15, 23, 42, 0)',
-            minWidth: 1.5,
-            maxWidth: 3.5
-        });
-
-        signaturePadInstance.addEventListener("beginStroke", () => {
-            const placeholder = document.getElementById('signature-placeholder-text');
-            if (placeholder) placeholder.classList.add('hidden');
-        });
-
-        signaturePadInstance.addEventListener("endStroke", () => {
-            if (!signaturePadInstance.isEmpty()) {
-                const dataUrl = signaturePadInstance.toDataURL('image/png');
-                const inputEl = document.getElementById('input_signature_base64');
-                if (inputEl) inputEl.value = dataUrl;
-            }
-        });
-    }
-});
-
-function clearSignatureCanvas() {
-    if (signaturePadInstance) {
-        signaturePadInstance.clear();
-        const placeholder = document.getElementById('signature-placeholder-text');
-        if (placeholder) placeholder.classList.remove('hidden');
-        document.getElementById('input_signature_base64').value = '';
-    }
-}
-
-function prepareSignatureFormSubmit() {
-    if (signaturePadInstance && !signaturePadInstance.isEmpty()) {
-        const dataUrl = signaturePadInstance.toDataURL('image/png');
-        document.getElementById('input_signature_base64').value = dataUrl;
-    }
-}
 
 function consultarCNE() {
     const dniInput = document.getElementById('input_dni');

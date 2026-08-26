@@ -12,9 +12,11 @@
             <p class="text-xs text-slate-400 mt-1">Control de máquinas, racks y pesas asignadas a las salas de entrenamiento.</p>
         </div>
         <div>
-            <button onclick="openCreateEquipmentModal()" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                <i data-lucide="dumbbell" class="w-4 h-4"></i> Registrar Máquina / Equipo
-            </button>
+            @if(auth()->user()->hasPermission('catalogos.manage'))
+                <button onclick="openCreateEquipmentModal()" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i data-lucide="dumbbell" class="w-4 h-4"></i> Registrar Máquina / Equipo
+                </button>
+            @endif
         </div>
     </div>
 
@@ -114,15 +116,17 @@
                             </td>
                             <td class="p-4 text-center pr-6">
                                 <div class="flex items-center justify-center gap-2">
-                                    <button onclick='openEditEquipmentModal({{ json_encode($item) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Equipo">
-                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                                    </button>
-                                    <button onclick="openDeleteEquipmentModal({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->is_active ? 1 : 0 }}, {{ $item->exercises_count ?? 0 }})" 
-                                            id="eq_toggle_btn_{{ $item->id }}"
-                                            class="p-1.5 {{ $item->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
-                                            title="{{ $item->is_active ? 'Inhabilitar Equipo' : 'Reactivar Equipo' }}">
-                                        <i data-lucide="{{ $item->is_active ? 'power' : 'check-circle' }}" class="w-3.5 h-3.5"></i>
-                                    </button>
+                                    @if(auth()->user()->hasPermission('catalogos.manage'))
+                                        <button onclick='openEditEquipmentModal({{ json_encode($item) }})' class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Equipo">
+                                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                        <button onclick="openDeleteEquipmentModal({{ $item->id }}, '{{ addslashes($item->name) }}', {{ $item->is_active ? 1 : 0 }}, {{ $item->exercises_count ?? 0 }})" 
+                                                id="eq_toggle_btn_{{ $item->id }}"
+                                                class="p-1.5 {{ $item->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
+                                                title="{{ $item->is_active ? 'Inhabilitar Equipo' : 'Reactivar Equipo' }}">
+                                            <i data-lucide="{{ $item->is_active ? 'power' : 'check-circle' }}" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -284,59 +288,11 @@
 </div>
 
 <script>
-    // Temporary Toast Notifications
+    // Temporary Toast Notifications using universal global toast
     function showToast(message, type = 'success') {
-        let container = document.getElementById('equipment-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'equipment-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = 'check-circle';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (type === 'warning') {
-            iconName = 'alert-triangle';
-            borderColor = 'border-amber-500/30';
-            iconColor = 'text-amber-400';
-            glowColor = 'shadow-amber-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${escapeHtml(message)}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3800);
     }
 
     function escapeHtml(str) {
@@ -793,15 +749,6 @@
     setTimeout(initEquipmentPagination, 0);
 
     document.addEventListener('DOMContentLoaded', function () {
-        @if(session('success'))
-            showToast("{{ session('success') }}", 'success');
-        @endif
-        @if(isset($errors) && $errors->any())
-            @foreach($errors->all() as $error)
-                showToast("{{ $error }}", 'error');
-            @endforeach
-        @endif
-
         initEquipmentPagination();
     });
 

@@ -11,10 +11,12 @@
             <h1 class="text-2xl font-extrabold text-slate-100 tracking-tight">Mis Clientes</h1>
             <p class="text-slate-400 text-xs mt-1">Gestiona los atletas, su progreso y planes activos.</p>
         </div>
-        <a href="{{ route('clientes.crear') }}" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
-            <i data-lucide="user-plus" class="w-4 h-4 stroke-[3px]"></i>
-            Registrar Cliente
-        </a>
+        @if(auth()->user()->hasPermission('clientes.create'))
+            <a href="{{ route('clientes.crear') }}" class="px-4 py-2 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-4 h-4 stroke-[3px]"></i>
+                Registrar Cliente
+            </a>
+        @endif
     </div>
 
     <!-- Filters & Search -->
@@ -163,11 +165,11 @@
                     <a href="{{ route('clientes.show', $cliente->id) }}" class="flex-1 py-2 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-lg border border-slate-850 hover:border-slate-700 text-slate-300 transition-colors text-center block">
                         Ver Perfil
                     </a>
-                    @if(!$cliente->activeRoutine)
+                    @if(!$cliente->activeRoutine && auth()->user()->hasPermission('rutinas.manage'))
                         <a href="{{ route('clientes.show', $cliente->id) }}" class="px-3 py-2 bg-gradient-to-r from-lime-500/10 to-emerald-500/5 text-lime-400 hover:from-lime-500 hover:to-emerald-500 hover:text-slate-950 text-xs font-bold rounded-lg border border-lime-500/20 transition-all text-center block">
                             Asignar Rutina
                         </a>
-                    @else
+                    @elseif($cliente->activeRoutine)
                         <button class="px-3 py-2 bg-slate-950 hover:bg-slate-800 text-xs font-bold rounded-lg border border-slate-850 hover:border-slate-700 text-slate-300 transition-colors">
                             <i data-lucide="message-square" class="w-4 h-4"></i>
                         </button>

@@ -29,10 +29,12 @@
             </button>
 
             <!-- New Gateway Button -->
-            <button onclick="openNewGatewayModal()" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl text-xs shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
-                <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                <span>Configurar Nueva Pasarela</span>
-            </button>
+            @if(auth()->user()->hasPermission('finanzas.gateways_manage'))
+                <button onclick="openNewGatewayModal()" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl text-xs shadow-lg shadow-lime-500/10 hover:shadow-lime-500/20 active:scale-95 transition-all flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Configurar Nueva Pasarela</span>
+                </button>
+            @endif
         </div>
     </div>
 
@@ -41,7 +43,7 @@
         <h2 class="text-xs font-extrabold uppercase tracking-widest text-slate-400 flex items-center gap-2">
             <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i> Plantillas de Métodos Rápidos
         </h2>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3">
             @foreach($providerTemplates as $key => $tmpl)
                 <button type="button" onclick="openNewGatewayModal('{{ $key }}')" class="p-3 bg-slate-900/40 hover:bg-slate-850/80 border border-slate-800/80 hover:border-slate-750 rounded-2xl text-left transition-all group flex flex-col justify-between space-y-2">
                     <div class="flex items-center justify-between">
@@ -86,7 +88,7 @@
 
         <!-- Table Container -->
         <div id="gateways-table-container" class="overflow-x-auto {{ count($gateways) > 0 ? '' : 'hidden' }}">
-            <table class="w-full text-left text-xs">
+            <table class="w-full text-left text-xs min-w-[750px] whitespace-nowrap">
                 <thead class="bg-slate-950/60 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-800/80">
                     <tr>
                         <th class="py-3.5 px-6">Pasarela / Método</th>
@@ -187,20 +189,22 @@
                             </td>
 
                             <td class="py-4 px-6 text-right whitespace-nowrap">
-                                <div class="flex items-center justify-end gap-1.5">
-                                    <!-- Edit Button -->
-                                    <button type="button" onclick='openEditGatewayModal(@json($gw))' id="edit_btn_{{ $gw->id }}" class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Pasarela">
-                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
-                                    </button>
+                                @if(auth()->user()->hasPermission('finanzas.gateways_manage'))
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <!-- Edit Button -->
+                                        <button type="button" onclick='openEditGatewayModal(@json($gw))' id="edit_btn_{{ $gw->id }}" class="p-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Pasarela">
+                                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                        </button>
 
-                                    <!-- Toggle Active / Inhabilitar Status Action Button -->
-                                    <button type="button" onclick="openToggleGatewayModal({{ $gw->id }}, '{{ addslashes($gw->title) }}', {{ $gw->is_active ? 1 : 0 }})" 
-                                            id="toggle_btn_{{ $gw->id }}" 
-                                            class="p-2 {{ $gw->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
-                                            title="{{ $gw->is_active ? 'Inhabilitar Pasarela' : 'Habilitar Pasarela' }}">
-                                        <i data-lucide="{{ $gw->is_active ? 'power' : 'check-circle' }}" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
+                                        <!-- Toggle Active / Inhabilitar Status Action Button -->
+                                        <button type="button" onclick="openToggleGatewayModal({{ $gw->id }}, '{{ addslashes($gw->title) }}', {{ $gw->is_active ? 1 : 0 }})" 
+                                                id="toggle_btn_{{ $gw->id }}" 
+                                                class="p-2 {{ $gw->is_active ? 'bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border-rose-500/25' : 'bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border-emerald-500/25' }} border rounded-xl transition-all shadow-sm" 
+                                                title="{{ $gw->is_active ? 'Inhabilitar Pasarela' : 'Habilitar Pasarela' }}">
+                                            <i data-lucide="{{ $gw->is_active ? 'power' : 'check-circle' }}" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

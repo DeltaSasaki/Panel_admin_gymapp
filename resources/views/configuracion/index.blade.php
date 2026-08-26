@@ -26,22 +26,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-xs font-bold flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5"></i>
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <!-- Sleek Toast Notification Container -->
-    <div id="settings-toast-msg" class="hidden p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-xs font-bold flex items-center justify-between shadow-lg animate-fade-in">
-        <div class="flex items-center gap-2.5">
-            <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
-            <span id="settings-toast-text">¡Preferencia de tamaño de letra guardada con éxito!</span>
-        </div>
-        <button type="button" onclick="document.getElementById('settings-toast-msg').classList.add('hidden')" class="text-emerald-400/60 hover:text-emerald-300 text-xs font-mono font-bold cursor-pointer">✕</button>
-    </div>
-
     <!-- Settings Layout Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
 
@@ -395,13 +379,7 @@
                         window.commitAppFontSize(window.currentSelectedFont);
                     }
                     
-                    const toast = document.getElementById('settings-toast-msg');
-                    const toastText = document.getElementById('settings-toast-text');
-                    if (toast && toastText) {
-                        toastText.textContent = data.message;
-                        toast.classList.remove('hidden');
-                        setTimeout(() => { toast.classList.add('hidden'); }, 4000);
-                    }
+                    window.showToast(data.message, 'success');
 
                     if (typeof onSuccessCallback === 'function') {
                         onSuccessCallback();

@@ -12,21 +12,31 @@
             <p class="text-xs text-slate-400 mt-1">Administra los planes de suscripción, cobros, cupones y estados de facturación.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('finanzas.export') }}" class="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Exportar a Excel (.xlsx / .csv)
-            </a>
-            <button onclick="openAbonoModal()" class="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500 border border-amber-500/25 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
-            </button>
-            <button onclick="toggleModal('plan-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
-                <i data-lucide="plus-circle" class="w-4 h-4 text-lime-400"></i> Crear Plan de Membresía
-            </button>
-            <button onclick="toggleModal('membership-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
-                <i data-lucide="user-plus" class="w-4 h-4 text-lime-400"></i> Asignar Plan a Socio
-            </button>
-            <button onclick="toggleModal('promo-modal')" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                <i data-lucide="ticket" class="w-4 h-4"></i> Crear Cupón
-            </button>
+            @if(auth()->user()->hasPermission('finanzas.export_reports'))
+                <a href="{{ route('finanzas.export') }}" class="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Exportar a Excel (.xlsx / .csv)
+                </a>
+            @endif
+            @if(auth()->user()->hasPermission('finanzas.record_payment'))
+                <button onclick="openAbonoModal()" class="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500 border border-amber-500/25 text-amber-400 hover:text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i data-lucide="coins" class="w-4 h-4"></i> Registrar Abono (Adelantado)
+                </button>
+            @endif
+            @if(auth()->user()->hasPermission('finanzas.plans_manage'))
+                <button onclick="toggleModal('plan-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-lime-400"></i> Crear Plan de Membresía
+                </button>
+            @endif
+            @if(auth()->user()->hasPermission('finanzas.record_payment') || auth()->user()->hasPermission('finanzas.plans_manage'))
+                <button onclick="toggleModal('membership-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-lime-400"></i> Asignar Plan a Socio
+                </button>
+            @endif
+            @if(auth()->user()->hasPermission('finanzas.plans_manage'))
+                <button onclick="toggleModal('promo-modal')" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i data-lucide="ticket" class="w-4 h-4"></i> Crear Cupón
+                </button>
+            @endif
         </div>
     </div>
 
@@ -38,13 +48,6 @@
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
-        </div>
-    @endif
-
-    @if(session('success'))
-        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex gap-2">
-            <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
-            <span>{{ session('success') }}</span>
         </div>
     @endif
 
@@ -2340,45 +2343,9 @@
     }
 
     function showFinanceToast(message, type = 'success') {
-        let container = document.getElementById('finance-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'finance-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-        
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = isDanger ? 'alert-circle' : 'check-circle';
-        let borderColor = isDanger ? 'border-rose-500/30' : 'border-emerald-500/30';
-        let iconColor = isDanger ? 'text-rose-400' : 'text-emerald-400';
-        let glowColor = isDanger ? 'shadow-rose-500/10' : 'shadow-emerald-500/10';
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${message}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
     }
 
     async function togglePromoAjax(e, promoId) {

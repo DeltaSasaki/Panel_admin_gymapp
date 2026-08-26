@@ -829,27 +829,6 @@ class AdminController extends Controller
                 'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
             ]);
 
-            // Save Digital Signature Base64 Image if provided
-            if ($request->filled('signature_base64')) {
-                $base64Sig = $request->signature_base64;
-                if (preg_match('/^data:image\/(\w+);base64,/', $base64Sig)) {
-                    $data = substr($base64Sig, strpos($base64Sig, ',') + 1);
-                    $decodedSig = base64_decode($data);
-                    if ($decodedSig !== false) {
-                        $sigDirectory = public_path('uploads/signatures');
-                        if (!file_exists($sigDirectory)) {
-                            mkdir($sigDirectory, 0755, true);
-                        }
-                        $sigFileName = 'sig_user_' . $user->id . '_' . time() . '.png';
-                        file_put_contents($sigDirectory . '/' . $sigFileName, $decodedSig);
-                        
-                        $profile->update([
-                            'signature_url' => asset('uploads/signatures/' . $sigFileName)
-                        ]);
-                    }
-                }
-            }
-
             // Audit Log
             AdminAuditLog::logAction(
                 'INSERT',
@@ -906,51 +885,6 @@ class AdminController extends Controller
             ->generate('MEMBER:' . $cliente->id);
 
         return view('clientes.carnet', compact('cliente', 'qrCodeSvg'));
-    }
-
-    /**
-     * Save/Update client digital signature via AJAX modal.
-     */
-    public function updateSignature(Request $request, $id)
-    {
-        $request->validate([
-            'signature_base64' => 'required|string',
-        ]);
-
-        $cliente = User::where('role', 'member')->findOrFail($id);
-
-        $base64Sig = $request->signature_base64;
-        if (preg_match('/^data:image\/(\w+);base64,/', $base64Sig)) {
-            $data = substr($base64Sig, strpos($base64Sig, ',') + 1);
-            $decodedData = base64_decode($data);
-            if ($decodedData !== false) {
-                $sigDirectory = public_path('uploads/signatures');
-                if (!file_exists($sigDirectory)) {
-                    mkdir($sigDirectory, 0755, true);
-                }
-                $sigFileName = 'sig_user_' . $cliente->id . '_' . time() . '.png';
-                file_put_contents($sigDirectory . '/' . $sigFileName, $decodedData);
-                
-                $cliente->profile->update([
-                    'signature_url' => asset('uploads/signatures/' . $sigFileName)
-                ]);
-
-                if (function_exists('activity') && \Illuminate\Support\Facades\Schema::hasTable('activity_log')) {
-                    activity()
-                        ->performedOn($cliente)
-                        ->causedBy(auth()->user())
-                        ->log("Firma digital actualizada para el socio #{$cliente->id}");
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Firma digital guardada correctamente.',
-                    'signature_url' => asset('uploads/signatures/' . $sigFileName)
-                ]);
-            }
-        }
-
-        return response()->json(['success' => false, 'message' => 'Formato de firma inválido.'], 422);
     }
 
     /**
@@ -1682,10 +1616,42 @@ class AdminController extends Controller
                     ->orWhereHas('profile', function ($pq) use ($queryStr) {
                         $pq->where('first_name', 'like', "%{$queryStr}%")
                             ->orWhere('last_name', 'like', "%{$queryStr}%")
-                            ->orWhere('phone', 'like', "%{$queryStr}%");
+                            ->orWhere('phone', 'like', "%{$queryStr}%")
+                            ->orWhere('dni', 'like', "%{$queryStr}%");
+                    });
+            })
+            ->with(['profile', 'gym', 'activeMembership.plan'])
+            ->take(20)
+            ->get();
+
+        // Search Staff / Team
+        $personal = User::whereIn('role', ['trainer', 'cajero', 'admin'])
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function ($q) use ($queryStr) {
+                $q->where('email', 'like', "%{$queryStr}%")
+                    ->orWhereHas('profile', function ($pq) use ($queryStr) {
+                        $pq->where('first_name', 'like', "%{$queryStr}%")
+                            ->orWhere('last_name', 'like', "%{$queryStr}%")
+                            ->orWhere('phone', 'like', "%{$queryStr}%")
+                            ->orWhere('dni', 'like', "%{$queryStr}%");
                     });
             })
             ->with(['profile', 'gym'])
+            ->take(10)
+            ->get();
+
+        // Search Products (Tienda)
+        $productos = InventoryProduct::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function ($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                    ->orWhere('sku', 'like', "%{$queryStr}%")
+                    ->orWhere('description', 'like', "%{$queryStr}%");
+            })
+            ->with('category')
             ->take(20)
             ->get();
 
@@ -1715,22 +1681,59 @@ class AdminController extends Controller
             ->take(20)
             ->get();
 
-        return view('search_results', compact('clientes', 'rutinas', 'dietas', 'queryStr', 'activeGymName'));
+        return view('search_results', compact('clientes', 'personal', 'productos', 'rutinas', 'dietas', 'queryStr', 'activeGymName'));
     }
 
     /**
-     * Live search for autocompletion (members and trainers).
+     * Live search for autocompletion (clients, staff, products, routines, meal plans & shortcuts).
      */
     public function liveSearch(Request $request)
     {
-        $queryStr = $request->input('q');
+        $queryStr = trim($request->input('q', ''));
         $gymId = $this->getActiveGymId();
 
         if (empty($queryStr) || strlen($queryStr) < 2) {
-            return response()->json([]);
+            return response()->json([
+                'total' => 0,
+                'shortcuts' => [],
+                'clients' => [],
+                'staff' => [],
+                'products' => [],
+                'routines' => [],
+                'meal_plans' => []
+            ]);
         }
 
-        $users = User::whereIn('role', ['member', 'trainer', 'cajero'])
+        // 1. Navigation Shortcuts
+        $shortcuts = [];
+        $availableShortcuts = [
+            ['title' => 'Punto de Venta (POS)', 'subtitle' => 'Terminal de cobro y ventas rápidas', 'url' => route('tienda.pos'), 'icon' => 'shopping-cart', 'badge' => 'Caja / Tienda', 'keywords' => ['pos', 'venta', 'tienda', 'caja', 'terminal', 'cobrar', 'facturar']],
+            ['title' => 'Productos e Inventario', 'subtitle' => 'Gestión de catálogo, stock y precios', 'url' => route('tienda.products'), 'icon' => 'package', 'badge' => 'Inventario', 'keywords' => ['producto', 'inventario', 'stock', 'articulos', 'suplementos', 'tienda']],
+            ['title' => 'Historial de Ventas', 'subtitle' => 'Bitácora y recibos de ventas', 'url' => route('tienda.sales_history'), 'icon' => 'receipt', 'badge' => 'Finanzas', 'keywords' => ['ventas', 'historial', 'facturas', 'tickets', 'recibos']],
+            ['title' => 'Control de Asistencia', 'subtitle' => 'Check-in y registro de atletas', 'url' => route('asistencia.index'), 'icon' => 'user-check', 'badge' => 'Accesos', 'keywords' => ['asistencia', 'checkin', 'entrada', 'acceso', 'torniquete', 'dni']],
+            ['title' => 'Factores Cambiarios', 'subtitle' => 'Tasa oficial BCV y conversiones', 'url' => route('tasas_cambio.index'), 'icon' => 'dollar-sign', 'badge' => 'Finanzas', 'keywords' => ['tasa', 'bcv', 'dolar', 'bolivar', 'cambio', 'divisa', 'factor']],
+            ['title' => 'Pasarelas de Pago', 'subtitle' => 'Pago Móvil, Zelle, Tarjetas, Bancos', 'url' => route('pasarelas.index'), 'icon' => 'credit-card', 'badge' => 'Finanzas', 'keywords' => ['pasarela', 'pago', 'pagomovil', 'zelle', 'tarjeta', 'banco', 'transferencia']],
+            ['title' => 'Finanzas & Membresías', 'subtitle' => 'Cobros de mensualidad, abonos y planes', 'url' => route('finanzas.index'), 'icon' => 'wallet', 'badge' => 'Caja', 'keywords' => ['finanzas', 'membresia', 'mensualidad', 'abono', 'pago', 'planes', 'cobro']],
+            ['title' => 'Cierre de Caja', 'subtitle' => 'Cierres de turno, balances y arqueo', 'url' => route('cierre_caja.index'), 'icon' => 'lock', 'badge' => 'Caja', 'keywords' => ['cierre', 'arqueo', 'caja', 'turno', 'cuadre', 'balance']],
+            ['title' => 'Clases Grupales', 'subtitle' => 'Horarios, reservas y cupos', 'url' => route('clases.index'), 'icon' => 'calendar', 'badge' => 'Horarios', 'keywords' => ['clase', 'reserva', 'horario', 'spinning', 'yoga', 'crossfit', 'grupal']],
+            ['title' => 'Retos & Gamificación', 'subtitle' => 'Desafíos, medallas y leaderboard', 'url' => route('retos.index'), 'icon' => 'trophy', 'badge' => 'Atletas', 'keywords' => ['reto', 'desafio', 'medalla', 'logro', 'puntos', 'gamificacion']],
+            ['title' => 'Gestión de Atletas / Clientes', 'subtitle' => 'Listado y registro de usuarios', 'url' => route('clientes.index'), 'icon' => 'users', 'badge' => 'Usuarios', 'keywords' => ['cliente', 'atleta', 'usuario', 'miembro', 'inscrito', 'socio']],
+            ['title' => 'Equipo & Entrenadores', 'subtitle' => 'Staff, entrenadores y roles', 'url' => route('staff.index'), 'icon' => 'user-plus', 'badge' => 'Staff', 'keywords' => ['staff', 'entrenador', 'coach', 'personal', 'instructor']],
+            ['title' => 'Cajeros & Terminales', 'subtitle' => 'Gestión de personal de caja', 'url' => route('cajeros.index'), 'icon' => 'badge-dollar-sign', 'badge' => 'Caja', 'keywords' => ['cajero', 'cajeros', 'operador', 'caja']],
+        ];
+
+        $lowerQuery = mb_strtolower($queryStr);
+        foreach ($availableShortcuts as $sc) {
+            foreach ($sc['keywords'] as $kw) {
+                if (str_contains($lowerQuery, $kw) || str_contains(mb_strtolower($sc['title']), $lowerQuery)) {
+                    $shortcuts[] = $sc;
+                    break;
+                }
+            }
+        }
+
+        // 2. Search Clients (role = 'member')
+        $clients = User::where('role', 'member')
             ->when($gymId !== 'all', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
@@ -1738,26 +1741,160 @@ class AdminController extends Controller
                 $q->where('email', 'like', "%{$queryStr}%")
                     ->orWhereHas('profile', function ($pq) use ($queryStr) {
                         $pq->where('first_name', 'like', "%{$queryStr}%")
-                            ->orWhere('last_name', 'like', "%{$queryStr}%");
+                            ->orWhere('last_name', 'like', "%{$queryStr}%")
+                            ->orWhere('phone', 'like', "%{$queryStr}%")
+                            ->orWhere('dni', 'like', "%{$queryStr}%");
+                    });
+            })
+            ->with(['profile', 'gym', 'activeMembership.plan'])
+            ->take(4)
+            ->get()
+            ->map(function ($user) {
+                $status = 'Sin membresía';
+                $statusClass = 'bg-slate-800 text-slate-400';
+                if ($user->activeMembership) {
+                    $status = $user->activeMembership->plan->name ?? 'Membresía Activa';
+                    $statusClass = 'bg-lime-500/10 text-lime-400 border border-lime-500/20';
+                }
+                return [
+                    'id' => $user->id,
+                    'name' => trim(($user->profile->first_name ?? 'Atleta') . ' ' . ($user->profile->last_name ?? '')),
+                    'email' => $user->email,
+                    'dni' => $user->profile->dni ?? null,
+                    'phone' => $user->profile->phone ?? null,
+                    'photo' => $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                    'gym_name' => $user->gym->name ?? 'N/A',
+                    'membership_status' => $status,
+                    'status_class' => $statusClass,
+                    'url' => route('clientes.show', $user->id),
+                ];
+            });
+
+        // 3. Search Staff / Cajeros / Admins
+        $staff = User::whereIn('role', ['trainer', 'cajero', 'admin', 'superadmin'])
+            ->when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where(function($sq) use ($gymId) {
+                    $sq->where('gym_id', $gymId)->orWhere('role', 'superadmin');
+                });
+            })
+            ->where(function ($q) use ($queryStr) {
+                $q->where('email', 'like', "%{$queryStr}%")
+                    ->orWhereHas('profile', function ($pq) use ($queryStr) {
+                        $pq->where('first_name', 'like', "%{$queryStr}%")
+                            ->orWhere('last_name', 'like', "%{$queryStr}%")
+                            ->orWhere('phone', 'like', "%{$queryStr}%")
+                            ->orWhere('dni', 'like', "%{$queryStr}%");
                     });
             })
             ->with(['profile', 'gym'])
-            ->take(5)
-            ->get();
+            ->take(3)
+            ->get()
+            ->map(function ($user) {
+                $roleLabels = [
+                    'trainer' => 'Coach',
+                    'cajero' => 'Cajero',
+                    'admin' => 'Admin',
+                    'superadmin' => 'SuperAdmin'
+                ];
+                $roleColors = [
+                    'trainer' => 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                    'cajero' => 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                    'admin' => 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+                    'superadmin' => 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                ];
+                return [
+                    'id' => $user->id,
+                    'name' => trim(($user->profile->first_name ?? 'Usuario') . ' ' . ($user->profile->last_name ?? '')),
+                    'email' => $user->email,
+                    'role_label' => $roleLabels[$user->role] ?? $user->role,
+                    'role_color' => $roleColors[$user->role] ?? 'bg-slate-800 text-slate-300',
+                    'photo' => $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
+                    'gym_name' => $user->gym->name ?? 'Global',
+                    'url' => $user->role === 'cajero' ? route('cajeros.index') : route('staff.index'),
+                ];
+            });
 
-        $results = $users->map(function ($user) {
-            return [
-                'id' => $user->id,
-                'name' => ($user->profile->first_name ?? 'Usuario') . ' ' . ($user->profile->last_name ?? ''),
-                'email' => $user->email,
-                'role' => $user->role,
-                'photo' => $user->profile->profile_photo ?? 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=150&auto=format&fit=crop',
-                'gym_name' => $user->gym->name ?? 'N/A',
-                'url' => $user->role === 'member' ? route('clientes.show', $user->id) : route('staff.index'),
-            ];
-        });
+        // 4. Search Products (InventoryProduct)
+        $products = InventoryProduct::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where('is_available', 1)
+            ->where(function ($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                    ->orWhere('sku', 'like', "%{$queryStr}%")
+                    ->orWhere('description', 'like', "%{$queryStr}%");
+            })
+            ->with('category')
+            ->take(3)
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'sku' => $p->sku ?? 'S/C',
+                    'price' => number_format($p->price, 2),
+                    'stock' => $p->stock_quantity,
+                    'category' => $p->category->name ?? 'General',
+                    'image' => $p->image_url,
+                    'url' => route('tienda.products'),
+                ];
+            });
 
-        return response()->json($results);
+        // 5. Search Routines (WorkoutRoutine)
+        $routines = WorkoutRoutine::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where('is_active', 1)
+            ->where(function ($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                    ->orWhere('description', 'like', "%{$queryStr}%")
+                    ->orWhere('goal_type', 'like', "%{$queryStr}%");
+            })
+            ->take(3)
+            ->get()
+            ->map(function ($r) {
+                return [
+                    'id' => $r->id,
+                    'name' => $r->name,
+                    'goal_type' => $r->goal_type,
+                    'duration' => "{$r->duration_weeks} sem / {$r->days_per_week} días",
+                    'url' => route('rutinas.ejercicios', $r->id),
+                ];
+            });
+
+        // 6. Search Meal Plans (MealPlan)
+        $mealPlans = MealPlan::when($gymId !== 'all', function ($q) use ($gymId) {
+                $q->where('gym_id', $gymId);
+            })
+            ->where(function ($q) use ($queryStr) {
+                $q->where('name', 'like', "%{$queryStr}%")
+                    ->orWhere('description', 'like', "%{$queryStr}%")
+                    ->orWhere('goal_type', 'like', "%{$queryStr}%");
+            })
+            ->take(3)
+            ->get()
+            ->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'goal_type' => $m->goal_type,
+                    'calories' => "{$m->daily_calories} kcal",
+                    'url' => route('nutricion.comidas', $m->id),
+                ];
+            });
+
+        $totalCount = count($shortcuts) + $clients->count() + $staff->count() + $products->count() + $routines->count() + $mealPlans->count();
+
+        return response()->json([
+            'total' => $totalCount,
+            'query' => $queryStr,
+            'shortcuts' => $shortcuts,
+            'clients' => $clients,
+            'staff' => $staff,
+            'products' => $products,
+            'routines' => $routines,
+            'meal_plans' => $mealPlans,
+        ]);
     }
 
     /**

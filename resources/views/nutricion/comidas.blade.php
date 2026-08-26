@@ -58,10 +58,12 @@
             </div>
         </div>
 
+        @if(auth()->user()->hasPermission('nutricion.manage'))
         <button type="button" onclick="openEditPlanModal()" class="px-4 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0 self-start md:self-center">
             <i data-lucide="edit-3" class="w-4 h-4"></i>
             <span>Editar Información</span>
         </button>
+        @endif
     </div>
 
     <!-- Main Grid -->
@@ -71,9 +73,11 @@
         <div class="md:col-span-1 space-y-4">
             <div class="flex items-center justify-between px-2">
                 <h3 class="text-xs uppercase font-extrabold tracking-wider text-slate-500">Días del Plan</h3>
+                @if(auth()->user()->hasPermission('nutricion.manage'))
                 <button type="button" onclick="submitAddDay()" id="add-day-btn" class="p-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-lg text-lime-400 hover:text-lime-300 transition-colors flex items-center gap-1 text-[10px] font-bold shadow-sm" title="Añadir Día">
                     <i data-lucide="plus" class="w-3.5 h-3.5"></i> Añadir Día
                 </button>
+                @endif
             </div>
             
             <div class="flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible gap-2 pb-2 md:pb-0" id="days-tabs">
@@ -97,6 +101,7 @@
                             <h2 class="text-lg font-bold text-slate-100">Distribución del Día {{ $day->day_number }}</h2>
                             <span class="text-xs text-slate-455">Total: 5 Comidas Planificadas</span>
                         </div>
+                        @if(auth()->user()->hasPermission('nutricion.manage'))
                         <div class="flex items-center gap-2">
                             <button onclick='openProgramModal({{ json_encode($day) }})' class="px-3 py-1.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 text-xs font-bold rounded-xl shadow-md transition-colors flex items-center gap-1.5">
                                 <i data-lucide="utensils" class="w-3.5 h-3.5"></i> Programar Menú
@@ -105,6 +110,7 @@
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
                         </div>
+                        @endif
                     </div>
 
                     <!-- Meals List -->
@@ -165,10 +171,12 @@
                                                 <span class="text-slate-400">C: <strong class="text-lime-400 font-semibold">{{ $meal['recipe']->carbs_g }}g</strong></span>
                                                 <span class="text-slate-400">F: <strong class="text-amber-500 font-semibold">{{ $meal['recipe']->fat_g }}g</strong></span>
                                             </div>
+                                            @if(auth()->user()->hasPermission('nutricion.manage'))
                                             <!-- Remove single meal button -->
                                             <button type="button" onclick="submitRemoveMeal('{{ $day->id }}', '{{ $meal['key'] }}', '{{ addslashes($meal['label']) }}', {{ $day->day_number }})" class="p-2 bg-slate-950 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 border border-slate-850 hover:border-rose-500/30 rounded-xl transition-all shadow-sm" title="Quitar {{ $meal['label'] }}">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                             </button>
+                                            @endif
                                         </div>
                                     </div>
                                     
@@ -204,9 +212,11 @@
                                         <i data-lucide="{{ $meal['icon'] }}" class="w-4 h-4 text-slate-700"></i>
                                         <span>Sin comida planificada en: <strong class="text-slate-450">{{ $meal['label'] }}</strong></span>
                                     </div>
+                                    @if(auth()->user()->hasPermission('nutricion.manage'))
                                     <button onclick='openProgramModal({{ json_encode($day) }})' class="text-[10px] text-lime-450 hover:text-lime-300 font-bold uppercase transition-colors">
                                         + Asignar
                                     </button>
+                                    @endif
                                 </div>
                             @endif
                         @endforeach
@@ -445,59 +455,11 @@
         return map[b] || b;
     }
 
-    // Temporary Toast Notifications
+    // Temporary Toast Notifications using universal global toast
     function showToast(message, type = 'success') {
-        let container = document.getElementById('meal-plan-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'meal-plan-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = 'check-circle';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (type === 'warning') {
-            iconName = 'alert-triangle';
-            borderColor = 'border-amber-500/30';
-            iconColor = 'text-amber-400';
-            glowColor = 'shadow-amber-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${escapeHtml(message)}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3800);
     }
 
     function escapeHtml(str) {
@@ -972,16 +934,5 @@
         }).join('');
     }
 
-    // Auto-trigger session flash messages as toasts on load
-    document.addEventListener('DOMContentLoaded', function () {
-        @if(session('success'))
-            showToast("{{ session('success') }}", 'success');
-        @endif
-        @if($errors->any())
-            @foreach($errors->all() as $error)
-                showToast("{{ $error }}", 'error');
-            @endforeach
-        @endif
-    });
 </script>
 @endsection

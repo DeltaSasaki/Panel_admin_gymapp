@@ -12,21 +12,16 @@
             <p class="text-xs text-slate-400 mt-1">Configura el catálogo, costos, precios al público y niveles de stock de alerta.</p>
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="toggleModal('category-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
-                <i data-lucide="plus-circle" class="w-4 h-4"></i> Crear Categoría
-            </button>
-            <button onclick="toggleModal('product-modal')" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
-                <i data-lucide="package" class="w-4 h-4"></i> Registrar Producto
-            </button>
+            @if(auth()->user()->hasPermission('tienda.products_manage'))
+                <button onclick="toggleModal('category-modal')" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-xs font-bold rounded-xl border border-slate-800 text-slate-200 transition-colors flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Crear Categoría
+                </button>
+                <button onclick="toggleModal('product-modal')" class="px-4 py-2.5 bg-gradient-to-r from-lime-500 to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-2">
+                    <i data-lucide="package" class="w-4 h-4"></i> Registrar Producto
+                </button>
+            @endif
         </div>
     </div>
-
-    @if(session('success'))
-        <div class="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex gap-2">
-            <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
 
     @if($errors->any())
         <div class="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs p-4 rounded-xl">
@@ -85,16 +80,16 @@
         </div>
         
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
+            <table class="w-full text-left text-xs border-collapse whitespace-nowrap min-w-[800px]">
                 <thead>
                     <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
-                        <th class="p-4 pl-6 text-left">Producto</th>
-                        <th class="p-4 text-center">Categoría</th>
-                        <th class="p-4 text-center">Costo Unitario</th>
-                        <th class="p-4 text-center">Precio Venta</th>
-                        <th class="p-4 text-center">Margen Ganancia</th>
-                        <th class="p-4 text-center">Stock Actual</th>
-                        <th class="p-4 text-center pr-6">Acciones</th>
+                        <th class="py-3.5 px-4 pl-6 text-left">Producto</th>
+                        <th class="py-3.5 px-3 text-center">Categoría</th>
+                        <th class="py-3.5 px-3 text-center">Costo Unitario</th>
+                        <th class="py-3.5 px-3 text-center">Precio Venta</th>
+                        <th class="py-3.5 px-3 text-center">Margen Ganancia</th>
+                        <th class="py-3.5 px-3 text-center">Stock Actual</th>
+                        <th class="py-3.5 px-4 text-center pr-6">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="products_table_body" class="divide-y divide-slate-850/50">
@@ -110,73 +105,87 @@
                             data-name="{{ strtolower($p->name) }}" 
                             data-category="{{ strtolower($p->category->name ?? '') }}"
                             class="hover:bg-slate-900/20 text-slate-200 transition-colors">
-                            <td class="p-4 pl-6">
+                            <td class="py-3 px-4 pl-6">
                                 <div class="flex items-center gap-3">
                                     <img src="{{ $p->image_url ? asset($p->image_url) : 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=150&auto=format&fit=crop' }}" class="w-10 h-10 rounded-xl object-cover border border-slate-800 shrink-0">
-                                    <div>
+                                    <div class="min-w-0">
                                         <div class="flex items-center gap-2" id="product_title_badge_{{ $p->id }}">
-                                            <span class="block font-bold text-slate-100">{{ $p->name }}</span>
+                                            <span class="block font-bold text-slate-100 truncate max-w-[200px]">{{ $p->name }}</span>
                                             @if(!$p->is_available)
-                                                <span class="px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold uppercase tracking-wider disabled-tag">x</span>
+                                                <span class="px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold uppercase tracking-wider disabled-tag shrink-0">Inhabilitado</span>
                                             @endif
                                         </div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="p-4 text-center">
+                            <td class="py-3 px-3 text-center">
                                 <span class="px-2.5 py-1 bg-slate-950/80 text-slate-300 border border-slate-850 rounded-lg font-semibold text-[10px]">
                                     {{ $p->category->name }}
                                 </span>
                             </td>
-                            <td class="p-4 text-center font-mono text-slate-300">${{ number_format($p->cost_price, 2) }}</td>
-                            <td class="p-4 text-center whitespace-nowrap">
+                            <td class="py-3 px-3 text-center font-mono text-slate-300">
+                                @if(auth()->user()->hasPermission('tienda.products_cost_view'))
+                                    ${{ number_format($p->cost_price, 2) }}
+                                @else
+                                    <span class="text-slate-600 font-bold tracking-widest" title="Acceso restringido a precios de costo">••••</span>
+                                @endif
+                            </td>
+                            <td class="py-3 px-3 text-center whitespace-nowrap">
                                 <span class="block font-mono text-lime-400 font-bold text-xs">${{ number_format($p->price, 2) }}</span>
                                 <span class="block font-mono text-slate-400 font-semibold text-[10px]">{{ \App\Services\ExchangeRateService::formatVES($p->price * \App\Services\ExchangeRateService::getCurrentRate($p->gym_id)) }}</span>
                             </td>
-                            <td class="p-4 text-center font-mono text-emerald-400 font-semibold">
-                                +${{ number_format($profit, 2) }} <span class="text-[10px] text-slate-500">({{ number_format($marginPct, 0) }}%)</span>
+                            <td class="py-3 px-3 text-center font-mono text-emerald-400 font-semibold">
+                                @if(auth()->user()->hasPermission('tienda.products_cost_view'))
+                                    +${{ number_format($profit, 2) }} <span class="text-[10px] text-slate-500">({{ number_format($marginPct, 0) }}%)</span>
+                                @else
+                                    <span class="text-slate-600 font-bold tracking-widest" title="Acceso restringido a márgenes">••••</span>
+                                @endif
                             </td>
-                            <td class="p-4 text-center font-mono" id="product_stock_cell_{{ $p->id }}">
+                            <td class="py-3 px-3 text-center font-mono" id="product_stock_cell_{{ $p->id }}">
                                 <span class="px-2.5 py-1 rounded-lg font-extrabold text-xs inline-block {{ $isLow ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'bg-slate-950/80 text-slate-200 border border-slate-850' }}">
                                     {{ $p->stock_quantity }}
                                 </span>
                             </td>
-                            <td class="p-4 text-center pr-6">
-                                <div class="flex items-center justify-center gap-2" id="product_actions_{{ $p->id }}">
+                            <td class="py-3 px-4 text-center pr-6">
+                                <div class="flex items-center justify-center gap-1.5" id="product_actions_{{ $p->id }}">
                                     <!-- Stock Button (Green) -->
-                                    <button onclick="openRestockModal({{ $p->id }}, '{{ addslashes($p->name) }}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
-                                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
-                                        +Stock
-                                    </button>
+                                    @if(auth()->user()->hasPermission('tienda.stock_adjust'))
+                                        <button onclick="openRestockModal({{ $p->id }}, '{{ addslashes($p->name) }}')" class="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl text-[10px] font-extrabold transition-all flex items-center gap-1 shadow-sm" title="Reabastecer Stock">
+                                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                                            +Stock
+                                        </button>
+                                    @endif
 
                                     <!-- Barcode Button (Blue) -->
                                     <button type="button" onclick="showProductBarcodeModal({{ $p->id }}, '{{ addslashes($p->name) }}', '{{ $p->sku ?? ('PRD-'.str_pad($p->id, 6, '0', STR_PAD_LEFT)) }}')" class="p-1.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-slate-950 border border-blue-500/25 rounded-xl transition-all shadow-sm" title="Ver / Imprimir Código de Barras">
                                         <i data-lucide="barcode" class="w-3.5 h-3.5"></i>
                                     </button>
 
-                                    <!-- Edit Button (Yellow/Amber) -->
-                                    <button type="button" onclick="openEditModalById({{ $p->id }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
-                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                                    </button>
+                                    @if(auth()->user()->hasPermission('tienda.products_manage'))
+                                        <!-- Edit Button (Yellow/Amber) -->
+                                        <button type="button" onclick="openEditModalById({{ $p->id }})" class="p-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-slate-950 border border-amber-500/25 rounded-xl transition-all shadow-sm" title="Editar Producto">
+                                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                        </button>
 
-                                    <!-- Toggle Availability (Inhabilitar / Habilitar) -->
-                                    <div id="product_toggle_btn_container_{{ $p->id }}" class="inline-block">
-                                        @if($p->is_available)
-                                            <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
-                                                <i data-lucide="power" class="w-3.5 h-3.5"></i>
-                                            </button>
-                                        @else
-                                            <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', false)" class="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm" title="Habilitar Producto">
-                                                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                                            </button>
-                                        @endif
-                                    </div>
+                                        <!-- Toggle Availability (Inhabilitar / Habilitar) -->
+                                        <div id="product_toggle_btn_container_{{ $p->id }}" class="inline-block">
+                                            @if($p->is_available)
+                                                <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', true)" class="p-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-slate-100 border border-rose-500/25 rounded-xl transition-all shadow-sm" title="Inhabilitar Producto">
+                                                    <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                                                </button>
+                                            @else
+                                                <button type="button" onclick="confirmToggleProductStatus({{ $p->id }}, '{{ addslashes($p->name) }}', false)" class="p-1.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/25 rounded-xl transition-all shadow-sm" title="Habilitar Producto">
+                                                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="p-8 text-center text-slate-550">
+                            <td colspan="7" class="p-8 text-center text-slate-500">
                                 No hay productos registrados en el inventario.
                             </td>
                         </tr>
@@ -994,57 +1003,9 @@
     }
 
     function showProductToast(message, type = 'success') {
-        let container = document.getElementById('product-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'product-toast-container';
-            container.className = 'fixed top-24 right-6 z-50 flex flex-col gap-2.5 pointer-events-none max-w-xs sm:max-w-sm w-full';
-            document.body.appendChild(container);
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type === 'danger' ? 'error' : type);
         }
-        
-        const toast = document.createElement('div');
-        const isDanger = type === 'danger' || type === 'error';
-
-        let iconName = 'check-circle';
-        let borderColor = 'border-emerald-500/30';
-        let iconColor = 'text-emerald-400';
-        let glowColor = 'shadow-emerald-500/10';
-
-        if (isDanger) {
-            iconName = 'alert-circle';
-            borderColor = 'border-rose-500/30';
-            iconColor = 'text-rose-400';
-            glowColor = 'shadow-rose-500/10';
-        } else if (type === 'warning') {
-            iconName = 'alert-triangle';
-            borderColor = 'border-amber-500/30';
-            iconColor = 'text-amber-400';
-            glowColor = 'shadow-amber-500/10';
-        }
-
-        toast.className = `pointer-events-auto flex items-center gap-3 p-3.5 pr-4 bg-slate-900 border ${borderColor} text-slate-100 text-xs font-semibold rounded-2xl shadow-xl ${glowColor} transition-all duration-300 transform translate-x-10 opacity-0`;
-
-        toast.innerHTML = `
-            <div class="p-1.5 rounded-xl bg-slate-950/60 shrink-0 ${iconColor}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
-            </div>
-            <div class="flex-1 leading-tight">${message}</div>
-            <button type="button" onclick="this.parentElement.remove()" class="p-1 text-slate-400 hover:text-slate-100 text-xs ml-1 shrink-0">
-                <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-        `;
-
-        container.appendChild(toast);
-        if (window.lucide) window.lucide.createIcons();
-
-        setTimeout(() => {
-            toast.classList.remove('translate-x-10', 'opacity-0');
-        }, 10);
-
-        setTimeout(() => {
-            toast.classList.add('translate-x-10', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3500);
     }
 
     // Pagination, Status Filtering & Live Search Logic (Max 10 products per page)
@@ -1181,8 +1142,11 @@
         const container = document.getElementById('barcode_svg_container');
         container.innerHTML = `<span class="text-xs text-slate-400 font-mono animate-pulse">Cargando código de barras...</span>`;
 
-        const modal = document.getElementById('product-barcode-modal');
-        if (modal) modal.classList.remove('hidden');
+        if (typeof window.openModal === 'function') {
+            window.openModal('product-barcode-modal');
+        } else if (typeof window.toggleModal === 'function') {
+            window.toggleModal('product-barcode-modal');
+        }
 
         fetch(`/tienda/productos/${id}/barcode`)
             .then(res => res.text())
@@ -1196,8 +1160,11 @@
     }
 
     function closeProductBarcodeModal() {
-        const modal = document.getElementById('product-barcode-modal');
-        if (modal) modal.classList.add('hidden');
+        if (typeof window.closeModal === 'function') {
+            window.closeModal('product-barcode-modal');
+        } else if (typeof window.toggleModal === 'function') {
+            window.toggleModal('product-barcode-modal');
+        }
     }
 
     function printBarcodeLabel() {

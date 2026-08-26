@@ -52,18 +52,18 @@
         
         <!-- Table Container -->
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
+            <table class="w-full text-left text-xs border-collapse whitespace-nowrap min-w-[900px]">
                 <thead>
                     <tr class="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold border-b border-slate-850">
-                        <th class="p-4 pl-6">ID Venta</th>
-                        <th class="p-4">Fecha y Hora</th>
-                        <th class="p-4">Cliente / Socio</th>
-                        <th class="p-4">Atendido Por</th>
-                        <th class="p-4">Artículos Vendidos</th>
-                        <th class="p-4 text-center">Cupón</th>
-                        <th class="p-4 text-center">Método Pago</th>
-                        <th class="p-4 text-right">Monto Total</th>
-                        <th class="p-4 text-center pr-6">Nota</th>
+                        <th class="py-3.5 px-4 pl-6">ID Venta</th>
+                        <th class="py-3.5 px-3">Fecha y Hora</th>
+                        <th class="py-3.5 px-3">Cliente / Socio</th>
+                        <th class="py-3.5 px-3">Atendido Por</th>
+                        <th class="py-3.5 px-3">Artículos Vendidos</th>
+                        <th class="py-3.5 px-3 text-center">Cupón</th>
+                        <th class="py-3.5 px-3 text-center">Método Pago</th>
+                        <th class="py-3.5 px-3 text-right">Monto Total</th>
+                        <th class="py-3.5 px-4 text-center pr-6">Nota</th>
                     </tr>
                 </thead>
                 <tbody id="sales_table_body" class="divide-y divide-slate-850/50">
@@ -86,9 +86,9 @@
                             data-items="{{ strtolower($itemsListStr) }}"
                             data-amount="{{ number_format($sale->total_amount, 2) }}"
                             class="hover:bg-slate-900/20 text-slate-200 transition-colors">
-                            <td class="p-4 pl-6 font-mono font-bold text-lime-400">#{{ str_pad($sale->id, 5, '0', STR_PAD_LEFT) }}</td>
-                            <td class="p-4 text-slate-400 whitespace-nowrap">{{ \Carbon\Carbon::parse($sale->createdAt)->format('d/m/Y H:i') }}</td>
-                            <td class="p-4">
+                            <td class="py-3 px-4 pl-6 font-mono font-bold text-lime-400">#{{ str_pad($sale->id, 5, '0', STR_PAD_LEFT) }}</td>
+                            <td class="py-3 px-3 text-slate-400 whitespace-nowrap">{{ \Carbon\Carbon::parse($sale->createdAt)->format('d/m/Y H:i') }}</td>
+                            <td class="py-3 px-3">
                                 @if($sale->client)
                                     <span class="block font-bold text-slate-100">{{ $sale->client->profile->first_name ?? '' }} {{ $sale->client->profile->last_name ?? '' }}</span>
                                     <span class="block text-[10px] text-slate-500 font-mono">{{ $sale->client->email }}</span>
@@ -96,7 +96,7 @@
                                     <span class="text-slate-500 font-medium italic">Cliente General</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-slate-300 whitespace-nowrap">
+                            <td class="py-3 px-3 text-slate-300 whitespace-nowrap">
                                 @if($sale->seller)
                                     @php
                                         $sellerPrefix = match($sale->seller->role) {
@@ -112,14 +112,14 @@
                                     Sistema
                                 @endif
                             </td>
-                            <td class="p-4">
+                            <td class="py-3 px-3">
                                 <ul class="space-y-0.5 list-inside list-disc text-slate-400 text-[10px]">
                                     @foreach($sale->items as $item)
                                         <li>{{ $item->product->name ?? 'Producto' }} <strong class="text-slate-200">x{{ $item->quantity }}</strong></li>
                                     @endforeach
                                 </ul>
                             </td>
-                            <td class="p-4 text-center whitespace-nowrap">
+                            <td class="py-3 px-3 text-center whitespace-nowrap">
                                 @if($sale->promoCode)
                                     <span class="px-2 py-0.5 bg-lime-500/10 text-lime-400 border border-lime-500/20 rounded font-black tracking-wide text-[9px] uppercase">
                                         {{ $sale->promoCode->code }}
@@ -128,7 +128,7 @@
                                     <span class="text-slate-600 font-bold italic">-</span>
                                 @endif
                             </td>
-                            <td class="p-4 text-center whitespace-nowrap">
+                            <td class="py-3 px-3 text-center whitespace-nowrap">
                                 @if($sale->payment_method === 'cash')
                                     <span class="px-2 py-0.5 bg-slate-950/60 text-slate-300 border border-slate-850 rounded-md font-semibold text-[10px]">Efectivo</span>
                                 @elseif($sale->payment_method === 'card')
@@ -146,11 +146,11 @@
                                     ? (float)$sale->total_amount_ves
                                     : ((float)$sale->total_amount * $effectiveRate);
                             @endphp
-                            <td class="p-4 text-right whitespace-nowrap">
+                            <td class="py-3 px-3 text-right whitespace-nowrap">
                                 <span class="block font-mono font-black text-lime-400 text-sm">${{ number_format($sale->total_amount, 2) }}</span>
                                 <span class="block font-mono font-bold text-emerald-400 text-[10px]">Bs. {{ number_format($effectiveVes, 2, ',', '.') }}</span>
                             </td>
-                            <td class="p-4 text-center pr-6 whitespace-nowrap">
+                            <td class="py-3 px-4 text-center pr-6 whitespace-nowrap">
                                 @if(!empty($sale->notes))
                                     @php
                                         $clientName = $sale->client ? (($sale->client->profile->first_name ?? '') . ' ' . ($sale->client->profile->last_name ?? '')) : 'Cliente General';
@@ -203,8 +203,8 @@
 
 @push('modals')
     <!-- ================= MODAL: NOTA ADICIONAL DE VENTA ================= -->
-    <div id="sale-note-modal" class="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm hidden p-4 overflow-y-auto">
-        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl my-auto animate-scale-up space-y-4">
+    <div id="sale-note-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl animate-fade-in space-y-4">
             <div class="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h3 class="font-extrabold text-slate-100 text-base flex items-center gap-2">
                     <i data-lucide="file-text" class="text-amber-400 w-5 h-5"></i>
@@ -389,8 +389,12 @@
     }
 
     function toggleSaleNoteModal() {
-        const modal = document.getElementById('sale-note-modal');
-        if (modal) modal.classList.toggle('hidden');
+        if (typeof window.toggleModal === 'function') {
+            window.toggleModal('sale-note-modal');
+        } else {
+            const modal = document.getElementById('sale-note-modal');
+            if (modal) modal.classList.toggle('hidden');
+        }
     }
 
     function openSaleNoteModal(saleId, noteText, clientName, saleDate) {

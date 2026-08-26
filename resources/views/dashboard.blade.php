@@ -118,8 +118,8 @@
                 <p class="text-xs text-slate-500 mt-2">Sesiones iniciadas hoy</p>
             </div>
 
-            <!-- Card 3: Dynamic based on role -->
-            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+            <!-- Card 3: Dynamic based on permission -->
+            @if(auth()->user()->hasPermission('dashboard.view_financials'))
                 <!-- Monthly Cashflow -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-lime-500/40 transition-colors duration-200">
                     <div class="flex items-center justify-between mb-4">
@@ -150,8 +150,8 @@
                 </div>
             @endif
 
-            <!-- Card 4: Dynamic based on role -->
-            @if(in_array(auth()->user()->role, ['admin', 'superadmin']))
+            <!-- Card 4: Dynamic based on permission -->
+            @if(auth()->user()->hasPermission('dashboard.view_financials'))
                 <!-- Administrative Alerts -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-lime-500/40 transition-colors duration-200">
                     <div class="flex items-center justify-between mb-4">

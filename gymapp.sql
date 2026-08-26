@@ -2968,6 +2968,48 @@ ALTER TABLE `workout_sessions`
 -- Actualización: Campo para Firma Digital en Expediente del Socio
 ALTER TABLE `user_profiles` ADD COLUMN IF NOT EXISTS `signature_url` TEXT DEFAULT NULL AFTER `profile_photo`;
 
+-- --------------------------------------------------------
+-- Sistema de Permisos Granulares y Control de Acceso (RBAC)
+-- --------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS `permissions` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(100) NOT NULL,
+  `name` varchar(150) NOT NULL,
+  `module` varchar(50) NOT NULL,
+  `type` enum('menu_access','action','widget') NOT NULL DEFAULT 'action',
+  `description` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `permissions_code_unique` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `role_permissions` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `role` varchar(30) NOT NULL,
+  `permission_id` int(10) unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `role_permissions_role_permission_id_unique` (`role`,`permission_id`),
+  KEY `role_permissions_permission_id_foreign` (`permission_id`),
+  CONSTRAINT `role_permissions_permission_id_foreign` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `user_permissions` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(10) unsigned NOT NULL,
+  `permission_id` int(10) unsigned NOT NULL,
+  `is_granted` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1: Concedido explícitamente, 0: Denegado explícitamente',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_permissions_user_id_permission_id_unique` (`user_id`,`permission_id`),
+  KEY `user_permissions_permission_id_foreign` (`permission_id`),
+  CONSTRAINT `user_permissions_permission_id_foreign` FOREIGN KEY (`permission_id`) REFERENCES `permissions` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

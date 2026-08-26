@@ -148,4 +148,28 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserGamificationStat::class, 'user_id');
     }
+
+    /**
+     * User granular permission overrides.
+     */
+    public function permissionsOverride()
+    {
+        return $this->hasMany(UserPermission::class, 'user_id');
+    }
+
+    /**
+     * Check if user has a permission code (supports SuperAdmin bypass, user overrides and role defaults).
+     */
+    public function hasPermission(string $permissionCode): bool
+    {
+        return \App\Services\PermissionService::userHasPermission($this, $permissionCode);
+    }
+
+    /**
+     * Alias for hasPermission.
+     */
+    public function canAccess(string $permissionCode): bool
+    {
+        return $this->hasPermission($permissionCode);
+    }
 }
