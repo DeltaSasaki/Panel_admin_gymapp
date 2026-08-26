@@ -39,6 +39,7 @@ CREATE TABLE `achievement_definitions` (
   `icon_url` varchar(500) DEFAULT NULL,
   `condition_type` varchar(100) NOT NULL COMMENT 'Ej: workouts_completed, consecutive_days',
   `target_value` int(11) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=Activo, 0=Inactivo',
   `createdAt` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1488,6 +1489,7 @@ CREATE TABLE `user_profiles` (
   `birth_date` date DEFAULT NULL,
   `gender` enum('male','female','other') DEFAULT NULL,
   `profile_photo` varchar(500) DEFAULT NULL,
+  `signature_url` text DEFAULT NULL,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
