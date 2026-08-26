@@ -52,7 +52,7 @@ CREATE TABLE `achievement_definitions` (
 CREATE TABLE `admin_audit_logs` (
   `id` bigint(20) NOT NULL,
   `gym_id` int(11) DEFAULT NULL COMMENT 'NULL si el cambio lo hizo un superadmin global',
-  `admin_id` int(11) NOT NULL COMMENT 'Quién hizo el cambio',
+  `admin_id` int(11) DEFAULT NULL COMMENT 'Quién hizo el cambio (NULL si fue el sistema o cron)',
   `action_type` enum('INSERT','UPDATE','DELETE','LOGIN_FAILED','EXPORT_DATA') NOT NULL,
   `table_name` varchar(100) NOT NULL COMMENT 'En qué tabla ocurrió (ej. gyms, users, payments)',
   `record_id` varchar(255) DEFAULT NULL COMMENT 'ID del registro modificado',

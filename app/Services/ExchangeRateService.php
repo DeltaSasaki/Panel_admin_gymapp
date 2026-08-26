@@ -200,12 +200,8 @@ class ExchangeRateService
             $variationPercent = round((($newRate - $previousRate) / $previousRate) * 100, 2);
         }
 
-        // Deactivate previous active rates for this scope
-        if ($targetGymId) {
-            ExchangeRate::where('gym_id', $targetGymId)->update(['is_active' => 0]);
-        } else {
-            ExchangeRate::whereNull('gym_id')->update(['is_active' => 0]);
-        }
+        // Deactivate all previous exchange rates across the entire table so only the new one remains active
+        ExchangeRate::where('is_active', 1)->update(['is_active' => 0]);
 
         // Create new active exchange rate record
         $record = ExchangeRate::create([
@@ -278,12 +274,8 @@ class ExchangeRateService
             $variationPercent = round((($newRate - $previousRate) / $previousRate) * 100, 2);
         }
 
-        // Deactivate previous active rates for this scope
-        if ($targetGymId) {
-            ExchangeRate::where('gym_id', $targetGymId)->update(['is_active' => 0]);
-        } else {
-            ExchangeRate::whereNull('gym_id')->update(['is_active' => 0]);
-        }
+        // Deactivate all previous exchange rates across the entire table so only the new one remains active
+        ExchangeRate::where('is_active', 1)->update(['is_active' => 0]);
 
         $record = ExchangeRate::create([
             'gym_id' => $targetGymId,
