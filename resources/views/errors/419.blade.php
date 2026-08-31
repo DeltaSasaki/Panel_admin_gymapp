@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>419 - Sesión Expirada | GymFlow OS</title>
+    <title>419 - Sesión Expirada | Big World Fitness</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,7 +87,7 @@
 
         <!-- Footer Notice -->
         <p class="text-center text-[11px] text-slate-500">
-            GymFlow OS • Seguridad y Protección de Datos
+            Big World Fitness • Seguridad y Protección de Datos
         </p>
 
     </div>

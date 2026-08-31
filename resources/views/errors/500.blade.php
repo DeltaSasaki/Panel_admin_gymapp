@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>500 - Error Interno del Servidor | GymFlow OS</title>
+    <title>500 - Error Interno del Servidor | Big World Fitness</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,7 +87,7 @@
 
         <!-- Footer Notice -->
         <p class="text-center text-[11px] text-slate-500">
-            GymFlow OS • Centro de Soporte & Operaciones
+            Big World Fitness • Centro de Soporte & Operaciones
         </p>
 
     </div>

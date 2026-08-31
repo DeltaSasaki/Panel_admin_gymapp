@@ -582,12 +582,12 @@ class AdminController extends Controller
     {
         $gymId = $this->getActiveGymId();
 
-        $cliente = User::where('role', 'member')
-            ->when($gymId !== 'all', function ($q) use ($gymId) {
+        $cliente = User::when($gymId !== 'all' && auth()->user()->role !== 'superadmin', function ($q) use ($gymId) {
                 $q->where('gym_id', $gymId);
             })
             ->with([
                 'profile',
+                'gym',
                 'bodyMeasurements' => function ($q) {
                     $q->orderBy('measured_at', 'asc');
                 },
@@ -788,20 +788,39 @@ class AdminController extends Controller
     public function storeCliente(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
+            'email' => 'required|email|max:150|unique:users,email',
+            'password' => 'required|string|min:6',
             'first_name' => 'required|string|max:80',
             'last_name' => 'required|string|max:80',
             'dni' => 'required|string|max:20',
             'phone' => 'nullable|string|max:20',
             'birth_date' => 'nullable|date',
             'gender' => 'required|in:male,female,other',
-            'profile_photo' => 'nullable|url',
+            'profile_photo' => 'nullable|url|max:500',
+        ], [
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'Ingresa un formato de correo válido (ej: nombre@dominio.com).',
+            'email.unique' => 'Este correo electrónico ya está registrado por otro usuario.',
+            'email.max' => 'El correo no puede exceder los 150 caracteres.',
+            'password.required' => 'La contraseña de acceso es obligatoria.',
+            'password.min' => 'La contraseña debe contener al menos 6 caracteres.',
+            'first_name.required' => 'El nombre del cliente es obligatorio.',
+            'first_name.max' => 'El nombre no puede exceder los 80 caracteres.',
+            'last_name.required' => 'El apellido del cliente es obligatorio.',
+            'last_name.max' => 'El apellido no puede exceder los 80 caracteres.',
+            'dni.required' => 'La cédula o DNI es obligatoria.',
+            'dni.max' => 'La cédula o DNI no puede exceder los 20 caracteres.',
+            'phone.max' => 'El número telefónico no puede exceder los 20 caracteres.',
+            'birth_date.date' => 'La fecha de nacimiento debe ser una fecha válida.',
+            'gender.required' => 'Debes seleccionar el género del cliente.',
+            'gender.in' => 'El género seleccionado no es válido.',
+            'profile_photo.url' => 'La foto de perfil debe ser un enlace URL válido (ej: https://...).',
+            'profile_photo.max' => 'El enlace de la foto no puede exceder los 500 caracteres.',
         ]);
 
         $gymId = $this->getActiveGymId();
         if ($gymId === 'all') {
-            return redirect()->back()->withInput()->withErrors(['gym' => 'Debes seleccionar una sucursal específica para poder registrar un cliente.']);
+            return redirect()->back()->withInput()->withErrors(['error' => 'Debes seleccionar una sucursal específica en la barra superior para poder registrar un cliente.']);
         }
 
         try {
@@ -809,7 +828,7 @@ class AdminController extends Controller
 
             // Create User
             $user = User::create([
-                'email' => $request->email,
+                'email' => strtolower(trim($request->email)),
                 'password_hash' => Hash::make($request->password),
                 'role' => 'member',
                 'is_active' => 1,
@@ -820,10 +839,10 @@ class AdminController extends Controller
             // Create UserProfile
             $profile = UserProfile::create([
                 'user_id' => $user->id,
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'dni' => $request->dni,
-                'phone' => $request->phone,
+                'first_name' => trim($request->first_name),
+                'last_name' => trim($request->last_name),
+                'dni' => trim($request->dni),
+                'phone' => $request->phone ? trim($request->phone) : null,
                 'birth_date' => $request->birth_date,
                 'gender' => $request->gender,
                 'profile_photo' => $request->profile_photo ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100&auto=format&fit=crop',
@@ -854,13 +873,15 @@ class AdminController extends Controller
             // Check if it's a trigger exception (SQLSTATE 45000)
             if (preg_match("/SQLSTATE\[45000\]: [^:]+: (.+)/", $errorMessage, $matches)) {
                 $errorText = trim($matches[1]);
+            } elseif ($e->getCode() == 23000 || str_contains($errorMessage, 'Duplicate entry')) {
+                $errorText = 'Ya existe un registro con estos datos (correo electrónico o identificación duplicada).';
             } else {
-                $errorText = 'Error de base de datos al registrar el cliente. Verifique los límites de su plan.';
+                $errorText = 'No fue posible registrar al cliente debido a restricciones de datos o límites de la sucursal.';
             }
             return redirect()->back()->withInput()->withErrors(['error' => $errorText]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
-            return redirect()->back()->withInput()->withErrors(['error' => 'Error inesperado: ' . $e->getMessage()]);
+            return redirect()->back()->withInput()->withErrors(['error' => 'Ocurrió un inconveniente al guardar: ' . $e->getMessage()]);
         }
     }
 

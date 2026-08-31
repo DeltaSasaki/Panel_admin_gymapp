@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GymFlow OS - Acceso Administrativo</title>
+    <title>Big World Fitness - Acceso Administrativo</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,7 +50,7 @@
             
             <div>
                 <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                    GymFlow <span class="bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">OS</span>
+                    Big World <span class="bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">Fitness</span>
                 </h1>
                 <p class="text-xs text-slate-400 font-semibold tracking-wide uppercase mt-1">
                     Panel de Control y Administración
@@ -159,13 +159,16 @@
         </div>
 
         <!-- Minimalist System Footer -->
-        <div class="text-center space-y-1">
+        <div class="text-center space-y-1.5">
             <p class="text-[11px] text-slate-500 font-medium flex items-center justify-center gap-1.5">
-                <i data-lucide="lock" class="w-3 h-3 text-slate-600"></i>
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-slate-600"></i>
                 <span>Acceso restringido únicamente para personal autorizado</span>
             </p>
-            <p class="text-[10px] text-slate-600">
-                GymFlow OS • v2.4.0
+            <p class="text-xs text-slate-400 font-medium">
+                <span class="text-slate-300 font-bold">Big World Fitness</span> • Creado por 
+                <a href="https://www.corpoasia.net/" target="_blank" rel="noopener noreferrer" class="font-bold text-lime-400 hover:text-lime-300 transition-colors underline decoration-lime-500/40 hover:decoration-lime-300 underline-offset-2">Corpoasia</a>
+                &
+                <a href="https://prisma-code.vercel.app/" target="_blank" rel="noopener noreferrer" class="font-bold text-emerald-400 hover:text-emerald-300 transition-colors underline decoration-emerald-500/40 hover:decoration-emerald-300 underline-offset-2">Prisma Code</a>
             </p>
         </div>
 

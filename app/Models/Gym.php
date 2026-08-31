@@ -31,6 +31,16 @@ class Gym extends Model
         return $this->hasMany(User::class, 'gym_id');
     }
 
+    public function admin()
+    {
+        return $this->hasOne(User::class, 'gym_id')->where('role', 'admin');
+    }
+
+    public function admins()
+    {
+        return $this->hasMany(User::class, 'gym_id')->where('role', 'admin');
+    }
+
     public function plan()
     {
         return $this->belongsTo(SaasSubscriptionPlan::class, 'current_plan_id');

@@ -28,9 +28,13 @@
                          class="w-24 h-24 rounded-full object-cover mx-auto ring-4 ring-lime-500/20">
                     <span class="absolute bottom-0 right-2 w-4 h-4 {{ $cliente->is_active ? 'bg-emerald-500' : 'bg-slate-500' }} border-2 border-slate-900 rounded-full"></span>
                 </div>
-                <h2 class="text-xl font-bold text-slate-100 mt-4">{{ $cliente->profile->first_name }} {{ $cliente->profile->last_name }}</h2>
+                <h2 class="text-xl font-bold text-slate-100 mt-4">{{ $cliente->profile->first_name ?? 'Usuario' }} {{ $cliente->profile->last_name ?? '' }}</h2>
                 <span class="px-3 py-1 bg-lime-500/10 text-lime-400 border border-lime-500/20 text-xs font-semibold rounded-full mt-2 inline-block">
-                    {{ $cliente->role === 'member' ? 'Atleta' : 'Admin' }}
+                    @if($cliente->role === 'superadmin') SuperAdmin (Global)
+                    @elseif($cliente->role === 'admin') Administrador / Dueño
+                    @elseif($cliente->role === 'trainer') Entrenador (Staff)
+                    @elseif($cliente->role === 'cajero') Cajero (Recepción)
+                    @else Atleta (Socio) @endif
                 </span>
             </div>
 
@@ -61,7 +65,7 @@
                     <div>
                         <span class="block text-[10px] text-slate-500">DNI</span>
                         <span class="text-slate-200 font-medium">
-                            @if(auth()->user()->role === 'trainer' && $cliente->profile->dni)
+                            @if(auth()->user()->role === 'trainer' && ($cliente->profile->dni ?? null))
                                 {{ substr($cliente->profile->dni, 0, 2) . '•••' . substr($cliente->profile->dni, -2) }}
                             @else
                                 {{ $cliente->profile->dni ?? 'No registrado' }}
@@ -76,7 +80,7 @@
                     <div>
                         <span class="block text-[10px] text-slate-500">Teléfono</span>
                         <span class="text-slate-200 font-medium">
-                            @if(auth()->user()->role === 'trainer' && $cliente->profile->phone)
+                            @if(auth()->user()->role === 'trainer' && ($cliente->profile->phone ?? null))
                                 {{ substr($cliente->profile->phone, 0, 4) . ' •••• ' . substr($cliente->profile->phone, -3) }}
                             @else
                                 {{ $cliente->profile->phone ?? 'Sin teléfono' }}
@@ -93,12 +97,12 @@
                         @if(auth()->user()->role === 'trainer')
                             <span class="block text-[10px] text-slate-500">Edad Estimada</span>
                             <span class="text-slate-200 font-medium">
-                                {{ $cliente->profile->birth_date ? \Carbon\Carbon::parse($cliente->profile->birth_date)->age . ' años' : 'No registrada' }}
+                                {{ ($cliente->profile->birth_date ?? null) ? \Carbon\Carbon::parse($cliente->profile->birth_date)->age . ' años' : 'No registrada' }}
                             </span>
                         @else
                             <span class="block text-[10px] text-slate-500">Fecha de Nacimiento</span>
                             <span class="text-slate-200 font-medium">
-                                {{ $cliente->profile->birth_date ? \Carbon\Carbon::parse($cliente->profile->birth_date)->format('d M, Y') : 'No registrada' }}
+                                {{ ($cliente->profile->birth_date ?? null) ? \Carbon\Carbon::parse($cliente->profile->birth_date)->format('d M, Y') : 'No registrada' }}
                             </span>
                         @endif
                     </div>
@@ -111,9 +115,9 @@
                     <div>
                         <span class="block text-[10px] text-slate-500">Género</span>
                         <span class="text-slate-200 font-medium uppercase text-xs">
-                            @if($cliente->profile->gender === 'male') Masculino 
-                            @elseif($cliente->profile->gender === 'female') Femenino 
-                            @else Otro @endif
+                            @if(($cliente->profile->gender ?? null) === 'male') Masculino 
+                            @elseif(($cliente->profile->gender ?? null) === 'female') Femenino 
+                            @else No especificado @endif
                         </span>
                     </div>
                 </div>

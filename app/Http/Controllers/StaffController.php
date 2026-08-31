@@ -53,7 +53,7 @@ class StaffController extends Controller
             'routines'
         ]);
 
-        if ($gymId !== 'all') {
+        if ($gymId !== 'all' && auth()->user()->role !== 'superadmin') {
             $query->where('gym_id', $gymId);
         }
 

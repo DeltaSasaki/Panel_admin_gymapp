@@ -99,7 +99,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'GymOS') - Panel de Administración</title>
+    <title>@yield('title', 'Big World Fitness') - Panel de Administración</title>
 
     <!-- Font Size Accessibility Scaler (Text-Only Scaling) -->
     <style id="typography-font-scaler">
@@ -489,7 +489,7 @@
                         <i data-lucide="dumbbell" class="w-6 h-6"></i>
                     </div>
                 @endif
-                <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
+                <span class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-lime-400 to-emerald-400 bg-clip-text text-transparent">BIG WORLD FITNESS</span>
             </div>
             <button id="mobile-menu-btn" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-slate-100 focus:outline-none focus:ring-2 focus:ring-lime-500">
                 <i data-lucide="menu" class="w-6 h-6"></i>
@@ -511,7 +511,7 @@
                         </div>
                     @endif
                     <div>
-                        <span class="font-black text-xl tracking-tight bg-gradient-to-r from-lime-400 via-lime-500 to-emerald-400 bg-clip-text text-transparent">GYMFLOW</span>
+                        <span class="font-black text-xl tracking-tight bg-gradient-to-r from-lime-400 via-lime-500 to-emerald-400 bg-clip-text text-transparent">BIG WORLD FITNESS</span>
                         <span class="block text-[9px] uppercase font-bold text-slate-400 tracking-wider truncate max-w-[170px] mt-0.5" title="{{ $activeGymName }}">
                             {{ $activeGymName }}
                         </span>
@@ -905,8 +905,8 @@
             <header class="sticky top-0 z-20 bg-slate-950/85 backdrop-blur-md border-b border-slate-800/60 px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between w-full">
                 
                 <!-- Quick Search & Gym Switcher for Superadmin -->
-                <div class="flex items-center gap-3 lg:gap-4 flex-1 max-w-2xl min-w-0">
-                    <form action="{{ route('global.search') }}" method="GET" class="relative w-full max-w-sm sm:max-w-md lg:max-w-lg m-0" id="global-search-form">
+                <div class="flex items-center gap-2.5 sm:gap-3 lg:gap-4 flex-1 min-w-0">
+                    <form action="{{ route('global.search') }}" method="GET" class="relative w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg m-0" id="global-search-form">
                         <i data-lucide="search" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
                         <input type="text" 
                                name="q" 
@@ -934,35 +934,23 @@
                             $allGyms = \App\Models\Gym::orderBy('name')->get();
                             $activeGymId = session('superadmin_gym_id', 'all');
                         @endphp
-                        <div class="hidden xl:flex items-center gap-2 shrink-0">
-                            <label for="gym_id" class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Sucursal:</label>
-                            <select name="gym_id" id="gym_id" onchange="switchGymContext(this.value)" class="text-xs bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer">
-                                <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas las Sucursales</option>
-                                @foreach($allGyms as $g)
-                                    <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
-                                        {{ $g->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                    @endif
-                </div>
-
-                <div class="sm:hidden text-sm font-semibold text-slate-400 flex items-center gap-2">
-                    @if(auth()->user()->role === 'superadmin')
-                        @php
-                            $allGyms = \App\Models\Gym::orderBy('name')->get();
-                            $activeGymId = session('superadmin_gym_id', 'all');
-                        @endphp
-                        <div class="flex items-center gap-1.5">
-                            <select name="gym_id" id="gym_id_mobile" onchange="switchGymContext(this.value)" class="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-lime-400 font-bold focus:outline-none cursor-pointer">
-                                <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>Todas</option>
-                                @foreach($allGyms as $g)
-                                    <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
-                                        {{ $g->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <div class="relative flex items-center">
+                                <div class="absolute left-2.5 pointer-events-none text-lime-400">
+                                    <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <select name="gym_id" id="gym_id" onchange="switchGymContext(this.value)" class="text-xs bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-lime-500/40 rounded-xl pl-8 pr-7 py-2 text-lime-400 font-bold focus:outline-none focus:border-lime-500 transition-all cursor-pointer shadow-sm appearance-none max-w-[150px] sm:max-w-[200px] md:max-w-[260px] truncate" title="Seleccionar sucursal de trabajo">
+                                    <option value="all" {{ $activeGymId === 'all' ? 'selected' : '' }}>🏢 Todas las Sucursales</option>
+                                    @foreach($allGyms as $g)
+                                        <option value="{{ $g->id }}" {{ $activeGymId == $g->id ? 'selected' : '' }}>
+                                            📍 {{ $g->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="absolute right-2.5 pointer-events-none text-slate-500">
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                </div>
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -1059,8 +1047,14 @@
             </main>
 
             <!-- Footer -->
-            <footer class="mt-auto py-6 px-8 border-t border-slate-900/60 text-center text-xs text-slate-500">
-                <p>&copy; {{ date('Y') }} GymFlow OS. Creado para entrenadores de élite.</p>
+            <footer class="mt-auto py-6 px-8 border-t border-slate-900/60 text-center text-xs text-slate-500 space-y-1.5">
+                <p>&copy; {{ date('Y') }} <strong class="text-slate-300 font-bold">Big World Fitness</strong>. Todos los derechos reservados.</p>
+                <p class="text-[11px] text-slate-400 font-medium">
+                    Creado por 
+                    <a href="https://www.corpoasia.net/" target="_blank" rel="noopener noreferrer" class="font-bold text-lime-400 hover:text-lime-300 transition-colors underline decoration-lime-500/40 hover:decoration-lime-300 underline-offset-2">Corpoasia</a>
+                    &
+                    <a href="https://prisma-code.vercel.app/" target="_blank" rel="noopener noreferrer" class="font-bold text-emerald-400 hover:text-emerald-300 transition-colors underline decoration-emerald-500/40 hover:decoration-emerald-300 underline-offset-2">Prisma Code</a>
+                </p>
             </footer>
 
         </div>
@@ -1218,6 +1212,10 @@
             // Global Click outside dialog backdrop listener
             document.addEventListener('click', function(e) {
                 if (e.target && e.target.id && e.target.id !== 'sidebar-overlay' && (e.target.classList && e.target.classList.contains('fixed') && e.target.classList.contains('inset-0')) && !e.target.classList.contains('hidden') && e.target.style.display !== 'none') {
+                    // Prevent closing if modal explicitly has data-no-backdrop-close="true" or data-backdrop="static"
+                    if (e.target.getAttribute('data-no-backdrop-close') === 'true' || e.target.getAttribute('data-backdrop') === 'static') {
+                        return;
+                    }
                     // Clicked directly on the modal backdrop container (not on inner card or inputs)
                     window.toggleModal(e.target.id);
                 }
@@ -1655,19 +1653,11 @@
     <script>
         function switchGymContext(gymId) {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const selectEl = document.getElementById('gym_id');
+            if (selectEl) selectEl.disabled = true;
+
             const formData = new FormData();
             formData.append('gym_id', gymId);
-
-            // Sync selectors visually
-            const selectDesktop = document.getElementById('gym_id');
-            const selectMobile = document.getElementById('gym_id_mobile');
-            if (selectDesktop) selectDesktop.value = gymId;
-            if (selectMobile) selectMobile.value = gymId;
-
-            // 1. Immediately update Aforo UI via AJAX with explicit gymId
-            if (typeof fetchAforoData === 'function') {
-                fetchAforoData(gymId);
-            }
 
             fetch('/superadmin/switch-gym', {
                 method: 'POST',
@@ -1680,15 +1670,28 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) {
-                    if (typeof fetchAforoData === 'function') {
-                        fetchAforoData(gymId);
-                    }
-                    window.location.reload();
-                }
+                window.location.reload();
             })
-            .catch(err => console.error('Error al cambiar sucursal:', err));
+            .catch(err => {
+                console.error('Error al cambiar sucursal:', err);
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/superadmin/switch-gym';
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = '_token';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+                const gymInput = document.createElement('input');
+                gymInput.type = 'hidden';
+                gymInput.name = 'gym_id';
+                gymInput.value = gymId;
+                form.appendChild(gymInput);
+                document.body.appendChild(form);
+                form.submit();
+            });
         }
+        window.switchGymContext = switchGymContext;
 
         window.toggleNotificationsDropdown = function(event) {
             if (event) {

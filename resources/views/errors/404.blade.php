@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Página No Encontrada | GymFlow OS</title>
+    <title>404 - Página No Encontrada | Big World Fitness</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,8 +87,9 @@
         </div>
 
         <!-- Footer Notice -->
-        <p class="text-center text-[11px] text-slate-500">
-            GymFlow OS • Plataforma Integral de Gestión y Control Deportivo
+        <p class="text-center text-[11px] text-slate-500 space-y-1">
+            <span><strong class="text-slate-400">Big World Fitness</strong> • Plataforma Integral de Gestión Deportiva</span><br>
+            <span>Creado por <a href="https://www.corpoasia.net/" target="_blank" rel="noopener noreferrer" class="font-bold text-lime-400 hover:text-lime-300 transition-colors underline decoration-lime-500/40">Corpoasia</a> & <a href="https://prisma-code.vercel.app/" target="_blank" rel="noopener noreferrer" class="font-bold text-emerald-400 hover:text-emerald-300 transition-colors underline decoration-emerald-500/40">Prisma Code</a></span>
         </p>
 
     </div>

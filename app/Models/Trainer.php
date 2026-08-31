@@ -60,7 +60,7 @@ class Trainer extends Model
 
     public function routines()
     {
-        return $this->hasMany(WorkoutRoutine::class, 'created_by');
+        return $this->hasMany(WorkoutRoutine::class, 'created_by', 'user_id');
     }
 
     public function getFullNameAttribute()

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>503 - Sistema en Mantenimiento | GymFlow OS</title>
+    <title>503 - Sistema en Mantenimiento | Big World Fitness</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -82,7 +82,7 @@
 
         <!-- Footer Notice -->
         <p class="text-center text-[11px] text-slate-500">
-            GymFlow OS • Mantenimiento Programado
+            Big World Fitness • Mantenimiento Programado
         </p>
 
     </div>
